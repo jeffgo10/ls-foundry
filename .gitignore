@@ -6,3 +6,4 @@ out
 *.tsbuildinfo
 .env*.local
 .DS_Store
+.npmrc

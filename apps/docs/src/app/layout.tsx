@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ls-foundry — GL viewer",
-  description: "Showcase for @ls-foundry/gl-viewer",
+  description: "Showcase for @jeffgo10/gl-viewer",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

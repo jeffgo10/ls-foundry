@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 
 const GlbViewer = dynamic(
-  () => import("@ls-foundry/gl-viewer").then((m) => m.GlbViewer),
+  () => import("@jeffgo10/gl-viewer").then((m) => m.GlbViewer),
   {
     ssr: false,
     loading: () => (
@@ -15,5 +15,5 @@ const GlbViewer = dynamic(
 );
 
 export default function LidarSprayViewerSection() {
-  return <GlbViewer src="/spray.glb" className="w-full" />;
+  return <GlbViewer src="/spray.glb" className="rounded-xl border border-white/10" />;
 }

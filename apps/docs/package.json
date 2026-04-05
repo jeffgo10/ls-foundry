@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ls-foundry/gl-viewer": "workspace:*",
+    "@jeffgo10/gl-viewer": "workspace:*",
     "next": "^15.3.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

@@ -1,22 +1,54 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
+export type GlbViewerViewMode = "orbit" | "space" | "walk";
+
+const DEFAULT_BLOCK_STYLE: CSSProperties = {
+  height: "min(70vh, 560px)",
+  minHeight: "min(70vh, 560px)",
+};
+
 export type GlbViewerProps = {
   /** Public URL, e.g. `/spray.glb` */
   src: string;
+  /** Wrapper classes (border, radius, …). */
   className?: string;
+  /** Merged over default sizing; set `height` / `minHeight` to override the default block size. */
+  style?: CSSProperties;
+  /**
+   * Use `h-full min-h-0` and skip default block height; parent must define height (flex/grid).
+   */
+  fitParent?: boolean;
+  /** Orbit, space (AR-capable preview), or first-person walk. Default `"orbit"`. */
+  viewMode?: GlbViewerViewMode;
+  /** Model finished loading and is visible. */
+  onLoad?: () => void;
+  /** Model failed to load (network / parse / missing file). */
+  onError?: (message: string) => void;
+  /** Loading state for optional parent UI. */
+  onLoadingChange?: (loading: boolean) => void;
+  /** `enterAr()` failed (unsupported device, permission, etc.). */
+  onArError?: (message: string) => void;
+  /** WebXR immersive AR session started or ended. */
+  onArSessionChange?: (presenting: boolean) => void;
 };
 
-type ViewMode = "orbit" | "space" | "walk";
+export type GlbViewerHandle = {
+  enterAr: () => void;
+  exitAr: () => void;
+};
+
+type ViewMode = GlbViewerViewMode;
 
 type ViewApi = {
   applyMode: (m: ViewMode) => void;
-  startAr: (overlayRoot: HTMLElement) => Promise<void>;
+  startAr: (overlayRoot: HTMLElement | null) => Promise<void>;
   endAr: () => void;
 };
 
@@ -78,38 +110,66 @@ async function requestImmersiveArSession(overlayRoot: HTMLElement | null): Promi
   throw lastErr instanceof Error ? lastErr : new Error("Could not start AR session.");
 }
 
-export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
+const GlbViewer = forwardRef<GlbViewerHandle, GlbViewerProps>(function GlbViewer(
+  {
+    src,
+    className = "",
+    style,
+    fitParent = false,
+    viewMode = "orbit",
+    onLoad,
+    onError,
+    onLoadingChange,
+    onArError,
+    onArSessionChange,
+  },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const arOverlayRef = useRef<HTMLDivElement>(null);
-  const modeRef = useRef<ViewMode>("orbit");
+  const modeRef = useRef<ViewMode>(viewMode);
   const viewApiRef = useRef<ViewApi | null>(null);
 
-  const [mode, setMode] = useState<ViewMode>("orbit");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [hint, setHint] = useState<string | null>(null);
-  const [xrSupported, setXrSupported] = useState<boolean | null>(null);
-  const [arPresenting, setArPresenting] = useState(false);
-  const [arError, setArError] = useState<string | null>(null);
+  const onLoadRef = useRef(onLoad);
+  const onErrorRef = useRef(onError);
+  const onLoadingChangeRef = useRef(onLoadingChange);
+  const onArErrorRef = useRef(onArError);
+  const onArSessionChangeRef = useRef(onArSessionChange);
+  onLoadRef.current = onLoad;
+  onErrorRef.current = onError;
+  onLoadingChangeRef.current = onLoadingChange;
+  onArErrorRef.current = onArError;
+  onArSessionChangeRef.current = onArSessionChange;
 
-  modeRef.current = mode;
-
-  useEffect(() => {
-    if (!navigator.xr?.isSessionSupported) {
-      setXrSupported(false);
-      return;
-    }
-    navigator.xr
-      .isSessionSupported("immersive-ar")
-      .then(setXrSupported)
-      .catch(() => setXrSupported(false));
-  }, []);
+  modeRef.current = viewMode;
 
   useEffect(() => {
-    if (mode !== "space") {
+    if (viewMode !== "space") {
       viewApiRef.current?.endAr();
     }
-  }, [mode]);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== "walk") {
+      document.exitPointerLock?.();
+    }
+  }, [viewMode]);
+
+  const enterAr = useCallback(() => {
+    void viewApiRef.current?.startAr(null);
+  }, []);
+
+  const exitAr = useCallback(() => {
+    viewApiRef.current?.endAr();
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      enterAr,
+      exitAr,
+    }),
+    [enterAr, exitAr]
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -246,24 +306,6 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
-    const onPointerLockChange = () => {
-      if (modeRef.current === "walk") {
-        if (document.pointerLockElement !== renderer.domElement) {
-          setHint("Click the viewport to capture the mouse and look around.");
-        } else {
-          setHint(null);
-        }
-      } else {
-        setHint(null);
-      }
-    };
-    document.addEventListener("pointerlockchange", onPointerLockChange);
-
-    const onPointerLockError = () => {
-      setHint("Could not lock pointer — try clicking again.");
-    };
-    document.addEventListener("pointerlockerror", onPointerLockError);
-
     const onCanvasClick = () => {
       if (modeRef.current === "walk" && !pointerLock.isLocked) {
         pointerLock.lock();
@@ -301,8 +343,7 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
       hitTestSource?.cancel();
       hitTestSource = null;
       reticle.visible = false;
-      setArPresenting(true);
-      setArError(null);
+      onArSessionChangeRef.current?.(true);
     };
 
     const onSessionEnd = () => {
@@ -316,7 +357,7 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
       modelRoot.position.set(0, 0, 0);
       modelRoot.quaternion.identity();
       modelRoot.scale.set(1, 1, 1);
-      setArPresenting(false);
+      onArSessionChangeRef.current?.(false);
       viewApiRef.current?.applyMode(modeRef.current);
     };
 
@@ -341,15 +382,14 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
       if (!cancelled) resize();
     });
 
-    const startAr = async (overlayRoot: HTMLElement) => {
-      setArError(null);
+    const startAr = async (overlayRoot: HTMLElement | null) => {
       if (renderer.xr.isPresenting) return;
       try {
         const session = await requestImmersiveArSession(overlayRoot);
         renderer.xr.setReferenceSpaceType("local-floor");
         await renderer.xr.setSession(session);
       } catch (e) {
-        setArError(e instanceof Error ? e.message : "Could not start AR.");
+        onArErrorRef.current?.(e instanceof Error ? e.message : "Could not start AR.");
       }
     };
 
@@ -375,6 +415,7 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
 
     viewApiRef.current = { applyMode, startAr, endAr };
 
+    onLoadingChangeRef.current?.(true);
     const loader = new GLTFLoader();
     loader.load(
       src,
@@ -411,14 +452,14 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
         resize();
         orbit.update();
 
-        setLoading(false);
-        setError(null);
+        onLoadingChangeRef.current?.(false);
+        onLoadRef.current?.();
       },
       undefined,
       () => {
         if (cancelled) return;
-        setLoading(false);
-        setError(
+        onLoadingChangeRef.current?.(false);
+        onErrorRef.current?.(
           `Could not load ${src}. Place the file under public/ (e.g. public/spray.glb) and refresh.`
         );
       }
@@ -486,6 +527,7 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
 
     return () => {
       cancelled = true;
+      onLoadingChangeRef.current?.(false);
       renderer.xr.removeEventListener("sessionstart", onSessionStart);
       renderer.xr.removeEventListener("sessionend", onSessionEnd);
       activeXRSession?.removeEventListener("select", onXrSelect);
@@ -494,8 +536,6 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
       viewApiRef.current = null;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      document.removeEventListener("pointerlockchange", onPointerLockChange);
-      document.removeEventListener("pointerlockerror", onPointerLockError);
       renderer.domElement.removeEventListener("click", onCanvasClick);
       ro.disconnect();
       pointerLock.dispose();
@@ -515,145 +555,20 @@ export default function GlbViewer({ src, className = "" }: GlbViewerProps) {
   }, [src]);
 
   useEffect(() => {
-    viewApiRef.current?.applyMode(mode);
-  }, [mode]);
+    viewApiRef.current?.applyMode(viewMode);
+  }, [viewMode]);
 
-  const selectOrbit = useCallback(() => {
-    setMode("orbit");
-    document.exitPointerLock?.();
-    setHint(null);
-    setArError(null);
-  }, []);
-
-  const selectSpace = useCallback(() => {
-    setMode("space");
-    document.exitPointerLock?.();
-    setHint(null);
-    setArError(null);
-  }, []);
-
-  const selectWalk = useCallback(() => {
-    setMode("walk");
-    document.exitPointerLock?.();
-    setHint("Click the viewport to capture the mouse and look around.");
-  }, []);
-
-  const enterAr = useCallback(() => {
-    const overlay = arOverlayRef.current;
-    if (!overlay) return;
-    void viewApiRef.current?.startAr(overlay);
-  }, []);
-
-  const exitAr = useCallback(() => {
-    viewApiRef.current?.endAr();
-  }, []);
-
-  const modeHint =
-    mode === "orbit"
-      ? "Drag to rotate · scroll to zoom"
-      : mode === "space"
-        ? arPresenting
-          ? "Aim at a floor or table · tap to place · then move around the object"
-          : xrSupported === false
-            ? "WebXR AR not available here — try Chrome on Android (HTTPS)"
-            : "Preview below · Enter AR to place the object in your room"
-        : "WASD move · Space / Shift up / down · mouse to look";
+  const mergedStyle: CSSProperties | undefined = fitParent
+    ? { ...style }
+    : { ...DEFAULT_BLOCK_STYLE, ...style };
 
   return (
-    <div className={`relative flex flex-col ${className}`}>
-      <div
-        ref={arOverlayRef}
-        className={`fixed inset-0 z-[100] flex flex-col items-center justify-end bg-transparent pb-10 sm:pb-14 transition-opacity duration-200 ${
-          arPresenting ? "pointer-events-none opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        aria-hidden={!arPresenting}
-      >
-        <div className="pointer-events-auto mx-4 max-w-md rounded-lg border border-white/20 bg-black/75 px-4 py-3 text-center text-[11px] leading-relaxed text-white/80">
-          <p>
-            Move your phone to find a surface. Tap the screen to place the object. Walk around it in real
-            space.
-          </p>
-          <button
-            type="button"
-            onClick={exitAr}
-            className="mt-3 rounded-full border border-white/25 px-4 py-1.5 text-[10px] tracking-[0.2em] text-white/90 transition hover:bg-white/10"
-          >
-            EXIT AR
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[10px] tracking-[0.2em] text-white/45">VIEW</span>
-        <div className="flex flex-wrap rounded-full border border-white/15 bg-black/40 p-0.5 text-[10px] tracking-[0.18em]">
-          <button
-            type="button"
-            onClick={selectOrbit}
-            className={`rounded-full px-2.5 py-1.5 transition sm:px-3 ${
-              mode === "orbit" ? "bg-white/15 text-white" : "text-white/55 hover:text-white/80"
-            }`}
-          >
-            ORBIT
-          </button>
-          <button
-            type="button"
-            onClick={selectSpace}
-            className={`rounded-full px-2.5 py-1.5 transition sm:px-3 ${
-              mode === "space" ? "bg-white/15 text-white" : "text-white/55 hover:text-white/80"
-            }`}
-          >
-            SPACE
-          </button>
-          <button
-            type="button"
-            onClick={selectWalk}
-            className={`rounded-full px-2.5 py-1.5 transition sm:px-3 ${
-              mode === "walk" ? "bg-white/15 text-white" : "text-white/55 hover:text-white/80"
-            }`}
-          >
-            WALK
-          </button>
-        </div>
-        <span className="text-[10px] text-white/35">{modeHint}</span>
-      </div>
-
-      {mode === "space" && !loading && !error ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={enterAr}
-            disabled={xrSupported === false || xrSupported === null || arPresenting}
-            className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-4 py-2 text-[10px] tracking-[0.18em] text-emerald-100/90 transition enabled:hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            ENTER AR
-          </button>
-          {xrSupported === null ? (
-            <span className="text-[10px] text-white/35">Checking AR support…</span>
-          ) : null}
-          {arError ? <span className="text-[10px] text-rose-300/90">{arError}</span> : null}
-        </div>
-      ) : null}
-
-      <div
-        ref={containerRef}
-        className="relative isolate z-[1] h-[min(70vh,560px)] w-full max-w-full overflow-hidden rounded-xl border border-white/10 bg-[#070708]"
-      >
-        {loading ? (
-          <div className="absolute inset-0 z-[2] flex items-center justify-center bg-[#070708] text-xs tracking-[0.2em] text-white/40">
-            LOADING MODEL…
-          </div>
-        ) : null}
-        {error ? (
-          <div className="absolute inset-0 z-[2] flex items-center justify-center bg-[#070708] p-6 text-center text-sm text-rose-200/80">
-            {error}
-          </div>
-        ) : null}
-        {hint && !error ? (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-[3] max-w-[90%] -translate-x-1/2 rounded-md bg-black/70 px-3 py-2 text-center text-[11px] text-white/70">
-            {hint}
-          </div>
-        ) : null}
-      </div>
-    </div>
+    <div
+      ref={containerRef}
+      style={mergedStyle}
+      className={`relative isolate w-full min-w-0 bg-[#070708] ${fitParent ? "h-full min-h-0" : ""} ${className}`.trim()}
+    />
   );
-}
+});
+
+export default GlbViewer;
