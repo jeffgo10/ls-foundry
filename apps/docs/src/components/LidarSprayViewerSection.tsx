@@ -14,6 +14,8 @@ const GlbViewer = dynamic(
   }
 );
 
-export default function LidarSprayViewerSection() {
+function LidarSprayViewerSection() {
   return <GlbViewer src="/spray.glb" className="rounded-xl border border-white/10" />;
 }
+
+export default LidarSprayViewerSection;

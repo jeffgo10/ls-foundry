@@ -1,6 +1,7 @@
+import Link from "next/link";
 import LidarSprayViewerSection from "@/components/LidarSprayViewerSection";
 
-export default function HomePage() {
+function HomePage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
       <header className="mb-10">
@@ -12,8 +13,16 @@ export default function HomePage() {
           <code className="text-white/70">public/spray.glb</code> (or change the{" "}
           <code className="text-white/70">src</code> prop) to load your model.
         </p>
+        <Link
+          href="/stickpak"
+          className="mt-4 inline-block text-xs tracking-[0.15em] text-white/40 underline-offset-4 hover:text-white/70 hover:underline"
+        >
+          StickPak canvas designer →
+        </Link>
       </header>
       <LidarSprayViewerSection />
     </main>
   );
 }
+
+export default HomePage;

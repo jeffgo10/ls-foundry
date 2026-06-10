@@ -15,8 +15,14 @@ Repository: [github.com/jeffgo10/ls-foundry](https://github.com/jeffgo10/ls-foun
 ls-foundry/
 ├── apps/
 │   └── docs/                 # Next.js showcase
+├── docs/
+│   └── stickpak/             # StickPak roadmap + Phase 1 notes (from Obsidian)
 ├── packages/
 │   ├── gl-viewer/            # @jeffgo10/gl-viewer — GLB / LiDAR viewer
+│   ├── helpers/              # @ls-foundry/helpers — shared utilities (e.g. ./image)
+│   ├── shared-types/         # @ls-foundry/shared-types — StickPak canvas layout types
+│   ├── react-canvas-designer/# @ls-foundry/react-canvas-designer — 72 DPI Konva designer
+│   ├── canvas-upscaler/      # @ls-foundry/canvas-upscaler — 300 DPI print upscaler
 │   ├── config-ts/            # Shared TS configs (@ls-foundry/tsconfig)
 │   ├── maps/                 # placeholder
 │   ├── ui/                   # placeholder
@@ -48,6 +54,16 @@ pnpm run dev --filter=@ls-foundry/docs
 ```
 
 Open the URL shown in the terminal (default port 3000). Place assets such as `spray.glb` under `apps/docs/public/` when testing local GLB paths.
+
+## StickPak (Phase 1)
+
+Planning notes and the Phase 1 core engine live in [docs/stickpak](./docs/stickpak/README.md). Phase 1 packages:
+
+| Package | Description |
+|---------|-------------|
+| `@ls-foundry/shared-types` | Canvas layout JSON schema and A4 DPI constants |
+| `@ls-foundry/react-canvas-designer` | Drag-and-drop 72 DPI A4 Konva canvas |
+| `@ls-foundry/canvas-upscaler` | Node utility to render 300 DPI print PNGs |
 
 ## Packages
 

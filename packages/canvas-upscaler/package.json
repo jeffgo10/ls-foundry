@@ -1,0 +1,37 @@
+{
+  "name": "@ls-foundry/canvas-upscaler",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Map StickPak 72 DPI layout JSON to a 300 DPI print PNG",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "test:export": "tsx scripts/test-export.ts",
+    "test:json": "tsx scripts/upscale-from-json.ts"
+  },
+  "dependencies": {
+    "@ls-foundry/shared-types": "workspace:*",
+    "canvas": "^3.1.0"
+  },
+  "devDependencies": {
+    "@ls-foundry/tsconfig": "workspace:*",
+    "@types/node": "^22.15.3",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
