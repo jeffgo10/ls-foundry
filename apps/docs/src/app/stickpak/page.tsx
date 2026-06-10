@@ -10,7 +10,7 @@ function StickPakPage() {
           Canvas designer
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/50">
-          Phase 1 browser test for <code className="text-white/70">@ls-foundry/react-canvas-designer</code>.
+          Phase 1 browser test for <code className="text-white/70">@jeffgo10/react-canvas-designer</code>.
           Drop sticker images onto the 72 DPI A4 canvas, drag them into place, then export layout JSON.
         </p>
         <Link

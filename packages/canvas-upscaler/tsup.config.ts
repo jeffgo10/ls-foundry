@@ -7,5 +7,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ["canvas", "@ls-foundry/shared-types"],
+  external: ["canvas", "@jeffgo10/shared-types"],
 });

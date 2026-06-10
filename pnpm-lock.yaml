@@ -20,10 +20,10 @@ importers:
       '@jeffgo10/gl-viewer':
         specifier: workspace:*
         version: link:../../packages/gl-viewer
-      '@ls-foundry/react-canvas-designer':
+      '@jeffgo10/react-canvas-designer':
         specifier: workspace:*
         version: link:../../packages/react-canvas-designer
-      '@ls-foundry/shared-types':
+      '@jeffgo10/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
       konva:
@@ -81,7 +81,7 @@ importers:
 
   packages/canvas-upscaler:
     dependencies:
-      '@ls-foundry/shared-types':
+      '@jeffgo10/shared-types':
         specifier: workspace:*
         version: link:../shared-types
       canvas:
@@ -152,10 +152,10 @@ importers:
 
   packages/react-canvas-designer:
     dependencies:
-      '@ls-foundry/helpers':
+      '@jeffgo10/helpers':
         specifier: workspace:*
         version: link:../helpers
-      '@ls-foundry/shared-types':
+      '@jeffgo10/shared-types':
         specifier: workspace:*
         version: link:../shared-types
     devDependencies:

@@ -1,4 +1,4 @@
 export type {
   CanvasLayoutAsset,
   CanvasLayoutExport,
-} from "@ls-foundry/shared-types";
+} from "@jeffgo10/shared-types";

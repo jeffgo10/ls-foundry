@@ -9,12 +9,12 @@ By physically splitting the codebase into a core reusable engine and a domain-sp
 **Goal:** Build the math and visual foundation. This phase knows nothing about cloud infrastructure, users, or payments. It only cares about pixels, coordinates, and dragging images.
 
 - **1.1 Workspace Setup:** Initialize Turborepo or pnpm workspaces in `ls-foundry`.
-- **1.2 Types Package (`@ls-foundry/shared-types`):** Define the exact JSON schema for the canvas layout. It should require an array of objects containing `assetId`, `x`, `y`, `scaleX`, `scaleY`, and `rotation`.
-- **1.3 The Frontend Canvas UI (`@ls-foundry/react-canvas-designer`):**
+- **1.2 Types Package (`@jeffgo10/shared-types`):** Define the exact JSON schema for the canvas layout. It should require an array of objects containing `assetId`, `x`, `y`, `scaleX`, `scaleY`, and `rotation`.
+- **1.3 The Frontend Canvas UI (`@jeffgo10/react-canvas-designer`):**
   - Set up a `react-konva` Stage locked to a 72 DPI A4 aspect ratio.
   - Implement `react-dropzone` to catch dropped images and render them as Konva `<Image draggable />` nodes.
   - Bind an `onExport` function that generates the state JSON payload based on the types package.
-- **1.4 The Backend Math Upscaler (`@ls-foundry/canvas-upscaler`):**
+- **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler`):**
   - Write a pure Node.js utility utilizing `automattic/node-canvas`.
   - Implement the translation matrix: map the 72 DPI JSON coordinates onto a headless 300 DPI canvas (2481 × 3507 pixels).
   - Create a local testing script to verify that a downloaded test layout mathematically aligns perfectly when exported as a high-res local PNG.
@@ -28,7 +28,7 @@ See [phase-1.md](./phase-1.md) for package locations and implementation status i
 - **2.1 Repository & App Initialization:**
   - Create the `sticker-print-app` repository.
   - Scaffold two React applications: `apps/storefront` and `apps/admin-dashboard`.
-  - Link the local `@ls-foundry` packages as dependencies.
+  - Link the local `@jeffgo10` packages as dependencies.
 - **2.2 AWS CDK Definition (`packages/infra`):**
   - Define two `aws_s3.Bucket` resources (High-Res Source Uploads & Protected Print Outputs).
   - Define an `aws_dynamodb.Table` with a Single-Table Design (Partition Key: `PK`, Sort Key: `SK`) to handle both customer order lookups and admin global queries.
@@ -49,7 +49,7 @@ See [phase-1.md](./phase-1.md) for package locations and implementation status i
   - Define standard `Customers` and `Admins` User Groups.
   - Integrate AWS Amplify Auth into both React apps for smooth login flows.
 - **3.2 The Storefront Integration:**
-  - Embed `@ls-foundry/react-canvas-designer` into the `storefront` checkout flow.
+  - Embed `@jeffgo10/react-canvas-designer` into the `storefront` checkout flow.
 - **3.3 Regional Delivery Mapping:**
   - Hardcode or store pricing variables in DynamoDB for the specific delivery perimeter.
   - Create a checkout UI that dynamically updates the total order cost based on the selected dropdown zone: Dumaguete City Proper, Sibulan, Valencia, or Bacong.
@@ -66,7 +66,7 @@ See [phase-1.md](./phase-1.md) for package locations and implementation status i
   - When the webhook fires, the Lambda validates the signature, marks the DynamoDB order record as `PAID`, and pushes an event payload containing the layout JSON and `orderId` into the SQS Queue.
 - **4.3 The Serverless Print Worker:**
   - Bind the background Lambda worker to the SQS queue.
-  - When triggered, the worker imports `@ls-foundry/canvas-upscaler`, downloads the high-res source assets from S3 into memory, runs the math, generates the 300 DPI composite, and uploads the final print-ready PNG to the protected S3 output bucket.
+  - When triggered, the worker imports `@jeffgo10/canvas-upscaler`, downloads the high-res source assets from S3 into memory, runs the math, generates the 300 DPI composite, and uploads the final print-ready PNG to the protected S3 output bucket.
 
 ## Phase 5: The Admin Command Center
 

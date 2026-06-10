@@ -1,8 +1,13 @@
 {
-  "name": "@ls-foundry/canvas-upscaler",
+  "name": "@jeffgo10/canvas-upscaler",
   "version": "0.1.0",
-  "private": true,
   "description": "Map StickPak 72 DPI layout JSON to a 300 DPI print PNG",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeffgo10/ls-foundry.git",
+    "directory": "packages/canvas-upscaler"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -21,10 +26,14 @@
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "test:export": "tsx scripts/test-export.ts",
-    "test:json": "tsx scripts/upscale-from-json.ts"
+    "test:json": "tsx scripts/upscale-from-json.ts",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@ls-foundry/shared-types": "workspace:*",
+    "@jeffgo10/shared-types": "workspace:*",
     "canvas": "^3.1.0"
   },
   "devDependencies": {

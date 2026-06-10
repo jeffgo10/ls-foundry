@@ -8,9 +8,9 @@ const konvaBrowser = require.resolve("konva/lib/index.js");
 const nextConfig: NextConfig = {
   transpilePackages: [
     "@jeffgo10/gl-viewer",
-    "@ls-foundry/helpers",
-    "@ls-foundry/react-canvas-designer",
-    "@ls-foundry/shared-types",
+    "@jeffgo10/helpers",
+    "@jeffgo10/react-canvas-designer",
+    "@jeffgo10/shared-types",
   ],
   serverExternalPackages: ["canvas"],
   webpack: (config) => {

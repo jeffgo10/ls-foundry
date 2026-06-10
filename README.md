@@ -19,10 +19,10 @@ ls-foundry/
 │   └── stickpak/             # StickPak roadmap + Phase 1 notes (from Obsidian)
 ├── packages/
 │   ├── gl-viewer/            # @jeffgo10/gl-viewer — GLB / LiDAR viewer
-│   ├── helpers/              # @ls-foundry/helpers — shared utilities (e.g. ./image)
-│   ├── shared-types/         # @ls-foundry/shared-types — StickPak canvas layout types
-│   ├── react-canvas-designer/# @ls-foundry/react-canvas-designer — 72 DPI Konva designer
-│   ├── canvas-upscaler/      # @ls-foundry/canvas-upscaler — 300 DPI print upscaler
+│   ├── helpers/              # @jeffgo10/helpers — shared utilities (e.g. ./image)
+│   ├── shared-types/         # @jeffgo10/shared-types — StickPak canvas layout types
+│   ├── react-canvas-designer/# @jeffgo10/react-canvas-designer — 72 DPI Konva designer
+│   ├── canvas-upscaler/      # @jeffgo10/canvas-upscaler — 300 DPI print upscaler
 │   ├── config-ts/            # Shared TS configs (@ls-foundry/tsconfig)
 │   ├── maps/                 # placeholder
 │   ├── ui/                   # placeholder
@@ -41,11 +41,14 @@ ls-foundry/
 | `pnpm run dev` | `turbo run dev` (persistent tasks, e.g. docs) |
 | `pnpm run lint` | `turbo run lint` where configured |
 | `pnpm run clean` | Clean turbo outputs and root `node_modules` |
-| `pnpm run deploy` | Build and publish `@jeffgo10/gl-viewer` to [GitHub Packages](https://github.com/jeffgo10/ls-foundry/packages) |
+| `pnpm run build:packages` | Build `packages/*` only (excludes `apps/docs`) |
+| `pnpm run deploy` | `build:packages` then publish all non-private packages to [GitHub Packages](https://github.com/jeffgo10/ls-foundry/packages) |
 | `pnpm run deploy:dry-run` | Same as `deploy` with `--dry-run` |
 | `pnpm run deploy:nogit` | Publish with `--no-git-checks` (use when the tree is not clean) |
 
-Bump the version in `packages/gl-viewer/package.json` before each publish. Authenticate to `npm.pkg.github.com` with a token that has `write:packages` (see the [GitHub Packages npm docs](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)).
+Published packages: `@jeffgo10/gl-viewer`, `@jeffgo10/shared-types`, `@jeffgo10/helpers`, `@jeffgo10/react-canvas-designer`, `@jeffgo10/canvas-upscaler`. Placeholders (`utils`, `ui`, `maps`, `config-ts`) and `apps/*` stay private.
+
+Bump versions in the relevant `packages/*/package.json` before each publish. Authenticate to `npm.pkg.github.com` with a token that has `write:packages`. Map `@jeffgo10:registry` → `https://npm.pkg.github.com` in `.npmrc`.
 
 ## Docs app
 
@@ -61,9 +64,9 @@ Planning notes and the Phase 1 core engine live in [docs/stickpak](./docs/stickp
 
 | Package | Description |
 |---------|-------------|
-| `@ls-foundry/shared-types` | Canvas layout JSON schema and A4 DPI constants |
-| `@ls-foundry/react-canvas-designer` | Drag-and-drop 72 DPI A4 Konva canvas |
-| `@ls-foundry/canvas-upscaler` | Node utility to render 300 DPI print PNGs |
+| `@jeffgo10/shared-types` | Canvas layout JSON schema and A4 DPI constants |
+| `@jeffgo10/react-canvas-designer` | Drag-and-drop 72 DPI A4 Konva canvas |
+| `@jeffgo10/canvas-upscaler` | Node utility to render 300 DPI print PNGs |
 
 ## Packages
 

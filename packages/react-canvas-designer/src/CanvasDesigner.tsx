@@ -4,8 +4,8 @@ import {
   type CanvasItem,
   type CanvasLayout,
   createEmptyLayout,
-} from "@ls-foundry/shared-types";
-import { blobUrlToDataUrl, traceAlphaContour } from "@ls-foundry/helpers/image";
+} from "@jeffgo10/shared-types";
+import { blobUrlToDataUrl, traceAlphaContour } from "@jeffgo10/helpers/image";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import {
@@ -37,6 +37,8 @@ type PlacedImage = CanvasItem & {
 
 export type CanvasDesignerProps = {
   onExport?: (payload: CanvasLayoutExport) => void;
+  /** Called when export API is ready (use instead of ref through next/dynamic). */
+  onReady?: (api: CanvasDesignerHandle) => void;
   className?: string;
   /** Preview a red cut line along PNG transparency edges (not exported). */
   showCutLine?: boolean;
@@ -134,7 +136,7 @@ function DraggableImage({
 
 export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerProps>(
   function CanvasDesigner(
-    { onExport, className, showCutLine = false, cutLineColor = "#ef4444" },
+    { onExport, onReady, className, showCutLine = false, cutLineColor = "#ef4444" },
     ref,
   ) {
     const [items, setItems] = useState<PlacedImage[]>([]);
@@ -170,17 +172,17 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       return { layout, assets };
     }, [items, layout]);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        exportLayout: async () => {
-          const payload = await buildExport();
-          onExport?.(payload);
-          return payload;
-        },
-      }),
-      [buildExport, onExport],
-    );
+    const exportLayout = useCallback(async () => {
+      const payload = await buildExport();
+      onExport?.(payload);
+      return payload;
+    }, [buildExport, onExport]);
+
+    useImperativeHandle(ref, () => ({ exportLayout }), [exportLayout]);
+
+    useEffect(() => {
+      onReady?.({ exportLayout });
+    }, [exportLayout, onReady]);
 
     useEffect(() => {
       const transformer = transformerRef.current;

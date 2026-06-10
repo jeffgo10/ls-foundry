@@ -1,15 +1,14 @@
 "use client";
 
-import type { CanvasDesignerHandle } from "@ls-foundry/react-canvas-designer";
+import type { CanvasDesignerHandle } from "@jeffgo10/react-canvas-designer";
 import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 
 const CanvasDesigner = dynamic(
   () =>
-    import("@ls-foundry/react-canvas-designer").then((m) => m.CanvasDesigner),
+    import("@jeffgo10/react-canvas-designer").then((m) => m.CanvasDesigner),
   {
     ssr: false,
-    forwardRef: true,
     loading: () => (
       <div className="flex h-[400px] items-center justify-center rounded-xl border border-white/10 bg-[#070708] text-xs tracking-[0.2em] text-white/40">
         LOADING CANVAS…
@@ -19,17 +18,17 @@ const CanvasDesigner = dynamic(
 );
 
 function StickPakCanvasSection() {
-  const designerRef = useRef<CanvasDesignerHandle>(null);
+  const exportApiRef = useRef<CanvasDesignerHandle | null>(null);
   const [exportedJson, setExportedJson] = useState("");
   const [showCutLine, setShowCutLine] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
-    if (!designerRef.current) return;
+    if (!exportApiRef.current) return;
 
     setIsExporting(true);
     try {
-      const payload = await designerRef.current.exportLayout();
+      const payload = await exportApiRef.current.exportLayout();
       setExportedJson(JSON.stringify(payload, null, 2));
     } finally {
       setIsExporting(false);
@@ -48,7 +47,12 @@ function StickPakCanvasSection() {
         Show cut line (red border on PNG transparency)
       </label>
       <div className="overflow-auto rounded-xl border border-white/10 bg-white p-4">
-        <CanvasDesigner ref={designerRef} showCutLine={showCutLine} />
+        <CanvasDesigner
+          showCutLine={showCutLine}
+          onReady={(api) => {
+            exportApiRef.current = api;
+          }}
+        />
       </div>
       <div className="space-y-3">
         <button

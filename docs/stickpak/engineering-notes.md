@@ -26,5 +26,5 @@ See [canvas-scaling.md](./canvas-scaling.md).
 
 ```bash
 # From monorepo root
-pnpm --filter @ls-foundry/canvas-upscaler run test:json ./stickpak-export.json
+pnpm --filter @jeffgo10/canvas-upscaler run test:json ./stickpak-export.json
 ```

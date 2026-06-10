@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createEmptyLayout } from "@ls-foundry/shared-types";
+import { createEmptyLayout } from "@jeffgo10/shared-types";
 import { upscaleLayoutToPng } from "../src/upscale";
 
 const assetPath = process.argv[2];

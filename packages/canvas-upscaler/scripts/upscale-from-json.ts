@@ -5,7 +5,7 @@ import {
   PRINT_WIDTH,
   isCanvasLayout,
   type CanvasLayoutExport,
-} from "@ls-foundry/shared-types";
+} from "@jeffgo10/shared-types";
 import { upscaleLayoutExportToPng } from "../src/upscale";
 
 /** Directory where `pnpm` was invoked (repo root when run from there). */
@@ -17,7 +17,7 @@ const [jsonPath, outputArg] = process.argv
 
 if (!jsonPath) {
   console.error(
-    "Usage: pnpm --filter @ls-foundry/canvas-upscaler run test:json ./stickpak-export.json [output.png]",
+    "Usage: pnpm --filter @jeffgo10/canvas-upscaler run test:json ./stickpak-export.json [output.png]",
   );
   console.error(
     "Tip: save export JSON at the monorepo root and run the command from the repo root.",

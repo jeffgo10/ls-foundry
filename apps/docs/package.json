@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@jeffgo10/gl-viewer": "workspace:*",
-    "@ls-foundry/react-canvas-designer": "workspace:*",
-    "@ls-foundry/shared-types": "workspace:*",
+    "@jeffgo10/react-canvas-designer": "workspace:*",
+    "@jeffgo10/shared-types": "workspace:*",
     "konva": "^9.3.20",
     "next": "^15.3.1",
     "react": "^19.1.0",

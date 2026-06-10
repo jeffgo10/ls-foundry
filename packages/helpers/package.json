@@ -1,8 +1,13 @@
 {
-  "name": "@ls-foundry/helpers",
+  "name": "@jeffgo10/helpers",
   "version": "0.1.0",
-  "private": true,
   "description": "Shared helper utilities for ls-foundry packages",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeffgo10/ls-foundry.git",
+    "directory": "packages/helpers"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -16,7 +21,11 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "devDependencies": {
     "@ls-foundry/tsconfig": "workspace:*",

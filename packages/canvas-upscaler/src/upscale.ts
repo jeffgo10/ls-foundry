@@ -4,7 +4,7 @@ import {
   PRINT_WIDTH,
   type CanvasLayout,
   type CanvasLayoutExport,
-} from "@ls-foundry/shared-types";
+} from "@jeffgo10/shared-types";
 import { createCanvas, loadImage, type CanvasRenderingContext2D } from "canvas";
 
 export type AssetSource = {

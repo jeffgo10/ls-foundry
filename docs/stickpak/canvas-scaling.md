@@ -33,5 +33,5 @@ Rotating around the image center (instead of top-left) will misalign any item wi
 ## Test
 
 ```bash
-pnpm --filter @ls-foundry/canvas-upscaler run test:json ./stickpak-export.json
+pnpm --filter @jeffgo10/canvas-upscaler run test:json ./stickpak-export.json
 ```

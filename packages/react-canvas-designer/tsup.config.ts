@@ -13,7 +13,7 @@ export default defineConfig({
     "react-konva",
     "konva",
     "react-dropzone",
-    "@ls-foundry/helpers",
-    "@ls-foundry/shared-types",
+    "@jeffgo10/helpers",
+    "@jeffgo10/shared-types",
   ],
 });
