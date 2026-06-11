@@ -14,6 +14,8 @@ By physically splitting the codebase into a core reusable engine and a domain-sp
   - Set up a `react-konva` Stage locked to a 72 DPI A4 aspect ratio.
   - Implement `react-dropzone` to catch dropped images and render them as Konva `<Image draggable />` nodes.
   - Bind an `onExport` function that generates the state JSON payload based on the types package.
+  - Cut-line preview along PNG alpha edges (`showCutLine`).
+  - Auto-arrange: pack stickers with cut-line spacing (default 5 mm); imperative `arrangeAll()` on ref. See [engineering-notes.md](./engineering-notes.md).
 - **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler`):**
   - Write a pure Node.js utility utilizing `automattic/node-canvas`.
   - Implement the translation matrix: map the 72 DPI JSON coordinates onto a headless 300 DPI canvas (2481 × 3507 pixels).

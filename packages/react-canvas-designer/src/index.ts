@@ -3,6 +3,7 @@ export {
   type CanvasDesignerHandle,
   type CanvasDesignerProps,
 } from "./CanvasDesigner";
+export type { AutoArrangeOptions } from "./autoArrange";
 export type {
   CanvasLayoutAsset,
   CanvasLayoutExport,

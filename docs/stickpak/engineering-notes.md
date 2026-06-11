@@ -2,6 +2,28 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Canvas auto-arrange (`arrangeAll`)
+
+**Feature:** Pack stickers so alpha-contour cut lines stay ≥5 mm apart (configurable via `autoArrangeGapMm`).
+
+**API:** `designerRef.current.arrangeAll({ gapMm })` — deselects active sticker, then packs all.
+
+**Props:** `autoArrangeGapMm`, `autoArrangeOnAdd`, `onAutoArrange`.
+
+**Code:** `packages/react-canvas-designer/src/autoArrange.ts`
+
+**Test UI:** `/stickpak` → **Arrange all** button.
+
+## GitHub Packages npm scope
+
+**Symptom:** `403 Forbidden — owner not found` when publishing `@ls-foundry/*`.
+
+**Cause:** GitHub Packages requires the npm scope to match the GitHub user/org (`jeffgo10`). `@ls-foundry` has no matching owner.
+
+**Fix:** Renamed publishable packages to `@jeffgo10/*` (same as `gl-viewer`). Internal monorepo packages (`@ls-foundry/tsconfig`, `@ls-foundry/docs`) stay private.
+
+`.npmrc`: `@jeffgo10:registry=https://npm.pkg.github.com` + token with `write:packages`.
+
 ## Upscaler Konva transform mismatch
 
 **Symptom:** Print PNG misaligned vs browser canvas, especially rotated stickers.

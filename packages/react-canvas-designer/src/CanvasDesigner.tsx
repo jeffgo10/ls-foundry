@@ -27,6 +27,12 @@ import {
   Transformer,
 } from "react-konva";
 import type { CanvasLayoutExport } from "./types";
+import {
+  autoArrangeItems,
+  type AutoArrangeOptions,
+} from "./autoArrange";
+
+export type { AutoArrangeOptions } from "./autoArrange";
 
 type PlacedImage = CanvasItem & {
   src: string;
@@ -43,10 +49,26 @@ export type CanvasDesignerProps = {
   /** Preview a red cut line along PNG transparency edges (not exported). */
   showCutLine?: boolean;
   cutLineColor?: string;
+  /**
+   * Minimum gap between cut-line outlines when auto-arranging (millimeters).
+   * Default 5. Requires alpha contours; falls back to image bounds when opaque.
+   */
+  autoArrangeGapMm?: number;
+  /** Run auto-arrange after each dropped image. Default false. */
+  autoArrangeOnAdd?: boolean;
+  /** Called after auto-arrange; `allPlaced` is false if any sticker did not fit. */
+  onAutoArrange?: (result: { allPlaced: boolean }) => void;
 };
 
 export type CanvasDesignerHandle = {
   exportLayout: () => Promise<CanvasLayoutExport>;
+  /** Deselect any sticker, then pack all stickers with cut-line spacing. */
+  arrangeAll: (options?: AutoArrangeOptions) => Promise<boolean>;
+  /**
+   * Alias for {@link arrangeAll}.
+   * @deprecated Prefer `arrangeAll`.
+   */
+  autoArrange: (options?: AutoArrangeOptions) => Promise<boolean>;
 };
 
 function DraggableImage({
@@ -136,13 +158,25 @@ function DraggableImage({
 
 export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerProps>(
   function CanvasDesigner(
-    { onExport, onReady, className, showCutLine = false, cutLineColor = "#ef4444" },
+    {
+      onExport,
+      onReady,
+      className,
+      showCutLine = false,
+      cutLineColor = "#ef4444",
+      autoArrangeGapMm = 5,
+      autoArrangeOnAdd = false,
+      onAutoArrange,
+    },
     ref,
   ) {
     const [items, setItems] = useState<PlacedImage[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const shapeRefs = useRef(new Map<string, Konva.Group>());
     const transformerRef = useRef<Konva.Transformer>(null);
+    const pendingAutoArrangeRef = useRef(false);
+    const itemsRef = useRef(items);
+    itemsRef.current = items;
 
     const layout = useMemo<CanvasLayout>(() => {
       const base = createEmptyLayout();
@@ -178,11 +212,53 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       return payload;
     }, [buildExport, onExport]);
 
-    useImperativeHandle(ref, () => ({ exportLayout }), [exportLayout]);
+    const clearSelection = useCallback(() => {
+      setSelectedId(null);
+      const transformer = transformerRef.current;
+      if (transformer) {
+        transformer.nodes([]);
+        transformer.getLayer()?.batchDraw();
+      }
+    }, []);
+
+    const runAutoArrange = useCallback(
+      async (options?: AutoArrangeOptions): Promise<boolean> => {
+        clearSelection();
+
+        const current = itemsRef.current;
+        if (current.length === 0) {
+          onAutoArrange?.({ allPlaced: true });
+          return true;
+        }
+
+        const gapMm = options?.gapMm ?? autoArrangeGapMm;
+        const { items: arranged, allPlaced } = await autoArrangeItems(current, {
+          gapMm,
+          canvasWidth: options?.canvasWidth,
+          canvasHeight: options?.canvasHeight,
+        });
+
+        setItems(arranged);
+        onAutoArrange?.({ allPlaced });
+        return allPlaced;
+      },
+      [autoArrangeGapMm, clearSelection, onAutoArrange],
+    );
+
+    const handle = useMemo(
+      () => ({
+        exportLayout,
+        arrangeAll: runAutoArrange,
+        autoArrange: runAutoArrange,
+      }),
+      [exportLayout, runAutoArrange],
+    );
+
+    useImperativeHandle(ref, () => handle, [handle]);
 
     useEffect(() => {
-      onReady?.({ exportLayout });
-    }, [exportLayout, onReady]);
+      onReady?.(handle);
+    }, [handle, onReady]);
 
     useEffect(() => {
       const transformer = transformerRef.current;
@@ -226,9 +302,27 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             },
           ]);
           setSelectedId(assetId);
+          if (autoArrangeOnAdd) {
+            pendingAutoArrangeRef.current = true;
+          }
         };
       });
-    }, []);
+    }, [autoArrangeOnAdd]);
+
+    useEffect(() => {
+      if (!autoArrangeOnAdd || !pendingAutoArrangeRef.current) {
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        pendingAutoArrangeRef.current = false;
+        void runAutoArrange();
+      }, 100);
+
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }, [items, autoArrangeOnAdd, runAutoArrange]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
       onDrop,

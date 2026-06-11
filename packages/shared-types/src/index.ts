@@ -10,6 +10,11 @@ export const PRINT_HEIGHT = 3507;
 
 export const DPI_SCALE = PRINT_DPI / CANVAS_DPI;
 
+/** Convert millimeters to pixels at the design canvas DPI (72 by default). */
+export function mmToCanvasPixels(mm: number, dpi: number = CANVAS_DPI): number {
+  return (mm / 25.4) * dpi;
+}
+
 export type CanvasItem = {
   assetId: string;
   x: number;

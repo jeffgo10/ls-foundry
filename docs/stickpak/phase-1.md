@@ -18,7 +18,7 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 
 - [x] **1.1** pnpm workspaces + Turborepo (repo root)
 - [x] **1.2** `@jeffgo10/shared-types` — `CanvasLayout`, `CanvasItem`, `CanvasLayoutExport`, A4 dimensions
-- [x] **1.3** `@jeffgo10/react-canvas-designer` — dropzone, transform handles, cut-line preview, export with assets
+- [x] **1.3** `@jeffgo10/react-canvas-designer` — dropzone, transform handles, cut-line preview, export with assets, auto-arrange (`arrangeAll`)
 - [x] **1.4** `@jeffgo10/canvas-upscaler` — JSON CLI + visual parity with Konva canvas
 - [x] **1.5** `@jeffgo10/helpers/image` — contour tracing, blob URL → data URL
 - [x] **1.6** Docs test page — `apps/docs` `/stickpak`
@@ -58,10 +58,20 @@ See [canvas-scaling.md](./canvas-scaling.md) for the full Konva → upscaler tra
 
 ```bash
 pnpm install
-pnpm run dev --filter=@jeffgo10/docs
+pnpm run dev --filter=@ls-foundry/docs
 ```
 
-Open [http://localhost:3000/stickpak](http://localhost:3000/stickpak). Drop images onto the A4 canvas, drag them, then click **Export layout JSON**.
+Open [http://localhost:3000/stickpak](http://localhost:3000/stickpak). Drop images onto the A4 canvas, drag them, use **Arrange all** to pack stickers with cut-line spacing, then click **Export**.
+
+### Auto-arrange
+
+Optional props on `CanvasDesigner`: `autoArrangeGapMm` (default 5 mm), `autoArrangeOnAdd`. Imperative API via ref:
+
+```typescript
+await designerRef.current?.arrangeAll({ gapMm: 5 });
+```
+
+Deselects the active sticker, then packs all items so cut-line outlines do not overlap. See [engineering-notes.md](./engineering-notes.md).
 
 ### Package builds
 
