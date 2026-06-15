@@ -1,6 +1,9 @@
 "use client";
 
-import type { CanvasDesignerHandle } from "@jeffgo10/react-canvas-designer";
+import type {
+  CanvasDesignerHandle,
+  DimensionUnit,
+} from "@jeffgo10/react-canvas-designer";
 import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 
@@ -23,6 +26,9 @@ function StickPakCanvasSection() {
   const [showCutLine, setShowCutLine] = useState(false);
   const [autoArrangeGapMm, setAutoArrangeGapMm] = useState(5);
   const [autoArrangeOnAdd, setAutoArrangeOnAdd] = useState(false);
+  const [showSelectionDimensions, setShowSelectionDimensions] = useState(true);
+  const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("mm");
+  const [selectionSizeLabel, setSelectionSizeLabel] = useState("");
   const [arrangeMessage, setArrangeMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
@@ -89,12 +95,48 @@ function StickPakCanvasSection() {
           className="w-20 rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
         />
       </label>
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
+        <input
+          type="checkbox"
+          checked={showSelectionDimensions}
+          onChange={(event) => setShowSelectionDimensions(event.target.checked)}
+          className="size-4 rounded border-white/20"
+        />
+        Show selected sticker size
+      </label>
+      {showSelectionDimensions ? (
+        <label className="flex items-center gap-2 text-sm text-white/70">
+          Size unit
+          <select
+            value={dimensionUnit}
+            onChange={(event) =>
+              setDimensionUnit(event.target.value as DimensionUnit)
+            }
+            className="rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
+          >
+            <option value="mm">mm</option>
+            <option value="cm">cm</option>
+            <option value="in">in</option>
+          </select>
+          <span className="text-white/40">@ 72 DPI design canvas</span>
+        </label>
+      ) : null}
+      {selectionSizeLabel ? (
+        <p className="text-sm text-white/50">{selectionSizeLabel}</p>
+      ) : null}
       <div className="overflow-auto rounded-xl border border-white/10 bg-white p-4">
         <CanvasDesigner
           ref={designerRef}
           showCutLine={showCutLine}
           autoArrangeGapMm={autoArrangeGapMm}
           autoArrangeOnAdd={autoArrangeOnAdd}
+          showSelectionDimensions={showSelectionDimensions}
+          dimensionUnit={dimensionUnit}
+          onSelectionDimensionsChange={(dimensions) => {
+            setSelectionSizeLabel(
+              dimensions ? `Selected: ${dimensions.label}` : "",
+            );
+          }}
           onAutoArrange={({ allPlaced }) => {
             setArrangeMessage(
               allPlaced

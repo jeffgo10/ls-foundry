@@ -3,6 +3,7 @@ import {
   CANVAS_WIDTH,
   type CanvasItem,
   type CanvasLayout,
+  type DimensionUnit,
   createEmptyLayout,
 } from "@jeffgo10/shared-types";
 import { blobUrlToDataUrl, traceAlphaContour } from "@jeffgo10/helpers/image";
@@ -31,8 +32,22 @@ import {
   autoArrangeItems,
   type AutoArrangeOptions,
 } from "./autoArrange";
+import {
+  DEFAULT_DIMENSION_DPI,
+  formatDimensionAxisValue,
+  getSelectionDimensions,
+  type FormatSelectionDimensions,
+  type SelectionDimensionsResult,
+} from "./selectionDimensions";
+import { SelectionDimensionLabels } from "./SelectionDimensionLabels";
+
+export const TRANSFORMER_COLOR = "#2563eb";
 
 export type { AutoArrangeOptions } from "./autoArrange";
+export type {
+  FormatSelectionDimensions,
+  SelectionDimensionsResult,
+} from "./selectionDimensions";
 
 type PlacedImage = CanvasItem & {
   src: string;
@@ -58,10 +73,45 @@ export type CanvasDesignerProps = {
   autoArrangeOnAdd?: boolean;
   /** Called after auto-arrange; `allPlaced` is false if any sticker did not fit. */
   onAutoArrange?: (result: { allPlaced: boolean }) => void;
+  /** Show width × height for the selected sticker. Default false. */
+  showSelectionDimensions?: boolean;
+  /** Physical unit for selection dimensions. Default `mm`. */
+  dimensionUnit?: DimensionUnit;
+  /** DPI used to convert canvas pixels to physical size. Default 72 (`CANVAS_DPI`). */
+  dimensionDpi?: number;
+  /** Decimal places in the default dimension label. Default 1. */
+  dimensionDecimalPlaces?: number;
+  /** Override the default `W × H unit` label. */
+  formatSelectionDimensions?: FormatSelectionDimensions;
+  /** Fired when selection or size changes while dimensions are enabled. */
+  onSelectionDimensionsChange?: (dimensions: SelectionDimensionsResult | null) => void;
+  /** Color for on-canvas dimension captions. Default matches transformer blue. */
+  dimensionLabelColor?: string;
+};
+
+export type ImageSourceFromUrl = {
+  url: string;
+  mimeType?: string;
+  /** Links canvas item to S3 asset; defaults to a new UUID. */
+  assetId?: string;
+};
+
+export type LayoutLoadInput = {
+  layout: CanvasLayout;
+  sources: ImageSourceFromUrl[];
 };
 
 export type CanvasDesignerHandle = {
   exportLayout: () => Promise<CanvasLayoutExport>;
+  /** Layout transforms + asset ids for S3-backed persistence (no base64). */
+  exportLayoutState: () => {
+    layout: CanvasLayout;
+    assets: Array<{ assetId: string; mimeType: string }>;
+  };
+  /** Restore a saved design from presigned S3 URLs + layout JSON. */
+  loadLayoutFromSources: (input: LayoutLoadInput) => Promise<void>;
+  /** Remove all stickers from the canvas. */
+  clearCanvas: () => void;
   /** Deselect any sticker, then pack all stickers with cut-line spacing. */
   arrangeAll: (options?: AutoArrangeOptions) => Promise<boolean>;
   /**
@@ -69,6 +119,8 @@ export type CanvasDesignerHandle = {
    * @deprecated Prefer `arrangeAll`.
    */
   autoArrange: (options?: AutoArrangeOptions) => Promise<boolean>;
+  /** Place images from remote URLs (e.g. presigned S3 GET URLs). */
+  addImagesFromUrls: (sources: ImageSourceFromUrl[]) => void;
 };
 
 function DraggableImage({
@@ -135,6 +187,7 @@ function DraggableImage({
       onMouseDown={select}
       onTouchStart={select}
       onDragEnd={(event) => syncFromNode(event.target as Konva.Group)}
+      onTransform={(event) => syncFromNode(event.target as Konva.Group)}
       onTransformEnd={(event) => syncFromNode(event.target as Konva.Group)}
     >
       <KonvaImage
@@ -167,6 +220,13 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       autoArrangeGapMm = 5,
       autoArrangeOnAdd = false,
       onAutoArrange,
+      showSelectionDimensions = false,
+      dimensionUnit = "mm",
+      dimensionDpi = DEFAULT_DIMENSION_DPI,
+      dimensionDecimalPlaces = 1,
+      formatSelectionDimensions,
+      onSelectionDimensionsChange,
+      dimensionLabelColor = TRANSFORMER_COLOR,
     },
     ref,
   ) {
@@ -177,6 +237,60 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const pendingAutoArrangeRef = useRef(false);
     const itemsRef = useRef(items);
     itemsRef.current = items;
+
+    const selectedItem = useMemo(
+      () => items.find((item) => item.assetId === selectedId) ?? null,
+      [items, selectedId],
+    );
+
+    const selectionDimensions = useMemo(() => {
+      if (!showSelectionDimensions || !selectedItem) {
+        return null;
+      }
+
+      const widthPx = selectedItem.width * Math.abs(selectedItem.scaleX);
+      const heightPx = selectedItem.height * Math.abs(selectedItem.scaleY);
+
+      return getSelectionDimensions(
+        widthPx,
+        heightPx,
+        dimensionUnit,
+        dimensionDpi,
+        dimensionDecimalPlaces,
+        formatSelectionDimensions,
+      );
+    }, [
+      showSelectionDimensions,
+      selectedItem,
+      dimensionUnit,
+      dimensionDpi,
+      dimensionDecimalPlaces,
+      formatSelectionDimensions,
+    ]);
+
+    const selectionDimensionLabels = useMemo(() => {
+      if (!selectionDimensions) {
+        return null;
+      }
+
+      return {
+        width: formatDimensionAxisValue(
+          selectionDimensions.width,
+          selectionDimensions.unit,
+          dimensionDecimalPlaces,
+        ),
+        height: formatDimensionAxisValue(
+          selectionDimensions.height,
+          selectionDimensions.unit,
+          dimensionDecimalPlaces,
+        ),
+      };
+    }, [selectionDimensions, dimensionDecimalPlaces]);
+
+    useEffect(() => {
+      if (!showSelectionDimensions) return;
+      onSelectionDimensionsChange?.(selectionDimensions);
+    }, [showSelectionDimensions, selectionDimensions, onSelectionDimensionsChange]);
 
     const layout = useMemo<CanvasLayout>(() => {
       const base = createEmptyLayout();
@@ -205,6 +319,62 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
       return { layout, assets };
     }, [items, layout]);
+
+    const exportLayoutState = useCallback(() => {
+      return {
+        layout,
+        assets: items.map(({ assetId, mimeType }) => ({ assetId, mimeType })),
+      };
+    }, [items, layout]);
+
+    const loadLayoutFromSources = useCallback(
+      async (input: LayoutLoadInput) => {
+        const sourceById = new Map(
+          input.sources
+            .filter((source) => source.assetId)
+            .map((source) => [source.assetId as string, source]),
+        );
+
+        const placed: PlacedImage[] = [];
+
+        for (const item of input.layout.items) {
+          const source = sourceById.get(item.assetId);
+          if (!source) {
+            continue;
+          }
+
+          await new Promise<void>((resolve, reject) => {
+            const image = new window.Image();
+            image.crossOrigin = "anonymous";
+            image.src = source.url;
+            image.onload = () => {
+              placed.push({
+                ...item,
+                src: source.url,
+                mimeType: source.mimeType ?? "image/png",
+                width: image.width,
+                height: image.height,
+              });
+              resolve();
+            };
+            image.onerror = () => {
+              reject(new Error(`Failed to load image for asset ${item.assetId}`));
+            };
+          });
+        }
+
+        setItems(placed);
+        setSelectedId(null);
+        shapeRefs.current.clear();
+      },
+      [],
+    );
+
+    const clearCanvas = useCallback(() => {
+      setItems([]);
+      setSelectedId(null);
+      shapeRefs.current.clear();
+    }, []);
 
     const exportLayout = useCallback(async () => {
       const payload = await buildExport();
@@ -245,21 +415,6 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       [autoArrangeGapMm, clearSelection, onAutoArrange],
     );
 
-    const handle = useMemo(
-      () => ({
-        exportLayout,
-        arrangeAll: runAutoArrange,
-        autoArrange: runAutoArrange,
-      }),
-      [exportLayout, runAutoArrange],
-    );
-
-    useImperativeHandle(ref, () => handle, [handle]);
-
-    useEffect(() => {
-      onReady?.(handle);
-    }, [handle, onReady]);
-
     useEffect(() => {
       const transformer = transformerRef.current;
       const node = selectedId ? shapeRefs.current.get(selectedId) : undefined;
@@ -279,19 +434,19 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       );
     }, []);
 
-    const onDrop = useCallback((acceptedFiles: File[]) => {
-      acceptedFiles.forEach((file) => {
-        const src = URL.createObjectURL(file);
+    const placeImageSource = useCallback(
+      (src: string, mimeType: string, assetId?: string) => {
         const image = new window.Image();
+        image.crossOrigin = "anonymous";
         image.src = src;
         image.onload = () => {
-          const assetId = crypto.randomUUID();
+          const id = assetId ?? crypto.randomUUID();
           setItems((current) => [
             ...current,
             {
-              assetId,
+              assetId: id,
               src,
-              mimeType: file.type || "image/png",
+              mimeType,
               x: 40,
               y: 40,
               width: image.width,
@@ -301,13 +456,64 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               rotation: 0,
             },
           ]);
-          setSelectedId(assetId);
+          setSelectedId(id);
           if (autoArrangeOnAdd) {
             pendingAutoArrangeRef.current = true;
           }
         };
-      });
-    }, [autoArrangeOnAdd]);
+        image.onerror = () => {
+          console.error("Failed to load image:", src);
+        };
+      },
+      [autoArrangeOnAdd],
+    );
+
+    const onDrop = useCallback(
+      (acceptedFiles: File[]) => {
+        acceptedFiles.forEach((file) => {
+          placeImageSource(
+            URL.createObjectURL(file),
+            file.type || "image/png",
+          );
+        });
+      },
+      [placeImageSource],
+    );
+
+    const addImagesFromUrls = useCallback(
+      (sources: ImageSourceFromUrl[]) => {
+        sources.forEach(({ url, mimeType, assetId }) => {
+          placeImageSource(url, mimeType ?? "image/png", assetId);
+        });
+      },
+      [placeImageSource],
+    );
+
+    const handle = useMemo(
+      () => ({
+        exportLayout,
+        exportLayoutState,
+        loadLayoutFromSources,
+        clearCanvas,
+        arrangeAll: runAutoArrange,
+        autoArrange: runAutoArrange,
+        addImagesFromUrls,
+      }),
+      [
+        exportLayout,
+        exportLayoutState,
+        loadLayoutFromSources,
+        clearCanvas,
+        runAutoArrange,
+        addImagesFromUrls,
+      ],
+    );
+
+    useImperativeHandle(ref, () => handle, [handle]);
+
+    useEffect(() => {
+      onReady?.(handle);
+    }, [handle, onReady]);
 
     useEffect(() => {
       if (!autoArrangeOnAdd || !pendingAutoArrangeRef.current) {
@@ -396,8 +602,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 ]}
                 anchorSize={8}
                 anchorCornerRadius={2}
-                borderStroke="#2563eb"
-                anchorStroke="#2563eb"
+                borderStroke={TRANSFORMER_COLOR}
+                anchorStroke={TRANSFORMER_COLOR}
                 anchorFill="#ffffff"
                 rotateAnchorOffset={24}
                 boundBoxFunc={(oldBox, newBox) => {
@@ -407,6 +613,19 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   return newBox;
                 }}
               />
+              {showSelectionDimensions &&
+              selectedId &&
+              selectedItem &&
+              selectionDimensionLabels ? (
+                <SelectionDimensionLabels
+                  node={shapeRefs.current.get(selectedId)}
+                  localWidth={selectedItem.width}
+                  localHeight={selectedItem.height}
+                  widthLabel={selectionDimensionLabels.width}
+                  heightLabel={selectionDimensionLabels.height}
+                  color={dimensionLabelColor}
+                />
+              ) : null}
             </Layer>
           </Stage>
         </div>

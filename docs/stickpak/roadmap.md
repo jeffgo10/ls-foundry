@@ -16,12 +16,26 @@ By physically splitting the codebase into a core reusable engine and a domain-sp
   - Bind an `onExport` function that generates the state JSON payload based on the types package.
   - Cut-line preview along PNG alpha edges (`showCutLine`).
   - Auto-arrange: pack stickers with cut-line spacing (default 5 mm); imperative `arrangeAll()` on ref. See [engineering-notes.md](./engineering-notes.md).
+  - Selection dimension labels: on-canvas W/H captions on transformer edges (mm/cm/in, configurable DPI); rotate-aligned via `getAbsoluteTransform()`. See [engineering-notes.md](./engineering-notes.md).
+  - Remote image sources: `addImagesFromUrls()` for S3 presigned GET URLs (v0.1.1+).
 - **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler`):**
   - Write a pure Node.js utility utilizing `automattic/node-canvas`.
   - Implement the translation matrix: map the 72 DPI JSON coordinates onto a headless 300 DPI canvas (2481 × 3507 pixels).
   - Create a local testing script to verify that a downloaded test layout mathematically aligns perfectly when exported as a high-res local PNG.
 
 See [phase-1.md](./phase-1.md) for package locations and implementation status in this repo.
+
+## Phase 2 — sticker-print-app
+
+**Status:** Scaffold complete (June 2026). Repo: `sticker-print-app`.
+
+- Next.js storefront (`apps/storefront`, port 5173)
+- Vite admin shell (`apps/admin-dashboard`, port 5174)
+- CDK infra + LocalStack + SAM presigned uploads (`uploadUrl` + `readUrl`)
+- Storefront: upload to S3, then canvas loads presigned GET URL via `addImagesFromUrls`
+- Obsidian: **Phase 2 — sticker-print-app**
+
+Local dev: see `sticker-print-app/README.md` (watch vs non-watch, Terminal 3 Option A/B, troubleshooting).
 
 ## Phase 2: Cloud Infrastructure & Emulation (Dedicated Repo)
 
@@ -40,7 +54,17 @@ See [phase-1.md](./phase-1.md) for package locations and implementation status i
   - Boot up LocalStack via Docker.
   - Use `cdklocal deploy` to provision the mock S3, DynamoDB, and SQS resources.
   - Use `sam local start-api` to hot-reload API Lambdas.
-  - Implement S3 Presigned URLs so the `storefront` React app can upload high-res source images directly into the local mock S3 bucket.
+  - Implement S3 Presigned URLs so the `storefront` React app can upload high-res source images directly into the local mock S3 bucket, then load them on the canvas via a presigned GET URL (`readUrl` + `addImagesFromUrls`).
+
+## Phase 3 — sticker-print-app
+
+**Status:** Scaffold complete (June 2026). Repo: `sticker-print-app`.
+
+- Cognito (CDK) + cognito-local + Amplify auth (storefront + admin shell)
+- Checkout: `exportLayout` → `POST /orders` (DRAFT)
+- Delivery zones in DynamoDB + live checkout totals (Dumaguete, Sibulan, Valencia, Bacong)
+- `@stickpak/shared` domain package
+- Obsidian: **Phase 3 — sticker-print-app** · `sticker-print-app/docs/phase-3.md`
 
 ## Phase 3: Identity, Storefront, & Delivery Logic
 

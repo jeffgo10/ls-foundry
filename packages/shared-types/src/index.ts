@@ -15,6 +15,34 @@ export function mmToCanvasPixels(mm: number, dpi: number = CANVAS_DPI): number {
   return (mm / 25.4) * dpi;
 }
 
+export type DimensionUnit = "mm" | "cm" | "in";
+
+/** Convert canvas pixels to a physical length at the given DPI. */
+export function canvasPixelsToUnit(
+  pixels: number,
+  unit: DimensionUnit,
+  dpi: number = CANVAS_DPI,
+): number {
+  const inches = pixels / dpi;
+  if (unit === "in") return inches;
+  if (unit === "cm") return (inches * 25.4) / 10;
+  return inches * 25.4;
+}
+
+/** Format scaled canvas item width/height for display. */
+export function formatCanvasDimensions(
+  widthPx: number,
+  heightPx: number,
+  unit: DimensionUnit,
+  dpi: number = CANVAS_DPI,
+  decimalPlaces = 1,
+): string {
+  const width = canvasPixelsToUnit(widthPx, unit, dpi);
+  const height = canvasPixelsToUnit(heightPx, unit, dpi);
+  const fixed = (value: number) => value.toFixed(decimalPlaces);
+  return `${fixed(width)} × ${fixed(height)} ${unit}`;
+}
+
 export type CanvasItem = {
   assetId: string;
   x: number;
