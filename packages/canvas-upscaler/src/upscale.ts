@@ -1,7 +1,6 @@
 import {
-  DPI_SCALE,
-  PRINT_HEIGHT,
-  PRINT_WIDTH,
+  getLayoutDpiScale,
+  getPrintDimensions,
   type CanvasLayout,
   type CanvasLayoutExport,
 } from "@jeffgo10/shared-types";
@@ -20,18 +19,19 @@ export type UpscaleOptions = {
 
 /**
  * Mirror Konva Group transform order (translate → rotate → scale) at print DPI.
- * Target = source × (300 / 72) per Obsidian scaling spec.
+ * Target = source × (printDpi / designDpi).
  */
 function drawItem(
   context: CanvasRenderingContext2D,
   image: Awaited<ReturnType<typeof loadImage>>,
   item: CanvasLayout["items"][number],
+  scale: number,
 ) {
-  const baseWidth = image.width * DPI_SCALE;
-  const baseHeight = image.height * DPI_SCALE;
+  const baseWidth = image.width * scale;
+  const baseHeight = image.height * scale;
 
   context.save();
-  context.translate(item.x * DPI_SCALE, item.y * DPI_SCALE);
+  context.translate(item.x * scale, item.y * scale);
   context.rotate((item.rotation * Math.PI) / 180);
   context.scale(item.scaleX, item.scaleY);
   context.drawImage(image, 0, 0, baseWidth, baseHeight);
@@ -62,7 +62,9 @@ export async function upscaleLayoutToPng({
   layout,
   assets,
 }: UpscaleOptions): Promise<Buffer> {
-  const canvas = createCanvas(PRINT_WIDTH, PRINT_HEIGHT);
+  const scale = getLayoutDpiScale(layout);
+  const { width: printWidth, height: printHeight } = getPrintDimensions(layout);
+  const canvas = createCanvas(printWidth, printHeight);
   const context = canvas.getContext("2d");
 
   const assetMap = new Map(assets.map((asset) => [asset.assetId, asset]));
@@ -74,7 +76,7 @@ export async function upscaleLayoutToPng({
     }
 
     const image = await loadAssetSource(source);
-    drawItem(context, image, item);
+    drawItem(context, image, item, scale);
   }
 
   return canvas.toBuffer("image/png");

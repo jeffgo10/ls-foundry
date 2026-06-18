@@ -10,6 +10,13 @@ export const PRINT_HEIGHT = 3507;
 
 export const DPI_SCALE = PRINT_DPI / CANVAS_DPI;
 
+export type CanvasSizeOptions = {
+  canvasWidth?: number;
+  canvasHeight?: number;
+  designDpi?: number;
+  printDpi?: number;
+};
+
 /** Convert millimeters to pixels at the design canvas DPI (72 by default). */
 export function mmToCanvasPixels(mm: number, dpi: number = CANVAS_DPI): number {
   return (mm / 25.4) * dpi;
@@ -54,8 +61,12 @@ export type CanvasItem = {
 
 export type CanvasLayout = {
   version: 1;
-  canvasWidth: typeof CANVAS_WIDTH;
-  canvasHeight: typeof CANVAS_HEIGHT;
+  canvasWidth: number;
+  canvasHeight: number;
+  /** Design-time DPI when canvasWidth/Height were chosen. Defaults to 72. */
+  designDpi?: number;
+  /** Target print DPI for upscale. Defaults to 300. */
+  printDpi?: number;
   items: CanvasItem[];
 };
 
@@ -71,13 +82,51 @@ export type CanvasLayoutExport = {
   assets: CanvasLayoutAsset[];
 };
 
-export function createEmptyLayout(): CanvasLayout {
+export function getDesignDpi(
+  layout: Pick<CanvasLayout, "designDpi">,
+  fallback: number = CANVAS_DPI,
+): number {
+  return layout.designDpi ?? fallback;
+}
+
+export function getPrintDpi(
+  layout: Pick<CanvasLayout, "printDpi">,
+  fallback: number = PRINT_DPI,
+): number {
+  return layout.printDpi ?? fallback;
+}
+
+/** Scale factor from design canvas pixels to print output pixels. */
+export function getLayoutDpiScale(
+  layout: Pick<CanvasLayout, "designDpi" | "printDpi">,
+): number {
+  return getPrintDpi(layout) / getDesignDpi(layout);
+}
+
+/** Print output dimensions in pixels derived from layout canvas size and DPI settings. */
+export function getPrintDimensions(
+  layout: Pick<CanvasLayout, "canvasWidth" | "canvasHeight" | "designDpi" | "printDpi">,
+): { width: number; height: number } {
+  const scale = getLayoutDpiScale(layout);
+  return {
+    width: Math.round(layout.canvasWidth * scale),
+    height: Math.round(layout.canvasHeight * scale),
+  };
+}
+
+export function createEmptyLayout(options: CanvasSizeOptions = {}): CanvasLayout {
   return {
     version: 1,
-    canvasWidth: CANVAS_WIDTH,
-    canvasHeight: CANVAS_HEIGHT,
+    canvasWidth: options.canvasWidth ?? CANVAS_WIDTH,
+    canvasHeight: options.canvasHeight ?? CANVAS_HEIGHT,
+    designDpi: options.designDpi ?? CANVAS_DPI,
+    printDpi: options.printDpi ?? PRINT_DPI,
     items: [],
   };
+}
+
+function isPositiveNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
 export function isCanvasLayout(value: unknown): value is CanvasLayout {
@@ -85,8 +134,14 @@ export function isCanvasLayout(value: unknown): value is CanvasLayout {
 
   const layout = value as Partial<CanvasLayout>;
   if (layout.version !== 1) return false;
-  if (layout.canvasWidth !== CANVAS_WIDTH) return false;
-  if (layout.canvasHeight !== CANVAS_HEIGHT) return false;
+  if (!isPositiveNumber(layout.canvasWidth)) return false;
+  if (!isPositiveNumber(layout.canvasHeight)) return false;
+  if (layout.designDpi !== undefined && !isPositiveNumber(layout.designDpi)) {
+    return false;
+  }
+  if (layout.printDpi !== undefined && !isPositiveNumber(layout.printDpi)) {
+    return false;
+  }
   if (!Array.isArray(layout.items)) return false;
 
   return layout.items.every((item) => {

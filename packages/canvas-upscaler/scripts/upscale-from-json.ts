@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  PRINT_HEIGHT,
-  PRINT_WIDTH,
+  getPrintDimensions,
+  getPrintDpi,
   isCanvasLayout,
   type CanvasLayoutExport,
 } from "@jeffgo10/shared-types";
@@ -52,4 +52,6 @@ for (const asset of raw.assets) {
 
 const png = await upscaleLayoutExportToPng(raw);
 writeFileSync(outputPath, png);
-console.log(`Wrote ${outputPath} (${PRINT_WIDTH}x${PRINT_HEIGHT} @ 300 DPI)`);
+const { width, height } = getPrintDimensions(raw.layout);
+const printDpi = getPrintDpi(raw.layout);
+console.log(`Wrote ${outputPath} (${width}x${height} @ ${printDpi} DPI)`);

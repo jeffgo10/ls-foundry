@@ -21,6 +21,8 @@ export type AutoArrangeOptions = {
   canvasWidth?: number;
   /** Canvas height in pixels. Default A4 @ 72 DPI. */
   canvasHeight?: number;
+  /** Design DPI for mm→px gap conversion. Default 72. */
+  designDpi?: number;
 };
 
 export type AutoArrangeResult = {
@@ -180,7 +182,8 @@ export async function autoArrangeItems(
   const gapMm = options.gapMm ?? 5;
   const canvasWidth = options.canvasWidth ?? CANVAS_WIDTH;
   const canvasHeight = options.canvasHeight ?? CANVAS_HEIGHT;
-  const gapPx = mmToCanvasPixels(gapMm, CANVAS_DPI);
+  const designDpi = options.designDpi ?? CANVAS_DPI;
+  const gapPx = mmToCanvasPixels(gapMm, designDpi);
 
   const prepared = await Promise.all(
     items.map(async (item) => {

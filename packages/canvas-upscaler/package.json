@@ -1,6 +1,6 @@
 {
   "name": "@jeffgo10/canvas-upscaler",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Map StickPak 72 DPI layout JSON to a 300 DPI print PNG",
   "license": "MIT",
   "repository": {

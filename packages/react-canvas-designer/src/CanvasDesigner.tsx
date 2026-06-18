@@ -1,10 +1,14 @@
 import {
+  CANVAS_DPI,
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
+  PRINT_DPI,
+  createEmptyLayout,
+  getDesignDpi,
+  getPrintDpi,
   type CanvasItem,
   type CanvasLayout,
   type DimensionUnit,
-  createEmptyLayout,
 } from "@jeffgo10/shared-types";
 import { blobUrlToDataUrl, traceAlphaContour } from "@jeffgo10/helpers/image";
 import type Konva from "konva";
@@ -33,7 +37,6 @@ import {
   type AutoArrangeOptions,
 } from "./autoArrange";
 import {
-  DEFAULT_DIMENSION_DPI,
   formatDimensionAxisValue,
   getSelectionDimensions,
   type FormatSelectionDimensions,
@@ -87,6 +90,14 @@ export type CanvasDesignerProps = {
   onSelectionDimensionsChange?: (dimensions: SelectionDimensionsResult | null) => void;
   /** Color for on-canvas dimension captions. Default matches transformer blue. */
   dimensionLabelColor?: string;
+  /** Design canvas width in pixels. Default A4 @ 72 DPI (595). */
+  canvasWidth?: number;
+  /** Design canvas height in pixels. Default A4 @ 72 DPI (842). */
+  canvasHeight?: number;
+  /** Design-time DPI for canvasWidth/Height. Default 72. */
+  designDpi?: number;
+  /** Target print DPI written to layout JSON for upscale. Default 300. */
+  printDpi?: number;
 };
 
 export type ImageSourceFromUrl = {
@@ -222,21 +233,44 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       onAutoArrange,
       showSelectionDimensions = false,
       dimensionUnit = "mm",
-      dimensionDpi = DEFAULT_DIMENSION_DPI,
+      dimensionDpi,
       dimensionDecimalPlaces = 1,
       formatSelectionDimensions,
       onSelectionDimensionsChange,
       dimensionLabelColor = TRANSFORMER_COLOR,
+      canvasWidth: canvasWidthProp,
+      canvasHeight: canvasHeightProp,
+      designDpi: designDpiProp,
+      printDpi: printDpiProp,
     },
     ref,
   ) {
     const [items, setItems] = useState<PlacedImage[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [canvasConfig, setCanvasConfig] = useState({
+      canvasWidth: canvasWidthProp ?? CANVAS_WIDTH,
+      canvasHeight: canvasHeightProp ?? CANVAS_HEIGHT,
+      designDpi: designDpiProp ?? CANVAS_DPI,
+      printDpi: printDpiProp ?? PRINT_DPI,
+    });
     const shapeRefs = useRef(new Map<string, Konva.Group>());
     const transformerRef = useRef<Konva.Transformer>(null);
     const pendingAutoArrangeRef = useRef(false);
     const itemsRef = useRef(items);
     itemsRef.current = items;
+    const selectedIdRef = useRef(selectedId);
+    selectedIdRef.current = selectedId;
+
+    useEffect(() => {
+      setCanvasConfig({
+        canvasWidth: canvasWidthProp ?? CANVAS_WIDTH,
+        canvasHeight: canvasHeightProp ?? CANVAS_HEIGHT,
+        designDpi: designDpiProp ?? CANVAS_DPI,
+        printDpi: printDpiProp ?? PRINT_DPI,
+      });
+    }, [canvasWidthProp, canvasHeightProp, designDpiProp, printDpiProp]);
+
+    const selectionDpi = dimensionDpi ?? canvasConfig.designDpi;
 
     const selectedItem = useMemo(
       () => items.find((item) => item.assetId === selectedId) ?? null,
@@ -255,7 +289,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         widthPx,
         heightPx,
         dimensionUnit,
-        dimensionDpi,
+        selectionDpi,
         dimensionDecimalPlaces,
         formatSelectionDimensions,
       );
@@ -263,7 +297,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       showSelectionDimensions,
       selectedItem,
       dimensionUnit,
-      dimensionDpi,
+      selectionDpi,
       dimensionDecimalPlaces,
       formatSelectionDimensions,
     ]);
@@ -293,7 +327,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     }, [showSelectionDimensions, selectionDimensions, onSelectionDimensionsChange]);
 
     const layout = useMemo<CanvasLayout>(() => {
-      const base = createEmptyLayout();
+      const base = createEmptyLayout(canvasConfig);
       base.items = items.map(({ assetId, x, y, scaleX, scaleY, rotation }) => ({
         assetId,
         x,
@@ -303,7 +337,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         rotation,
       }));
       return base;
-    }, [items]);
+    }, [items, canvasConfig]);
 
     const buildExport = useCallback(async (): Promise<CanvasLayoutExport> => {
       const assets = await Promise.all(
@@ -366,6 +400,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         setItems(placed);
         setSelectedId(null);
         shapeRefs.current.clear();
+        setCanvasConfig({
+          canvasWidth: input.layout.canvasWidth,
+          canvasHeight: input.layout.canvasHeight,
+          designDpi: getDesignDpi(input.layout),
+          printDpi: getPrintDpi(input.layout),
+        });
       },
       [],
     );
@@ -391,6 +431,51 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       }
     }, []);
 
+    const deleteSelectedItem = useCallback(() => {
+      const activeId = selectedIdRef.current;
+      if (!activeId) return;
+
+      setItems((current) => {
+        const item = current.find((entry) => entry.assetId === activeId);
+        if (item?.src.startsWith("blob:")) {
+          URL.revokeObjectURL(item.src);
+        }
+        return current.filter((entry) => entry.assetId !== activeId);
+      });
+      shapeRefs.current.delete(activeId);
+      setSelectedId(null);
+
+      const transformer = transformerRef.current;
+      if (transformer) {
+        transformer.nodes([]);
+        transformer.getLayer()?.batchDraw();
+      }
+    }, []);
+
+    useEffect(() => {
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Delete" && event.key !== "Backspace") return;
+        if (!selectedIdRef.current) return;
+
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.tagName === "SELECT" ||
+            target.isContentEditable)
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        deleteSelectedItem();
+      };
+
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
+    }, [deleteSelectedItem]);
+
     const runAutoArrange = useCallback(
       async (options?: AutoArrangeOptions): Promise<boolean> => {
         clearSelection();
@@ -404,15 +489,16 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         const gapMm = options?.gapMm ?? autoArrangeGapMm;
         const { items: arranged, allPlaced } = await autoArrangeItems(current, {
           gapMm,
-          canvasWidth: options?.canvasWidth,
-          canvasHeight: options?.canvasHeight,
+          canvasWidth: options?.canvasWidth ?? canvasConfig.canvasWidth,
+          canvasHeight: options?.canvasHeight ?? canvasConfig.canvasHeight,
+          designDpi: options?.designDpi ?? canvasConfig.designDpi,
         });
 
         setItems(arranged);
         onAutoArrange?.({ allPlaced });
         return allPlaced;
       },
-      [autoArrangeGapMm, clearSelection, onAutoArrange],
+      [autoArrangeGapMm, canvasConfig, clearSelection, onAutoArrange],
     );
 
     useEffect(() => {
@@ -547,29 +633,44 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         <div
           {...getRootProps()}
           style={{
+            position: "relative",
+            display: "inline-block",
+            width: canvasConfig.canvasWidth,
+            height: canvasConfig.canvasHeight,
             border: "1px dashed #94a3b8",
             borderRadius: 8,
-            padding: 12,
-            background: isDragActive ? "#f8fafc" : "transparent",
+            boxSizing: "content-box",
+            overflow: "hidden",
+            background: isDragActive ? "#f8fafc" : "#ffffff",
+            lineHeight: 0,
+            verticalAlign: "top",
           }}
         >
           <input {...getInputProps()} />
           {items.length === 0 ? (
-            <p style={{ margin: 0, color: "#64748b" }}>
+            <p
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: 0,
+                padding: 16,
+                color: "#64748b",
+                fontSize: 14,
+                lineHeight: 1.4,
+                textAlign: "center",
+                pointerEvents: "none",
+              }}
+            >
               Drop sticker images here to start a layout
             </p>
-          ) : (
-            <p style={{ margin: "0 0 8px", color: "#64748b", fontSize: 13 }}>
-              Click an image to select it, then drag corners to resize or the top
-              handle to rotate.
-              {showCutLine
-                ? " Red outlines preview the die-cut line along transparent edges."
-                : null}
-            </p>
-          )}
+          ) : null}
           <Stage
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
+            width={canvasConfig.canvasWidth}
+            height={canvasConfig.canvasHeight}
+            style={{ display: "block" }}
             onMouseDown={deselect}
             onTouchStart={deselect}
           >

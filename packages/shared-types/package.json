@@ -1,6 +1,6 @@
 {
   "name": "@jeffgo10/shared-types",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "StickPak canvas layout types and print dimension constants",
   "license": "MIT",
   "repository": {

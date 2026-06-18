@@ -30,6 +30,66 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Test UI:** `/stickpak` → **Show selected sticker size** + unit dropdown.
 
+## Customizable canvas and print size
+
+**When:** June 2026 (`shared-types` v0.1.2, `react-canvas-designer` v0.1.3, `canvas-upscaler` v0.1.1).
+
+**Defaults:** A4 @ 72 DPI design (595 × 842) → 300 DPI print (2481 × 3507).
+
+**Designer props:** `canvasWidth`, `canvasHeight`, `designDpi`, `printDpi`. Exported layout JSON stores all four. `loadLayoutFromSources()` restores dimensions from saved layout.
+
+**Upscaler:** `getPrintDimensions(layout)` — `round(canvas × printDpi / designDpi)`. No longer hardcoded A4 output.
+
+**Helpers:** `getLayoutDpiScale()`, `createEmptyLayout({ canvasWidth, canvasHeight, designDpi, printDpi })` in `@jeffgo10/shared-types`.
+
+## Canvas designer shell layout
+
+**Fix:** Dashed-border / white wrapper was larger than the Konva stage (extra padding + instruction text inside the frame).
+
+**Now:** Shell is exactly `canvasWidth × canvasHeight`; empty-state drop hint is an overlay only. No instruction paragraph above the canvas after stickers are placed.
+
+## Delete selected sticker (keyboard)
+
+**When:** June 2026 (`react-canvas-designer` v0.1.3+).
+
+Select a sticker, press **Delete** or **Backspace**. Skipped when typing in form fields. Revokes blob URLs for dropped files.
+
+**Code:** `packages/react-canvas-designer/src/CanvasDesigner.tsx` — `deleteSelectedItem`, window `keydown` listener.
+
+## Package version mismatch (react-canvas-designer vs shared-types)
+
+**Symptom:** TypeScript/build errors importing `DimensionUnit`, `canvasPixelsToUnit`, `formatCanvasDimensions`, or `mmToCanvasPixels` from `@jeffgo10/shared-types` when using `react-canvas-designer@0.1.1` from GitHub Packages.
+
+**Cause:** `react-canvas-designer@0.1.1` was published with a dependency pin on `shared-types@0.1.0`, but dimension/auto-arrange APIs live in `shared-types@0.1.1`. The published `0.1.0` tarball did not export those symbols.
+
+**Fix (June 2026):** Published `shared-types@0.1.1` and `react-canvas-designer@0.1.2`. **Current recommended pins** (custom canvas + delete keyboard):
+
+```json
+"@jeffgo10/shared-types": "0.1.2",
+"@jeffgo10/react-canvas-designer": "0.1.3",
+"@jeffgo10/canvas-upscaler": "0.1.1"
+```
+
+Avoid `react-canvas-designer@0.1.1` from the registry.
+
+## S3-backed persistence (`exportLayoutState`)
+
+**When:** June 2026 — consumed by `sticker-print-app` saved designs + checkout.
+
+**API (no embedded image bytes):**
+
+| Method | Purpose |
+|--------|---------|
+| `exportLayoutState()` | `{ layout, assets: [{ assetId, mimeType }] }` |
+| `loadLayoutFromSources({ layout, sources })` | Restore from presigned S3 GET URLs |
+| `clearCanvas()` | Remove all stickers |
+
+**Contrast:** `exportLayout()` still embeds `dataUrl` per asset (upscaler CLI, `/stickpak` export).
+
+**Consumer:** `sticker-print-app` pairs `exportLayoutState()` with client asset registry + DynamoDB `PersistedDesignPayload` (`layout` + `{ assetId, s3Key, mimeType }[]`).
+
+**Code:** `packages/react-canvas-designer/src/CanvasDesigner.tsx`
+
 ## GitHub Packages npm scope
 
 **Symptom:** `403 Forbidden — owner not found` when publishing `@ls-foundry/*`.
@@ -116,25 +176,25 @@ Migrated for marketing/articles SSR. Konva via `dynamic(..., { ssr: false })` + 
 
 **API:** `presign-upload` returns `uploadUrl` (PUT) and `readUrl` (presigned GET, 15 min).
 
-**Canvas designer (`@jeffgo10/react-canvas-designer` v0.1.1):** New imperative API `addImagesFromUrls(sources: ImageSourceFromUrl[])` loads remote URLs with `crossOrigin: "anonymous"`. Shared `placeImageSource()` also used by drag-and-drop (local blob URLs).
+**Canvas designer (`@jeffgo10/react-canvas-designer` v0.1.3+, `@jeffgo10/shared-types` v0.1.2+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
 
-**Storefront:** `@jeffgo10/react-canvas-designer` is pnpm-linked from `ls-foundry` until 0.1.1 is published to GitHub Packages. Rebuild designer + `pnpm install` in `sticker-print-app` after edits.
+**Storefront:** Install `@jeffgo10/react-canvas-designer@0.1.3`, `@jeffgo10/shared-types@0.1.2`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
 
 **CORS:** Source bucket allows GET/PUT from browser origins (CDK `cors` on source bucket). Redeploy LocalStack infra if canvas image fails to load after upload.
 
-### Phase 3 — cognito-local + Amplify
+### Phase 3 — auth, designs, library, checkout
 
 See Obsidian **Phase 3 — sticker-print-app** and `sticker-print-app/docs/phase-3.md`.
 
-**Local auth:** `docker compose` service `cognito-local` on port **9229**. Run `pnpm cognito:setup` to create pool/client/groups and write `.env.local` files (+ `sam/env.local.json`).
+**Local auth:** `cognito-local` on **9229**; `pnpm cognito:setup` writes `.env.local` + `sam/env.local.json`. Storefront uses Cognito SDK when `NEXT_PUBLIC_COGNITO_ENDPOINT` is set (not Amplify for `local_*` pools). Refresh tokens + `ensureFreshIdToken()`; API JWT verify in `packages/api/src/auth/jwt.ts`.
 
-**Amplify / local auth:** When `NEXT_PUBLIC_COGNITO_ENDPOINT` is set, storefront uses `@aws-sdk/client-cognito-identity-provider` directly (Amplify builds `cognito-idp.local.amazonaws.com` for `local_*` pool IDs). Production (no endpoint var) uses `aws-amplify/auth`.
+**Saved designs:** `GET/POST /designs`, `GET/PUT /designs/:id` — layout JSON + S3 keys in DynamoDB. Storefront **My designs**: load → edit → **Update design** or **Save as new**.
 
-**JWT in SAM:** Token `iss` uses `http://localhost:9229/<poolId>`; Lambdas fetch JWKS from `host.docker.internal:9229`. Prefer `./scripts/start-api-local.sh` if `POST /orders` returns 401 under SAM.
+**Sticker library:** `GET/POST /assets` — reusable uploads per user; **Add to canvas** on any design.
 
-**Delivery zones:** Seeded on `./scripts/deploy-localstack.sh` (`pnpm seed:delivery-zones`). Pricing in `@stickpak/shared`.
+**Checkout:** `exportLayoutState()` + asset registry → `POST /orders` with `design` payload. Delivery zones in `@stickpak/shared`.
 
-**Checkout:** Sign in → design canvas → pick zone → **Save draft order** (`exportLayout` + bearer token). Payment is Phase 4.
+**Storefront API proxy:** `apps/storefront/src/app/api/[...path]/route.ts` (same-origin `/api` → `:3000`).
 
-**Obsidian noteworthy:** cognito-local and Amplify, storefront S3 URL canvas, presigned URL localstack hostname.
+**Obsidian noteworthy:** cognito-local and Amplify, storefront S3 URL canvas, presigned URL localstack hostname, CanvasDesigner S3 persistence API.
 

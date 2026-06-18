@@ -18,5 +18,11 @@ export {
   canvasPixelsToUnit,
   formatCanvasDimensions,
   mmToCanvasPixels,
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  CANVAS_DPI,
+  PRINT_DPI,
+  getPrintDimensions,
   type DimensionUnit,
+  type CanvasSizeOptions,
 } from "@jeffgo10/shared-types";

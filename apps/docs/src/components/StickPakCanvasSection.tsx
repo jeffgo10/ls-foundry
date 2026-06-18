@@ -124,7 +124,7 @@ function StickPakCanvasSection() {
       {selectionSizeLabel ? (
         <p className="text-sm text-white/50">{selectionSizeLabel}</p>
       ) : null}
-      <div className="overflow-auto rounded-xl border border-white/10 bg-white p-4">
+      <div className="w-fit max-w-full overflow-auto rounded-xl border border-white/10 bg-white">
         <CanvasDesigner
           ref={designerRef}
           showCutLine={showCutLine}

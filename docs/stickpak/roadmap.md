@@ -9,19 +9,15 @@ By physically splitting the codebase into a core reusable engine and a domain-sp
 **Goal:** Build the math and visual foundation. This phase knows nothing about cloud infrastructure, users, or payments. It only cares about pixels, coordinates, and dragging images.
 
 - **1.1 Workspace Setup:** Initialize Turborepo or pnpm workspaces in `ls-foundry`.
-- **1.2 Types Package (`@jeffgo10/shared-types`):** Define the exact JSON schema for the canvas layout. It should require an array of objects containing `assetId`, `x`, `y`, `scaleX`, `scaleY`, and `rotation`.
-- **1.3 The Frontend Canvas UI (`@jeffgo10/react-canvas-designer`):**
-  - Set up a `react-konva` Stage locked to a 72 DPI A4 aspect ratio.
-  - Implement `react-dropzone` to catch dropped images and render them as Konva `<Image draggable />` nodes.
-  - Bind an `onExport` function that generates the state JSON payload based on the types package.
-  - Cut-line preview along PNG alpha edges (`showCutLine`).
-  - Auto-arrange: pack stickers with cut-line spacing (default 5 mm); imperative `arrangeAll()` on ref. See [engineering-notes.md](./engineering-notes.md).
-  - Selection dimension labels: on-canvas W/H captions on transformer edges (mm/cm/in, configurable DPI); rotate-aligned via `getAbsoluteTransform()`. See [engineering-notes.md](./engineering-notes.md).
-  - Remote image sources: `addImagesFromUrls()` for S3 presigned GET URLs (v0.1.1+).
-- **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler`):**
-  - Write a pure Node.js utility utilizing `automattic/node-canvas`.
-  - Implement the translation matrix: map the 72 DPI JSON coordinates onto a headless 300 DPI canvas (2481 × 3507 pixels).
-  - Create a local testing script to verify that a downloaded test layout mathematically aligns perfectly when exported as a high-res local PNG.
+- **1.2 Types Package (`@jeffgo10/shared-types` v0.1.2):** Layout JSON schema + physical dimension helpers. Customizable `canvasWidth`/`canvasHeight` with optional `designDpi`/`printDpi` (A4 @ 72/300 DPI defaults).
+- **1.3 The Frontend Canvas UI (`@jeffgo10/react-canvas-designer` v0.1.3):**
+  - `react-konva` Stage; default A4 @ 72 DPI, overridable via props.
+  - `react-dropzone` for dropped images; shell fits stage exactly (no extra padding).
+  - Cut-line preview (`showCutLine`), auto-arrange (`arrangeAll`), selection dimension labels.
+  - Remote URLs (`addImagesFromUrls`), S3 persistence API (`exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`).
+  - Delete/Backspace removes selected sticker.
+- **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler` v0.1.1):**
+  - Print PNG size derived from layout dimensions × (`printDpi` / `designDpi`). A4 default unchanged.
 
 See [phase-1.md](./phase-1.md) for package locations and implementation status in this repo.
 
