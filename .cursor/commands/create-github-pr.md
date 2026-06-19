@@ -9,6 +9,7 @@ Follow `.cursor/rules/ls-foundry-core.mdc`. Default base branch: **`master`**.
 | Trailing text | Mode |
 |---|---|
 | Empty | **Create** — auto-commit, branch if needed, push, open PR |
+| "cleanup", "sync master", "back to master", or "merged" | **Cleanup only** — checkout `master`, pull, delete merged local branch (Step 8) |
 | "draft only", "preview", or "dry run" | **Draft only** — show proposed branch name, commit message, title/body; do not run git write ops |
 | "draft pr" or "as draft" | **Create draft PR** — same as Create but `gh pr create --draft` |
 | "no commit" or "committed only" | Skip auto-commit; use commits already on branch |
@@ -53,6 +54,21 @@ git branch -vv
 git remote -v
 git log --oneline -15
 ```
+
+### Merged-PR cleanup (run first when applicable)
+
+If the **current branch is not** `master`/`main`, check whether its PR is already merged:
+
+```bash
+gh pr view --json state,merged,baseRefName 2>/dev/null || true
+```
+
+| Condition | Action |
+|---|---|
+| PR **merged** (or user trailing text: `cleanup`, `sync master`, `back to master`, `merged`) | Run **Step 8** now, then continue from a fresh `master` if creating another PR |
+| On stale feature branch with no open PR and no local commits ahead of `origin/master` | Run Step 8 or offer it before starting a new PR |
+
+When starting **Create** mode, prefer a clean `master` that matches `origin/master` before creating a new feature branch.
 
 Determine:
 
@@ -265,9 +281,57 @@ Report the existing URL; offer to edit title/body with `gh pr edit` if the user 
 
 **If Step 0 failed** — skip `gh pr create`. Report web URL + proposed title/body for manual paste.
 
+After a successful **`gh pr create`**, note in the report:
+
+> After the PR is **merged**, run `/create-github-pr cleanup` (or Step 8 below) to return to `master` and pull.
+
 ---
 
-## Step 8 — Report
+## Step 8 — Return to `master` after merge (cleanup)
+
+Run when:
+
+- Trailing text contains **`cleanup`**, **`sync master`**, **`back to master`**, or **`merged`**
+- **Or** `gh pr view` shows the current branch PR state is **MERGED**
+- **Or** user confirms the PR was just merged
+
+Requires `git_write` and `network` permissions.
+
+```bash
+# Remember feature branch name before switching
+FEATURE_BRANCH="$(git branch --show-current)"
+
+git checkout master
+git pull origin master
+
+# Delete local feature branch if fully merged (safe delete)
+git branch -d "$FEATURE_BRANCH" 2>/dev/null || true
+```
+
+| Result | Action |
+|---|---|
+| `git branch -d` succeeds | Local feature branch removed |
+| `git branch -d` fails | Branch not fully merged — keep it; report reason |
+| Uncommitted changes on feature branch | **Stop** — commit, stash, or discard first; do not force checkout |
+
+**Do not** delete the remote branch unless the user asks (`git push origin --delete`).
+
+Report:
+
+```markdown
+### Post-merge cleanup
+- **Checked out:** `master`
+- **Pulled:** `origin/master` @ `<short-sha>`
+- **Local branch deleted:** `feat/…` / kept (reason)
+```
+
+Skip Step 8 for **Draft only** unless user explicitly requested cleanup.
+
+When **only** cleanup is requested (trailing `cleanup` / `sync master` / `merged`), run Step 8 and report — skip PR creation steps.
+
+---
+
+## Step 9 — Report
 
 Include what was automated:
 
@@ -277,6 +341,11 @@ Include what was automated:
 ### Git automation
 - **Branch created:** `feat/…` (was on `master`) / already on feature branch
 - **Auto-commit:** ✅ `<subject line>` / skipped (no uncommitted changes / `no commit` mode)
+
+### Post-merge cleanup (Step 8, when run)
+- **Checked out:** `master`
+- **Pulled:** `origin/master` @ `<short-sha>`
+- **Local branch deleted:** `…` / kept (reason)
 
 ### PR
 **URL:** …
@@ -300,6 +369,9 @@ Include what was automated:
 /create-github-pr base: develop
 /create-github-pr title: Add agent tooling and Obsidian sync command
 /create-github-pr preview: canvas designer shell layout and delete keyboard only
+/create-github-pr cleanup
+/create-github-pr sync master
+/create-github-pr merged
 ```
 
 ---

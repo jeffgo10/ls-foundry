@@ -21,6 +21,8 @@ Dual-write important changes to **monorepo markdown** (`docs/stickpak/`) **and**
 /create-github-pr draft only
 /create-github-pr no commit
 /create-github-pr branch: feat/my-feature
+/create-github-pr cleanup
+/create-github-pr sync master
 ```
 
 ## MCP server
