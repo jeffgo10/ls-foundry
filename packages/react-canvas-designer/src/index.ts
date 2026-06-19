@@ -11,6 +11,16 @@ export {
   getMinResizeDimensionsPx,
   getMinResizeScale,
 } from "./resizeConstraints";
+export {
+  canItemFitInCanvasMargin,
+  clampItemPosition,
+  clampItemToCanvasMargin,
+  fitItemToCanvasArea,
+  getCanvasMarginPx,
+  getDefaultPlacementPosition,
+  getItemAxisAlignedBounds,
+  prepareItemForCanvasPlacement,
+} from "./canvasMargin";
 export type {
   FormatSelectionDimensions,
   SelectionDimensionsResult,

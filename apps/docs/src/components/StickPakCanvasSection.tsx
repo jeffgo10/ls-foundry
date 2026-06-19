@@ -5,7 +5,7 @@ import type {
   DimensionUnit,
 } from "@jeffgo10/react-canvas-designer";
 import dynamic from "next/dynamic";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 const CanvasDesigner = dynamic(
   () =>
@@ -25,21 +25,13 @@ function StickPakCanvasSection() {
   const [exportedJson, setExportedJson] = useState("");
   const [showCutLine, setShowCutLine] = useState(false);
   const [autoArrangeGapMm, setAutoArrangeGapMm] = useState(5);
+  const [canvasMarginMm, setCanvasMarginMm] = useState(10);
   const [autoArrangeOnAdd, setAutoArrangeOnAdd] = useState(false);
   const [showSelectionDimensions, setShowSelectionDimensions] = useState(true);
   const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("mm");
-  const [selectionSizeLabel, setSelectionSizeLabel] = useState("");
   const [arrangeMessage, setArrangeMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
-
-  const handleSelectionDimensionsChange = useCallback(
-    (dimensions: { label: string } | null) => {
-      const nextLabel = dimensions ? `Selected: ${dimensions.label}` : "";
-      setSelectionSizeLabel((prev) => (prev === nextLabel ? prev : nextLabel));
-    },
-    [],
-  );
 
   const handleExport = async () => {
     if (!designerRef.current) return;
@@ -93,6 +85,17 @@ function StickPakCanvasSection() {
         Auto-arrange when images are added
       </label>
       <label className="flex items-center gap-2 text-sm text-white/70">
+        Canvas margin (mm)
+        <input
+          type="number"
+          min={0}
+          step={0.5}
+          value={canvasMarginMm}
+          onChange={(event) => setCanvasMarginMm(Number(event.target.value))}
+          className="w-20 rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-white/70">
         Cut-line gap (mm)
         <input
           type="number"
@@ -129,18 +132,15 @@ function StickPakCanvasSection() {
           <span className="text-white/40">@ 72 DPI design canvas</span>
         </label>
       ) : null}
-      {selectionSizeLabel ? (
-        <p className="text-sm text-white/50">{selectionSizeLabel}</p>
-      ) : null}
       <div className="w-fit max-w-full overflow-auto rounded-xl border border-white/10 bg-white">
         <CanvasDesigner
           ref={designerRef}
           showCutLine={showCutLine}
           autoArrangeGapMm={autoArrangeGapMm}
+          canvasMarginMm={canvasMarginMm}
           autoArrangeOnAdd={autoArrangeOnAdd}
           showSelectionDimensions={showSelectionDimensions}
           dimensionUnit={dimensionUnit}
-          onSelectionDimensionsChange={handleSelectionDimensionsChange}
           onAutoArrange={({ allPlaced }) => {
             setArrangeMessage(
               allPlaced

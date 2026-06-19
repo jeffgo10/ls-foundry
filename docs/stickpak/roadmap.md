@@ -10,10 +10,11 @@ By physically splitting the codebase into a core reusable engine and a domain-sp
 
 - **1.1 Workspace Setup:** Initialize Turborepo or pnpm workspaces in `ls-foundry`.
 - **1.2 Types Package (`@jeffgo10/shared-types` v0.1.2):** Layout JSON schema + physical dimension helpers. Customizable `canvasWidth`/`canvasHeight` with optional `designDpi`/`printDpi` (A4 @ 72/300 DPI defaults).
-- **1.3 The Frontend Canvas UI (`@jeffgo10/react-canvas-designer` v0.2.1):**
+- **1.3 The Frontend Canvas UI (`@jeffgo10/react-canvas-designer` v0.2.5):**
   - `react-konva` Stage; default A4 @ 72 DPI, overridable via props.
   - `react-dropzone` for dropped images; shell fits stage exactly (no extra padding).
   - Cut-line preview (`showCutLine`), auto-arrange (`arrangeAll`), selection dimension labels.
+  - Canvas edge margin (`canvasMarginMm`) — clamp on alpha cut line; fit oversized drops.
   - Remote URLs (`addImagesFromUrls`), S3 persistence API (`exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`).
   - Delete/Backspace removes selected sticker.
 - **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler` v0.1.1):**

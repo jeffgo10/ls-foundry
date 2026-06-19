@@ -4,11 +4,12 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 
 ## Packages
 
-| Package | Path | Purpose |
-|---------|------|---------|
-| `@jeffgo10/shared-types` | `packages/shared-types` | Canvas layout JSON schema and DPI constants |
-| `@jeffgo10/react-canvas-designer` | `packages/react-canvas-designer` | Konva sticker layout designer (default A4, customizable size) |
-| `@jeffgo10/canvas-upscaler` | `packages/canvas-upscaler` | Map 72 DPI layout JSON to a 300 DPI print PNG |
+| Package | Path | README |
+|---------|------|--------|
+| `@jeffgo10/shared-types` | `packages/shared-types` | [README](../../packages/shared-types/README.md) |
+| `@jeffgo10/react-canvas-designer` | `packages/react-canvas-designer` | [README](../../packages/react-canvas-designer/README.md) |
+| `@jeffgo10/canvas-upscaler` | `packages/canvas-upscaler` | [README](../../packages/canvas-upscaler/README.md) |
+| `@jeffgo10/helpers` | `packages/helpers` | [README](../../packages/helpers/README.md) |
 
 ## Status
 
@@ -19,7 +20,7 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 | Package | Version | Notes |
 |---------|---------|-------|
 | `@jeffgo10/shared-types` | **0.1.2** | Custom canvas + print DPI in layout JSON |
-| `@jeffgo10/react-canvas-designer` | **0.2.1** | `minResizeSizeMm`; customizable canvas + selection dimensions |
+| `@jeffgo10/react-canvas-designer` | **0.2.5** | `canvasMarginMm` (cut-line bounds); `minResizeSizeMm`; customizable canvas + selection dimensions |
 | `@jeffgo10/helpers` | 0.1.0 | |
 | `@jeffgo10/canvas-upscaler` | **0.1.1** | Output size from layout dimensions |
 
@@ -27,7 +28,7 @@ Install both designer packages together:
 
 ```json
 "@jeffgo10/shared-types": "0.1.2",
-"@jeffgo10/react-canvas-designer": "0.2.1",
+"@jeffgo10/react-canvas-designer": "0.2.5",
 "@jeffgo10/canvas-upscaler": "0.1.1"
 ```
 
@@ -37,7 +38,7 @@ See [engineering-notes.md](./engineering-notes.md#package-version-mismatch-react
 
 - [x] **1.1** pnpm workspaces + Turborepo (repo root)
 - [x] **1.2** `@jeffgo10/shared-types` (v0.1.2) — layout schema, A4 defaults, physical dimension helpers, customizable `canvasWidth`/`canvasHeight` + `designDpi`/`printDpi`
-- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.0) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`)
+- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.5) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds)
 - [x] **1.4** `@jeffgo10/canvas-upscaler` (v0.1.1) — JSON CLI; print output size from layout dimensions + DPI
 - [x] **1.5** `@jeffgo10/helpers/image` — contour tracing, blob URL → data URL
 - [x] **1.6** Docs test page — `apps/docs` `/stickpak`
@@ -162,6 +163,20 @@ Corner resize keeps aspect ratio and cannot shrink the **shorter side** below a 
 **Example:** A 70 × 30 mm sticker with `minResizeSizeMm={15}` can shrink only to **35 × 15 mm**.
 
 Helpers exported from `@jeffgo10/react-canvas-designer`: `DEFAULT_MIN_RESIZE_SIZE_MM`, `getMinResizeScale`, `getMinResizeDimensionsPx`. See [engineering-notes.md](./engineering-notes.md).
+
+### Canvas edge margin
+
+Restrict sticker placement to a printable inset. Drag, resize, drop placement, auto-arrange, and layout restore keep the **alpha cut line** inside the margin band (transparent image padding may extend past it). **Oversized drops** are uniformly scaled to fit the printable area before placement.
+
+| Prop | Default | Purpose |
+|------|---------|---------|
+| `canvasMarginMm` | `0` | Restricted edge inset in millimeters |
+| `showCanvasMargin` | `true` when margin > 0 | Dashed guide rect for the printable area |
+| `canvasMarginColor` | `#94a3b8` | Stroke color for the margin guide |
+
+```tsx
+<CanvasDesigner canvasMarginMm={10} />
+```
 
 ### Delete selected sticker
 

@@ -2,6 +2,20 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Canvas edge margin (`canvasMarginMm`)
+
+**Feature:** Restrict sticker placement to a printable inset. When set to e.g. 10 mm, drag, resize, drop placement, auto-arrange, and layout restore keep the **alpha cut line** inside the margin band (transparent image padding may extend past it).
+
+**Props:** `canvasMarginMm` (default 0), `showCanvasMargin` (default true when margin > 0), `canvasMarginColor`.
+
+**Auto-arrange:** `arrangeAll({ canvasMarginMm })` uses `max(gap/2, margin)` as the edge inset.
+
+**Code:** `packages/react-canvas-designer/src/canvasMargin.ts`, `CanvasDesigner.tsx`, `autoArrange.ts`
+
+**Docs:** `packages/react-canvas-designer/README.md` (install, props, imperative API)
+
+**When:** June 2026 (`react-canvas-designer` v0.2.2–**0.2.5**). On drop (and layout restore), images larger than the printable area are uniformly scaled down via `fitItemToCanvasArea`. Margin clamp uses alpha cut line (`cutLinePoints`), not full image rect — transparent padding may extend past the margin band. At `canvasMarginMm={0}`, cut line is still clamped to canvas edges.
+
 ## Canvas auto-arrange (`arrangeAll`)
 
 **Feature:** Pack stickers so alpha-contour cut lines stay ≥5 mm apart (configurable via `autoArrangeGapMm`).
@@ -196,9 +210,9 @@ Migrated for marketing/articles SSR. Konva via `dynamic(..., { ssr: false })` + 
 
 **API:** `presign-upload` returns `uploadUrl` (PUT) and `readUrl` (presigned GET, 15 min).
 
-**Canvas designer (`@jeffgo10/react-canvas-designer` v0.2.0+, `@jeffgo10/shared-types` v0.1.2+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
+**Canvas designer (`@jeffgo10/react-canvas-designer` v0.2.5+, `@jeffgo10/shared-types` v0.1.2+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `canvasMarginMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
 
-**Storefront:** Install `@jeffgo10/react-canvas-designer@0.2.0`, `@jeffgo10/shared-types@0.1.2`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
+**Storefront:** Install `@jeffgo10/react-canvas-designer@0.2.5`, `@jeffgo10/shared-types@0.1.2`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
 
 **CORS:** Source bucket allows GET/PUT from browser origins (CDK `cors` on source bucket). Redeploy LocalStack infra if canvas image fails to load after upload.
 
