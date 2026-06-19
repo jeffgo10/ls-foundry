@@ -65,6 +65,8 @@ Optional: `obsidian_simple_search` to locate notes before editing.
 | Canvas/DPI spec | `docs/stickpak/canvas-scaling.md` | `StickPak/Detailed Canvas Scaling for upscale export.md` |
 | `@jeffgo10/gl-viewer` API or publish | `packages/gl-viewer/README.md` | `LiteShadeMedia/08 gl-viewer Package.md`; also `07 LiDAR AR 3D Viewer.md` if showcase UX changes |
 | Monorepo agent tooling | `.cursor/rules/`, `.cursor/commands/` | `LS Foundry/Cursor rules and slash commands.md`, `LS Foundry/00 Index.md` |
+| Agent version bump policy | `ls-foundry-core.mdc` | `LS Foundry/Cursor rules and slash commands.md` |
+| CI / package publish workflow | `README.md`, `scripts/publish-changed.sh` | `LS Foundry/Notes — CI package publish on master.md`, `Phase 1 Complete — ls-foundry.md` |
 
 ## Write workflow
 

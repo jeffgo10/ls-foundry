@@ -43,6 +43,12 @@ import {
   type SelectionDimensionsResult,
 } from "./selectionDimensions";
 import { SelectionDimensionLabels } from "./SelectionDimensionLabels";
+import {
+  clampNodeScale,
+  clampResizeBox,
+  DEFAULT_MIN_RESIZE_SIZE_MM,
+  getMinResizeDimensionsPx,
+} from "./resizeConstraints";
 
 export const TRANSFORMER_COLOR = "#2563eb";
 
@@ -98,6 +104,11 @@ export type CanvasDesignerProps = {
   designDpi?: number;
   /** Target print DPI written to layout JSON for upscale. Default 300. */
   printDpi?: number;
+  /**
+   * Minimum shorter-side size when resizing a sticker (millimeters).
+   * The longer side scales with aspect ratio. Default 25.4 mm (1 inch).
+   */
+  minResizeSizeMm?: number;
 };
 
 export type ImageSourceFromUrl = {
@@ -138,6 +149,8 @@ function DraggableImage({
   item,
   showCutLine,
   cutLineColor,
+  minResizeSizeMm,
+  designDpi,
   onSelect,
   onChange,
   shapeRef,
@@ -145,6 +158,8 @@ function DraggableImage({
   item: PlacedImage;
   showCutLine: boolean;
   cutLineColor: string;
+  minResizeSizeMm: number;
+  designDpi: number;
   onSelect: () => void;
   onChange: (next: PlacedImage) => void;
   shapeRef: (node: Konva.Group | null) => void;
@@ -176,12 +191,24 @@ function DraggableImage({
   };
 
   const syncFromNode = (node: Konva.Group) => {
+    const { scaleX, scaleY } = clampNodeScale(
+      node.scaleX(),
+      node.scaleY(),
+      item.width,
+      item.height,
+      minResizeSizeMm,
+      designDpi,
+    );
+    if (scaleX !== node.scaleX() || scaleY !== node.scaleY()) {
+      node.scaleX(scaleX);
+      node.scaleY(scaleY);
+    }
     onChange({
       ...item,
       x: node.x(),
       y: node.y(),
-      scaleX: node.scaleX(),
-      scaleY: node.scaleY(),
+      scaleX,
+      scaleY,
       rotation: node.rotation(),
     });
   };
@@ -242,6 +269,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       canvasHeight: canvasHeightProp,
       designDpi: designDpiProp,
       printDpi: printDpiProp,
+      minResizeSizeMm = DEFAULT_MIN_RESIZE_SIZE_MM,
     },
     ref,
   ) {
@@ -520,6 +548,22 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       );
     }, []);
 
+    const resizeBoundBoxFunc = useCallback(
+      (oldBox: { x: number; y: number; width: number; height: number; rotation: number }, newBox: { x: number; y: number; width: number; height: number; rotation: number }) => {
+        if (!selectedItem) {
+          return newBox;
+        }
+        const { minWidthPx, minHeightPx } = getMinResizeDimensionsPx(
+          selectedItem.width,
+          selectedItem.height,
+          minResizeSizeMm,
+          canvasConfig.designDpi,
+        );
+        return clampResizeBox(oldBox, newBox, minWidthPx, minHeightPx);
+      },
+      [selectedItem, minResizeSizeMm, canvasConfig.designDpi],
+    );
+
     const placeImageSource = useCallback(
       (src: string, mimeType: string, assetId?: string) => {
         const image = new window.Image();
@@ -681,6 +725,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   item={item}
                   showCutLine={showCutLine}
                   cutLineColor={cutLineColor}
+                  minResizeSizeMm={minResizeSizeMm}
+                  designDpi={canvasConfig.designDpi}
                   onSelect={() => setSelectedId(item.assetId)}
                   onChange={updateItem}
                   shapeRef={(node) => {
@@ -694,6 +740,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               ))}
               <Transformer
                 ref={transformerRef}
+                keepRatio
                 rotateEnabled
                 enabledAnchors={[
                   "top-left",
@@ -707,12 +754,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 anchorStroke={TRANSFORMER_COLOR}
                 anchorFill="#ffffff"
                 rotateAnchorOffset={24}
-                boundBoxFunc={(oldBox, newBox) => {
-                  if (newBox.width < 8 || newBox.height < 8) {
-                    return oldBox;
-                  }
-                  return newBox;
-                }}
+                boundBoxFunc={resizeBoundBoxFunc}
               />
               {showSelectionDimensions &&
               selectedId &&

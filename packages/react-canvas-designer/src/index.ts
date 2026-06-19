@@ -6,6 +6,11 @@ export {
   type LayoutLoadInput,
 } from "./CanvasDesigner";
 export type { AutoArrangeOptions } from "./autoArrange";
+export {
+  DEFAULT_MIN_RESIZE_SIZE_MM,
+  getMinResizeDimensionsPx,
+  getMinResizeScale,
+} from "./resizeConstraints";
 export type {
   FormatSelectionDimensions,
   SelectionDimensionsResult,

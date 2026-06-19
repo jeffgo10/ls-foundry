@@ -30,6 +30,24 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Test UI:** `/stickpak` → **Show selected sticker size** + unit dropdown.
 
+## Minimum resize size
+
+**When:** June 2026 (`react-canvas-designer` v0.2.0).
+
+**Feature:** Corner resize cannot shrink a sticker below a minimum **shorter-side** length. The longer side scales with aspect ratio (`keepRatio` on Konva `Transformer`).
+
+**Prop:** `minResizeSizeMm` — default **25.4** (1 inch).
+
+**Example:** 70 × 30 mm with `minResizeSizeMm={15}` → minimum **35 × 15 mm**.
+
+**Math:** `minScale = mmToCanvasPixels(minResizeSizeMm, designDpi) / min(localWidth, localHeight)`. Enforced in `boundBoxFunc` during drag and `clampNodeScale` on transform sync (covers rotation).
+
+**Exports:** `DEFAULT_MIN_RESIZE_SIZE_MM`, `getMinResizeScale`, `getMinResizeDimensionsPx`.
+
+**Code:**
+- `packages/react-canvas-designer/src/resizeConstraints.ts`
+- `packages/react-canvas-designer/src/CanvasDesigner.tsx`
+
 ## Customizable canvas and print size
 
 **When:** June 2026 (`shared-types` v0.1.2, `react-canvas-designer` v0.1.3, `canvas-upscaler` v0.1.1).
@@ -66,7 +84,7 @@ Select a sticker, press **Delete** or **Backspace**. Skipped when typing in form
 
 ```json
 "@jeffgo10/shared-types": "0.1.2",
-"@jeffgo10/react-canvas-designer": "0.1.3",
+"@jeffgo10/react-canvas-designer": "0.2.0",
 "@jeffgo10/canvas-upscaler": "0.1.1"
 ```
 
@@ -176,9 +194,9 @@ Migrated for marketing/articles SSR. Konva via `dynamic(..., { ssr: false })` + 
 
 **API:** `presign-upload` returns `uploadUrl` (PUT) and `readUrl` (presigned GET, 15 min).
 
-**Canvas designer (`@jeffgo10/react-canvas-designer` v0.1.3+, `@jeffgo10/shared-types` v0.1.2+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
+**Canvas designer (`@jeffgo10/react-canvas-designer` v0.2.0+, `@jeffgo10/shared-types` v0.1.2+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
 
-**Storefront:** Install `@jeffgo10/react-canvas-designer@0.1.3`, `@jeffgo10/shared-types@0.1.2`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
+**Storefront:** Install `@jeffgo10/react-canvas-designer@0.2.0`, `@jeffgo10/shared-types@0.1.2`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
 
 **CORS:** Source bucket allows GET/PUT from browser origins (CDK `cors` on source bucket). Redeploy LocalStack infra if canvas image fails to load after upload.
 
@@ -213,9 +231,46 @@ See Obsidian **Phase 3 — sticker-print-app** and `sticker-print-app/docs/phase
 
 **PR #1 merged (June 2026):** Agent tooling shipped on `master` (`chore/cursor-agent-tooling-and-pr-command`).
 
+**PR #2 merged (June 2026):** Post-merge cleanup in `/create-github-pr` (`chore/pr-post-merge-cleanup`).
+
+**PR #3 merged (June 2026):** CI publish on `master` push — see **CI package publish** below.
+
 **Obsidian (canonical):** [[LS Foundry/Cursor rules and slash commands]] in vault folder `LS Foundry/`. Stub cross-link: `StickPak/noteworthy/Notes — ls-foundry Cursor rules and slash commands.md`.
 
 **MCP pre-check:** `obsidian_list_files_in_dir` with `dirpath: "StickPak"` on server `user-MCP_DOCKER` before any vault write.
+
+## Agent version bumps
+
+**When:** June 2026 — added to `ls-foundry-core.mdc`.
+
+Agents **auto-bump** `packages/*/package.json` when changing a published `@jeffgo10/*` package (do not wait for the user):
+
+| Change | Bump | Example |
+|--------|------|---------|
+| Bug fix, no public API change | patch | 0.2.0 → 0.2.1 |
+| New prop, method, or export | minor | 0.1.3 → 0.2.0 |
+| Breaking layout JSON or consumer API | major | 0.2.0 → 1.0.0 |
+
+Also update pin table in `ls-foundry-core.mdc`, `docs/stickpak/phase-1.md`, and dependent `workspace:*` pins (`shared-types` first).
+
+**Current example:** `minResizeSizeMm` → `react-canvas-designer` **0.1.3 → 0.2.0** (minor).
+
+## CI package publish (GitHub Actions)
+
+**When:** June 2026 — PR #3 merged (`chore/ci-publish-packages`).
+
+On push to `master` when `packages/**` or `pnpm-lock.yaml` changes, workflow `.github/workflows/publish-packages.yml` runs `scripts/publish-changed.sh` to build and publish **only** changed non-private `@jeffgo10/*` packages.
+
+| Item | Detail |
+|------|--------|
+| Local equivalent | `pnpm run deploy:changed` (`GIT_BEFORE` defaults to `HEAD~1`) |
+| CI auth | Built-in `GITHUB_TOKEN` with `packages: write` — no manual secret |
+| Local auth | Personal token in `.npmrc` with `write:packages` |
+| Manual run | GitHub → Actions → **Publish packages** → Run workflow |
+
+**Reminder:** Bump `packages/*/package.json` versions before merge — CI publishes whatever version is on `master`.
+
+**Obsidian:** `LS Foundry/Notes — CI package publish on master.md`
 
 ## `@jeffgo10/gl-viewer` (LiteShadeMedia consumer)
 

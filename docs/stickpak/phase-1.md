@@ -19,7 +19,7 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 | Package | Version | Notes |
 |---------|---------|-------|
 | `@jeffgo10/shared-types` | **0.1.2** | Custom canvas + print DPI in layout JSON |
-| `@jeffgo10/react-canvas-designer` | **0.1.3** | `canvasWidth` / `canvasHeight` / `designDpi` / `printDpi` props |
+| `@jeffgo10/react-canvas-designer` | **0.2.0** | `minResizeSizeMm`; customizable canvas + selection dimensions |
 | `@jeffgo10/helpers` | 0.1.0 | |
 | `@jeffgo10/canvas-upscaler` | **0.1.1** | Output size from layout dimensions |
 
@@ -27,7 +27,7 @@ Install both designer packages together:
 
 ```json
 "@jeffgo10/shared-types": "0.1.2",
-"@jeffgo10/react-canvas-designer": "0.1.3",
+"@jeffgo10/react-canvas-designer": "0.2.0",
 "@jeffgo10/canvas-upscaler": "0.1.1"
 ```
 
@@ -37,7 +37,7 @@ See [engineering-notes.md](./engineering-notes.md#package-version-mismatch-react
 
 - [x] **1.1** pnpm workspaces + Turborepo (repo root)
 - [x] **1.2** `@jeffgo10/shared-types` (v0.1.2) — layout schema, A4 defaults, physical dimension helpers, customizable `canvasWidth`/`canvasHeight` + `designDpi`/`printDpi`
-- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.1.3) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection
+- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.0) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`)
 - [x] **1.4** `@jeffgo10/canvas-upscaler` (v0.1.1) — JSON CLI; print output size from layout dimensions + DPI
 - [x] **1.5** `@jeffgo10/helpers/image` — contour tracing, blob URL → data URL
 - [x] **1.6** Docs test page — `apps/docs` `/stickpak`
@@ -146,6 +146,22 @@ Optional props on `CanvasDesigner`:
 Physical size helpers live in `@jeffgo10/shared-types` (`canvasPixelsToUnit`, `formatCanvasDimensions`, `mmToCanvasPixels`). See [engineering-notes.md](./engineering-notes.md).
 
 On `/stickpak`: toggle **Show selected sticker size**, pick unit (mm/cm/in), **Arrange all** as needed. Select a sticker and press **Delete** or **Backspace** to remove it.
+
+### Minimum resize size
+
+Corner resize keeps aspect ratio and cannot shrink the **shorter side** below a minimum (default **1 inch / 25.4 mm**). The longer side scales proportionally.
+
+| Prop | Default | Purpose |
+|------|---------|---------|
+| `minResizeSizeMm` | `25.4` | Minimum shorter-side length in millimeters |
+
+```tsx
+<CanvasDesigner minResizeSizeMm={15} />
+```
+
+**Example:** A 70 × 30 mm sticker with `minResizeSizeMm={15}` can shrink only to **35 × 15 mm**.
+
+Helpers exported from `@jeffgo10/react-canvas-designer`: `DEFAULT_MIN_RESIZE_SIZE_MM`, `getMinResizeScale`, `getMinResizeDimensionsPx`. See [engineering-notes.md](./engineering-notes.md).
 
 ### Delete selected sticker
 
