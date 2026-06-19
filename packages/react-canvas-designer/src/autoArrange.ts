@@ -17,6 +17,8 @@ export type AutoArrangeItem = CanvasItem & {
 export type AutoArrangeOptions = {
   /** Minimum gap between cut-line outlines in millimeters. Default 5. */
   gapMm?: number;
+  /** Restricted edge inset in millimeters (same as `canvasMarginMm` on the designer). Default 0. */
+  canvasMarginMm?: number;
   /** Canvas width in pixels. Default A4 @ 72 DPI. */
   canvasWidth?: number;
   /** Canvas height in pixels. Default A4 @ 72 DPI. */
@@ -143,8 +145,9 @@ function findPackPosition(
   canvasWidth: number,
   canvasHeight: number,
   gapPx: number,
+  canvasMarginPx: number,
 ): { x: number; y: number } | null {
-  const margin = gapPx / 2;
+  const margin = Math.max(gapPx / 2, canvasMarginPx);
   const step = Math.max(4, Math.floor(gapPx / 2));
 
   for (let packY = margin; packY + box.paddedHeight <= canvasHeight - margin; packY += step) {
@@ -180,10 +183,12 @@ export async function autoArrangeItems(
   }
 
   const gapMm = options.gapMm ?? 5;
+  const canvasMarginMm = options.canvasMarginMm ?? 0;
   const canvasWidth = options.canvasWidth ?? CANVAS_WIDTH;
   const canvasHeight = options.canvasHeight ?? CANVAS_HEIGHT;
   const designDpi = options.designDpi ?? CANVAS_DPI;
   const gapPx = mmToCanvasPixels(gapMm, designDpi);
+  const canvasMarginPx = mmToCanvasPixels(canvasMarginMm, designDpi);
 
   const prepared = await Promise.all(
     items.map(async (item) => {
@@ -207,6 +212,7 @@ export async function autoArrangeItems(
       canvasWidth,
       canvasHeight,
       gapPx,
+      canvasMarginPx,
     );
 
     if (!position) {

@@ -28,6 +28,7 @@ import {
   Image as KonvaImage,
   Layer,
   Line,
+  Rect,
   Stage,
   Transformer,
 } from "react-konva";
@@ -43,6 +44,13 @@ import {
   type SelectionDimensionsResult,
 } from "./selectionDimensions";
 import { SelectionDimensionLabels } from "./SelectionDimensionLabels";
+import {
+  clampItemPosition,
+  clampItemToCanvasMargin,
+  fitItemToCanvasArea,
+  getCanvasMarginPx,
+  prepareItemForCanvasPlacement,
+} from "./canvasMargin";
 import {
   clampNodeScale,
   clampResizeBox,
@@ -63,6 +71,8 @@ type PlacedImage = CanvasItem & {
   mimeType: string;
   width: number;
   height: number;
+  /** Runtime alpha contour for margin clamping (not exported in layout JSON). */
+  cutLinePoints?: number[];
 };
 
 export type CanvasDesignerProps = {
@@ -109,6 +119,15 @@ export type CanvasDesignerProps = {
    * The longer side scales with aspect ratio. Default 25.4 mm (1 inch).
    */
   minResizeSizeMm?: number;
+  /**
+   * Restricted edge inset in millimeters. The alpha cut line cannot enter
+   * this band; transparent image padding may extend past it. Default 0.
+   */
+  canvasMarginMm?: number;
+  /** Preview a dashed guide for the canvas margin. Default true when margin > 0. */
+  showCanvasMargin?: boolean;
+  /** Stroke color for the margin guide. Default `#94a3b8`. */
+  canvasMarginColor?: string;
 };
 
 export type ImageSourceFromUrl = {
@@ -151,6 +170,9 @@ function DraggableImage({
   cutLineColor,
   minResizeSizeMm,
   designDpi,
+  canvasWidth,
+  canvasHeight,
+  canvasMarginMm,
   onSelect,
   onChange,
   shapeRef,
@@ -160,12 +182,27 @@ function DraggableImage({
   cutLineColor: string;
   minResizeSizeMm: number;
   designDpi: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  canvasMarginMm: number;
   onSelect: () => void;
   onChange: (next: PlacedImage) => void;
   shapeRef: (node: Konva.Group | null) => void;
 }) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [cutLinePoints, setCutLinePoints] = useState<number[]>([]);
+  const itemRef = useRef(item);
+  itemRef.current = item;
+
+  const marginItem = useCallback(
+    (overrides: Partial<PlacedImage> = {}): PlacedImage => ({
+      ...itemRef.current,
+      ...overrides,
+      cutLinePoints:
+        overrides.cutLinePoints ?? itemRef.current.cutLinePoints ?? cutLinePoints,
+    }),
+    [cutLinePoints],
+  );
 
   useEffect(() => {
     const element = new window.Image();
@@ -178,12 +215,21 @@ function DraggableImage({
   }, [item.src]);
 
   useEffect(() => {
-    if (!image || !showCutLine) {
+    if (!image) {
       setCutLinePoints([]);
       return;
     }
-    setCutLinePoints(traceAlphaContour(image, item.width, item.height));
-  }, [image, showCutLine, item.width, item.height]);
+    const points = traceAlphaContour(image, item.width, item.height);
+    setCutLinePoints(points);
+    const existing = itemRef.current.cutLinePoints;
+    const unchanged =
+      existing &&
+      existing.length === points.length &&
+      existing.every((value, index) => value === points[index]);
+    if (!unchanged) {
+      onChange({ ...itemRef.current, cutLinePoints: points });
+    }
+  }, [image, item.width, item.height, onChange]);
 
   const select = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
     event.cancelBubble = true;
@@ -191,26 +237,65 @@ function DraggableImage({
   };
 
   const syncFromNode = (node: Konva.Group) => {
-    const { scaleX, scaleY } = clampNodeScale(
-      node.scaleX(),
-      node.scaleY(),
+    const rotation = node.rotation();
+    let scaleX = node.scaleX();
+    let scaleY = node.scaleY();
+    const minScaled = clampNodeScale(
+      scaleX,
+      scaleY,
       item.width,
       item.height,
       minResizeSizeMm,
       designDpi,
     );
+    scaleX = minScaled.scaleX;
+    scaleY = minScaled.scaleY;
+
+    let working = marginItem({ scaleX, scaleY, rotation });
+    const fitted = fitItemToCanvasArea(
+      working,
+      canvasWidth,
+      canvasHeight,
+      canvasMarginMm,
+      designDpi,
+    );
+    scaleX = fitted.scaleX;
+    scaleY = fitted.scaleY;
+    working = marginItem({ scaleX, scaleY, rotation });
+
     if (scaleX !== node.scaleX() || scaleY !== node.scaleY()) {
       node.scaleX(scaleX);
       node.scaleY(scaleY);
     }
+
+    const { x, y } = clampItemPosition(
+      working,
+      canvasWidth,
+      canvasHeight,
+      canvasMarginMm,
+      designDpi,
+      { x: node.x(), y: node.y() },
+    );
+    if (x !== node.x() || y !== node.y()) {
+      node.x(x);
+      node.y(y);
+    }
     onChange({
-      ...item,
-      x: node.x(),
-      y: node.y(),
-      scaleX,
-      scaleY,
-      rotation: node.rotation(),
+      ...working,
+      x,
+      y,
     });
+  };
+
+  const dragBoundFunc = (pos: { x: number; y: number }) => {
+    return clampItemPosition(
+      marginItem(),
+      canvasWidth,
+      canvasHeight,
+      canvasMarginMm,
+      designDpi,
+      pos,
+    );
   };
 
   return (
@@ -222,6 +307,7 @@ function DraggableImage({
       scaleY={item.scaleY}
       rotation={item.rotation}
       draggable
+      dragBoundFunc={dragBoundFunc}
       onMouseDown={select}
       onTouchStart={select}
       onDragEnd={(event) => syncFromNode(event.target as Konva.Group)}
@@ -270,6 +356,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       designDpi: designDpiProp,
       printDpi: printDpiProp,
       minResizeSizeMm = DEFAULT_MIN_RESIZE_SIZE_MM,
+      canvasMarginMm = 0,
+      showCanvasMargin,
+      canvasMarginColor = "#94a3b8",
     },
     ref,
   ) {
@@ -301,6 +390,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     }, [canvasWidthProp, canvasHeightProp, designDpiProp, printDpiProp]);
 
     const selectionDpi = dimensionDpi ?? canvasConfig.designDpi;
+    const marginPx = getCanvasMarginPx(canvasMarginMm, canvasConfig.designDpi);
+    const showMarginGuide = showCanvasMargin ?? canvasMarginMm > 0;
 
     const selectedItem = useMemo(
       () => items.find((item) => item.assetId === selectedId) ?? null,
@@ -412,12 +503,14 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             image.crossOrigin = "anonymous";
             image.src = source.url;
             image.onload = () => {
+              const cutLinePoints = traceAlphaContour(image, image.width, image.height);
               placed.push({
                 ...item,
                 src: source.url,
                 mimeType: source.mimeType ?? "image/png",
                 width: image.width,
                 height: image.height,
+                cutLinePoints,
               });
               resolve();
             };
@@ -427,7 +520,24 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           });
         }
 
-        setItems(placed);
+        setItems(
+          placed.map((item) => {
+            const fitted = fitItemToCanvasArea(
+              item,
+              input.layout.canvasWidth,
+              input.layout.canvasHeight,
+              canvasMarginMm,
+              getDesignDpi(input.layout),
+            );
+            return clampItemToCanvasMargin(
+              fitted,
+              input.layout.canvasWidth,
+              input.layout.canvasHeight,
+              canvasMarginMm,
+              getDesignDpi(input.layout),
+            );
+          }),
+        );
         setSelectedId(null);
         shapeRefs.current.clear();
         setCanvasConfig({
@@ -437,7 +547,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           printDpi: getPrintDpi(input.layout),
         });
       },
-      [],
+      [canvasMarginMm],
     );
 
     const clearCanvas = useCallback(() => {
@@ -519,6 +629,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         const gapMm = options?.gapMm ?? autoArrangeGapMm;
         const { items: arranged, allPlaced } = await autoArrangeItems(current, {
           gapMm,
+          canvasMarginMm: options?.canvasMarginMm ?? canvasMarginMm,
           canvasWidth: options?.canvasWidth ?? canvasConfig.canvasWidth,
           canvasHeight: options?.canvasHeight ?? canvasConfig.canvasHeight,
           designDpi: options?.designDpi ?? canvasConfig.designDpi,
@@ -528,7 +639,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         onAutoArrange?.({ allPlaced });
         return allPlaced;
       },
-      [autoArrangeGapMm, canvasConfig, clearSelection, onAutoArrange],
+      [autoArrangeGapMm, canvasConfig, canvasMarginMm, clearSelection, onAutoArrange],
     );
 
     useEffect(() => {
@@ -573,21 +684,28 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         image.src = src;
         image.onload = () => {
           const id = assetId ?? crypto.randomUUID();
-          setItems((current) => [
-            ...current,
-            {
-              assetId: id,
-              src,
-              mimeType,
-              x: 40,
-              y: 40,
-              width: image.width,
-              height: image.height,
-              scaleX: 1,
-              scaleY: 1,
-              rotation: 0,
-            },
-          ]);
+          const cutLinePoints = traceAlphaContour(image, image.width, image.height);
+          const draft: PlacedImage = {
+            assetId: id,
+            src,
+            mimeType,
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+            cutLinePoints,
+          };
+          const placed = prepareItemForCanvasPlacement(
+            draft,
+            canvasConfig.canvasWidth,
+            canvasConfig.canvasHeight,
+            canvasMarginMm,
+            canvasConfig.designDpi,
+          );
+          setItems((current) => [...current, placed]);
           setSelectedId(id);
           if (autoArrangeOnAdd) {
             pendingAutoArrangeRef.current = true;
@@ -597,7 +715,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           console.error("Failed to load image:", src);
         };
       },
-      [autoArrangeOnAdd],
+      [autoArrangeOnAdd, canvasConfig, canvasMarginMm],
     );
 
     const onDrop = useCallback(
@@ -721,6 +839,18 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             onTouchStart={deselect}
           >
             <Layer>
+              {showMarginGuide && marginPx > 0 ? (
+                <Rect
+                  x={marginPx}
+                  y={marginPx}
+                  width={canvasConfig.canvasWidth - marginPx * 2}
+                  height={canvasConfig.canvasHeight - marginPx * 2}
+                  stroke={canvasMarginColor}
+                  strokeWidth={1}
+                  dash={[6, 4]}
+                  listening={false}
+                />
+              ) : null}
               {items.map((item) => (
                 <DraggableImage
                   key={item.assetId}
@@ -729,6 +859,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   cutLineColor={cutLineColor}
                   minResizeSizeMm={minResizeSizeMm}
                   designDpi={canvasConfig.designDpi}
+                  canvasWidth={canvasConfig.canvasWidth}
+                  canvasHeight={canvasConfig.canvasHeight}
+                  canvasMarginMm={canvasMarginMm}
                   onSelect={() => setSelectedId(item.assetId)}
                   onChange={updateItem}
                   shapeRef={(node) => {
