@@ -1,0 +1,81 @@
+---
+description: Obsidian MCP sync workflow, vault folder map, and connection pre-check
+alwaysApply: true
+---
+
+# Obsidian knowledge sync (ls-foundry)
+
+Dual-write important changes to **monorepo markdown** (`docs/stickpak/`) **and** the Obsidian vault via MCP.
+
+**Slash command:** `/sync-obsidian-notes` — see `.cursor/commands/sync-obsidian-notes.md`.
+
+**PR command:** `/create-github-pr` — see `.cursor/commands/create-github-pr.md`.
+
+```
+/sync-obsidian-notes
+/sync-obsidian-notes obsidian only
+/sync-obsidian-notes rules only
+/sync-obsidian-notes both: <summary of changes to document>
+
+/create-github-pr
+/create-github-pr draft only
+/create-github-pr no commit
+/create-github-pr branch: feat/my-feature
+```
+
+## MCP server
+
+- **Server ID:** `user-MCP_DOCKER`
+- **Tools:** `obsidian_*` (read tool JSON schema under `mcps/user-MCP_DOCKER/tools/` before calling)
+
+## Pre-check (required before any Obsidian write)
+
+1. Read the target tool's schema descriptor first.
+2. **Connectivity probe:** call `obsidian_list_files_in_dir` with `dirpath: "StickPak"`.
+3. **If the probe fails** (timeout, auth error, empty/error response):
+   - Do **not** retry writes blindly.
+   - Update `docs/stickpak/*.md` only.
+   - Tell the user Obsidian MCP is unavailable and list what was skipped.
+4. **If the probe succeeds**, proceed with reads/writes.
+
+Optional: `obsidian_simple_search` to locate notes before editing.
+
+## Vault folder map
+
+| Vault path | Put here |
+|------------|----------|
+| `StickPak/` | StickPak product + Phase 1 engine (`shared-types`, designer, upscaler, roadmap) |
+| `StickPak/noteworthy/` | Engineering issue/fix notes — name pattern: `Notes — <topic>.md` |
+| `StickPak/noteworthy/StickPak Engineering Notes.md` | Index table — add new noteworthy notes here |
+| `LiteShadeMedia/` | **Primary consumer** of `@jeffgo10/gl-viewer` (portfolio site). gl-viewer integration docs: `08 gl-viewer Package.md`, `07 LiDAR AR 3D Viewer.md`, `09 CI npm and Tooling.md` |
+| `LS Foundry/` | Monorepo agent tooling, publish workflow, Turborepo. **Start here:** `LS Foundry/00 Index.md`, `LS Foundry/Cursor rules and slash commands.md`. Do not put StickPak product or gl-viewer consumer docs here. |
+| Other vault folders (`Develop/`, etc.) | Unrelated projects — do not write ls-foundry notes there unless asked |
+
+**Phase 2+ app work** (`sticker-print-app`) stays under `StickPak/` (e.g. `Phase 2 — sticker-print-app.md`) but code lives in that separate repo.
+
+## What to update when
+
+| Change type | Repo | Obsidian |
+|-------------|------|----------|
+| New feature / bug fix | `docs/stickpak/engineering-notes.md` | New `StickPak/noteworthy/Notes — …md` + index row |
+| Phase status / roadmap | `docs/stickpak/roadmap.md`, `phase-1.md` | `StickPak/StickPak Comprehensive Roadmap.md`, `Phase 1 Complete — ls-foundry.md` |
+| Package version bump | `phase-1.md`, `README.md` | Relevant noteworthy note + engineering index |
+| Canvas/DPI spec | `docs/stickpak/canvas-scaling.md` | `StickPak/Detailed Canvas Scaling for upscale export.md` |
+| `@jeffgo10/gl-viewer` API or publish | `packages/gl-viewer/README.md` | `LiteShadeMedia/08 gl-viewer Package.md`; also `07 LiDAR AR 3D Viewer.md` if showcase UX changes |
+| Monorepo agent tooling | `.cursor/rules/`, `.cursor/commands/` | `LS Foundry/Cursor rules and slash commands.md`, `LS Foundry/00 Index.md` |
+
+## Write workflow
+
+1. **Read** existing note: `obsidian_get_file_contents` (or `obsidian_batch_get_file_contents`).
+2. **Prefer surgical edits:** `obsidian_patch_content` (heading target).
+3. **If `patch_content` fails** (`invalid-target` or similar): fetch full content → `obsidian_delete_file` → `obsidian_append_content` with updated body (proven fallback).
+4. **New notes:** `obsidian_append_content` on the full path (creates file).
+5. Update `StickPak/noteworthy/StickPak Engineering Notes.md` index when adding noteworthy notes.
+6. Use `[[wikilinks]]` between related StickPak notes.
+
+## Do not
+
+- Commit `.env`, tokens, or `.npmrc` secrets.
+- Assume Obsidian is reachable — always pre-check.
+- Put StickPak canvas/upscaler notes in `LS Foundry/` (use `StickPak/`).
+- Put gl-viewer consumer/integration notes in `LS Foundry/` (use `LiteShadeMedia/`; source code is `packages/gl-viewer/` in this repo).

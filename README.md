@@ -76,6 +76,21 @@ Planning notes and the Phase 1 core engine live in [docs/stickpak](./docs/stickp
 
 Further packages will be documented here as they ship.
 
+## Optional agent tooling
+
+Cursor rules and a slash command keep repo docs and Obsidian in sync:
+
+| Path | Purpose |
+|------|---------|
+| `.cursor/rules/ls-foundry-core.mdc` | Monorepo layout, package scopes, conventions |
+| `.cursor/rules/ls-foundry-obsidian-sync.mdc` | Obsidian MCP workflow and vault folder map |
+| `.cursor/commands/sync-obsidian-notes.md` | `/sync-obsidian-notes` — sync vault + optional rule refresh |
+| `.cursor/commands/create-github-pr.md` | `/create-github-pr` — auto branch from `master`, auto-commit, push, open PR |
+
+Obsidian vault folder **`LS Foundry/`** — see `Cursor rules and slash commands.md` for full agent docs.
+
+**`/create-github-pr` on `master`:** creates `feat/<slug>` branch, commits uncommitted safe files, pushes, opens PR. Opt out: `no commit`. Requires **`gh` CLI** (`brew install gh`, `gh auth login`); falls back to web URL + pasted title/body if unavailable.
+
 ## License
 
 Package licenses are declared per package (e.g. MIT on `@jeffgo10/gl-viewer`). This repository root does not publish an npm package.

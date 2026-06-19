@@ -198,3 +198,26 @@ See Obsidian **Phase 3 — sticker-print-app** and `sticker-print-app/docs/phase
 
 **Obsidian noteworthy:** cognito-local and Amplify, storefront S3 URL canvas, presigned URL localstack hostname, CanvasDesigner S3 persistence API.
 
+## Agent dev tooling (Cursor + Obsidian sync)
+
+**When:** June 2026.
+
+**Cursor rules** (`.cursor/rules/`):
+
+| Rule | Purpose |
+|------|---------|
+| `ls-foundry-core.mdc` | Monorepo layout, `@jeffgo10/*` scopes, package versions, coding conventions |
+| `ls-foundry-obsidian-sync.mdc` | Dual-write to Obsidian, vault folder map, MCP pre-check |
+
+**Slash commands:** `/sync-obsidian-notes` (vault sync), `/create-github-pr` (branch → PR via `gh`; auto-creates feature branch from `master`, auto-commits uncommitted work). See `.cursor/commands/`.
+
+**Obsidian (canonical):** [[LS Foundry/Cursor rules and slash commands]] in vault folder `LS Foundry/`. Stub cross-link: `StickPak/noteworthy/Notes — ls-foundry Cursor rules and slash commands.md`.
+
+**MCP pre-check:** `obsidian_list_files_in_dir` with `dirpath: "StickPak"` on server `user-MCP_DOCKER` before any vault write.
+
+## `@jeffgo10/gl-viewer` (LiteShadeMedia consumer)
+
+**Source:** `packages/gl-viewer/` in this repo (v0.3.1).
+
+**Primary consumer:** LiteShadeMedia portfolio site — Obsidian `LiteShadeMedia/08 gl-viewer Package.md`, `07 LiDAR AR 3D Viewer.md`. Do not put consumer integration docs under `StickPak/` or `LS Foundry/`.
+
