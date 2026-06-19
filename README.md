@@ -89,7 +89,7 @@ Cursor rules and a slash command keep repo docs and Obsidian in sync:
 
 Obsidian vault folder **`LS Foundry/`** — see `Cursor rules and slash commands.md` for full agent docs.
 
-**`/create-github-pr` on `master`:** creates `feat/<slug>` branch, commits uncommitted safe files, pushes, opens PR. Opt out: `no commit`. Requires **`gh` CLI** (`brew install gh`, `gh auth login`); falls back to web URL + pasted title/body if unavailable.
+**`/create-github-pr` on `master`:** creates `feat/<slug>` branch, commits uncommitted safe files, pushes, opens PR. **After merge:** `/create-github-pr cleanup` → checkout `master`, pull, delete merged local branch. Opt out of commit: `no commit`. Requires **`gh` CLI** (`brew install gh`, `gh auth login`); falls back to web URL + pasted title/body if unavailable.
 
 ## License
 

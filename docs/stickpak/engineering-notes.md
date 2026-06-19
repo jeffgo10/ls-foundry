@@ -209,7 +209,9 @@ See Obsidian **Phase 3 — sticker-print-app** and `sticker-print-app/docs/phase
 | `ls-foundry-core.mdc` | Monorepo layout, `@jeffgo10/*` scopes, package versions, coding conventions |
 | `ls-foundry-obsidian-sync.mdc` | Dual-write to Obsidian, vault folder map, MCP pre-check |
 
-**Slash commands:** `/sync-obsidian-notes` (vault sync), `/create-github-pr` (branch → PR via `gh`; auto-creates feature branch from `master`, auto-commits uncommitted work). See `.cursor/commands/`.
+**Slash commands:** `/sync-obsidian-notes` (vault sync), `/create-github-pr` (branch → PR via `gh`; auto branch/commit from `master`; **post-merge cleanup** via `/create-github-pr cleanup`). See `.cursor/commands/`.
+
+**PR #1 merged (June 2026):** Agent tooling shipped on `master` (`chore/cursor-agent-tooling-and-pr-command`).
 
 **Obsidian (canonical):** [[LS Foundry/Cursor rules and slash commands]] in vault folder `LS Foundry/`. Stub cross-link: `StickPak/noteworthy/Notes — ls-foundry Cursor rules and slash commands.md`.
 
