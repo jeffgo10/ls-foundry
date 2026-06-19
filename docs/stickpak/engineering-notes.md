@@ -30,6 +30,8 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Test UI:** `/stickpak` → **Show selected sticker size** + unit dropdown.
 
+**`onSelectionDimensionsChange` loop fix (v0.2.1):** The callback was listed in a `useEffect` dependency array. Inline handlers from parents get a new reference every render, so the effect re-fired → `setState` in parent → infinite loop during resize. Fix: store the callback in a ref inside `CanvasDesigner` so only `selectionDimensions` triggers the effect.
+
 ## Minimum resize size
 
 **When:** June 2026 (`react-canvas-designer` v0.2.0).
