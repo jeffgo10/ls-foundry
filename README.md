@@ -43,12 +43,19 @@ ls-foundry/
 | `pnpm run clean` | Clean turbo outputs and root `node_modules` |
 | `pnpm run build:packages` | Build `packages/*` only (excludes `apps/docs`) |
 | `pnpm run deploy` | `build:packages` then publish all non-private packages to [GitHub Packages](https://github.com/jeffgo10/ls-foundry/packages) |
+| `pnpm run deploy:changed` | Publish only packages changed since `GIT_BEFORE` (default `HEAD~1`) — same logic as CI |
 | `pnpm run deploy:dry-run` | Same as `deploy` with `--dry-run` |
 | `pnpm run deploy:nogit` | Publish with `--no-git-checks` (use when the tree is not clean) |
 
 Published packages: `@jeffgo10/gl-viewer`, `@jeffgo10/shared-types`, `@jeffgo10/helpers`, `@jeffgo10/react-canvas-designer`, `@jeffgo10/canvas-upscaler`. Placeholders (`utils`, `ui`, `maps`, `config-ts`) and `apps/*` stay private.
 
 Bump versions in the relevant `packages/*/package.json` before each publish. Authenticate to `npm.pkg.github.com` with a token that has `write:packages`. Map `@jeffgo10:registry` → `https://npm.pkg.github.com` in `.npmrc`.
+
+### CI publish (push to `master`)
+
+Workflow [`.github/workflows/publish-packages.yml`](./.github/workflows/publish-packages.yml) runs when `packages/**` or `pnpm-lock.yaml` changes on `master`. It builds all packages, then publishes **only** non-private `@jeffgo10/*` packages whose files changed in that push (via `scripts/publish-changed.sh`). Uses `GITHUB_TOKEN` with `packages: write`.
+
+Manual run: GitHub → Actions → **Publish packages** → **Run workflow**.
 
 ## Docs app
 

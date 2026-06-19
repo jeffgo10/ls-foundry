@@ -9,6 +9,7 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules",
     "deploy": "pnpm run build:packages && pnpm -r publish --access public",
+    "deploy:changed": "bash scripts/publish-changed.sh ${GIT_BEFORE:-HEAD~1} ${GIT_AFTER:-HEAD}",
     "deploy:dry-run": "pnpm run build:packages && pnpm -r publish --access public --dry-run",
     "deploy:nogit": "pnpm run build:packages && pnpm -r publish --access public --no-git-checks"
   },
