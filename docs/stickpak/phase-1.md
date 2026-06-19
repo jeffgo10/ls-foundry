@@ -19,7 +19,7 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 | Package | Version | Notes |
 |---------|---------|-------|
 | `@jeffgo10/shared-types` | **0.1.2** | Custom canvas + print DPI in layout JSON |
-| `@jeffgo10/react-canvas-designer` | **0.2.0** | `minResizeSizeMm`; customizable canvas + selection dimensions |
+| `@jeffgo10/react-canvas-designer` | **0.2.1** | `minResizeSizeMm`; customizable canvas + selection dimensions |
 | `@jeffgo10/helpers` | 0.1.0 | |
 | `@jeffgo10/canvas-upscaler` | **0.1.1** | Output size from layout dimensions |
 
@@ -27,7 +27,7 @@ Install both designer packages together:
 
 ```json
 "@jeffgo10/shared-types": "0.1.2",
-"@jeffgo10/react-canvas-designer": "0.2.0",
+"@jeffgo10/react-canvas-designer": "0.2.1",
 "@jeffgo10/canvas-upscaler": "0.1.1"
 ```
 

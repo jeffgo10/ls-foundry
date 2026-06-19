@@ -5,7 +5,7 @@ import type {
   DimensionUnit,
 } from "@jeffgo10/react-canvas-designer";
 import dynamic from "next/dynamic";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 const CanvasDesigner = dynamic(
   () =>
@@ -32,6 +32,14 @@ function StickPakCanvasSection() {
   const [arrangeMessage, setArrangeMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
+
+  const handleSelectionDimensionsChange = useCallback(
+    (dimensions: { label: string } | null) => {
+      const nextLabel = dimensions ? `Selected: ${dimensions.label}` : "";
+      setSelectionSizeLabel((prev) => (prev === nextLabel ? prev : nextLabel));
+    },
+    [],
+  );
 
   const handleExport = async () => {
     if (!designerRef.current) return;
@@ -132,11 +140,7 @@ function StickPakCanvasSection() {
           autoArrangeOnAdd={autoArrangeOnAdd}
           showSelectionDimensions={showSelectionDimensions}
           dimensionUnit={dimensionUnit}
-          onSelectionDimensionsChange={(dimensions) => {
-            setSelectionSizeLabel(
-              dimensions ? `Selected: ${dimensions.label}` : "",
-            );
-          }}
+          onSelectionDimensionsChange={handleSelectionDimensionsChange}
           onAutoArrange={({ allPlaced }) => {
             setArrangeMessage(
               allPlaced

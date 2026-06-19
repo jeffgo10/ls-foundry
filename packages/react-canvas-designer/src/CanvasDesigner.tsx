@@ -288,6 +288,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     itemsRef.current = items;
     const selectedIdRef = useRef(selectedId);
     selectedIdRef.current = selectedId;
+    const onSelectionDimensionsChangeRef = useRef(onSelectionDimensionsChange);
+    onSelectionDimensionsChangeRef.current = onSelectionDimensionsChange;
 
     useEffect(() => {
       setCanvasConfig({
@@ -351,8 +353,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     useEffect(() => {
       if (!showSelectionDimensions) return;
-      onSelectionDimensionsChange?.(selectionDimensions);
-    }, [showSelectionDimensions, selectionDimensions, onSelectionDimensionsChange]);
+      onSelectionDimensionsChangeRef.current?.(selectionDimensions);
+    }, [showSelectionDimensions, selectionDimensions]);
 
     const layout = useMemo<CanvasLayout>(() => {
       const base = createEmptyLayout(canvasConfig);
