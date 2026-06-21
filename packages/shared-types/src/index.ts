@@ -51,6 +51,9 @@ export function formatCanvasDimensions(
 }
 
 export type CanvasItem = {
+  /** Unique per sticker on the canvas — selection, transforms, React keys. */
+  instanceId: string;
+  /** Library / S3 asset reference shared by duplicate placements. */
   assetId: string;
   x: number;
   y: number;
@@ -149,6 +152,8 @@ export function isCanvasLayout(value: unknown): value is CanvasLayout {
     const candidate = item as Partial<CanvasItem>;
     return (
       typeof candidate.assetId === "string" &&
+      (candidate.instanceId === undefined ||
+        typeof candidate.instanceId === "string") &&
       typeof candidate.x === "number" &&
       typeof candidate.y === "number" &&
       typeof candidate.scaleX === "number" &&

@@ -235,9 +235,9 @@ export async function autoArrangeItems(
     });
   }
 
-  const order = new Map(items.map((item, index) => [item.assetId, index]));
+  const order = new Map(items.map((item, index) => [item.instanceId, index]));
   nextItems.sort(
-    (a, b) => (order.get(a.assetId) ?? 0) - (order.get(b.assetId) ?? 0),
+    (a, b) => (order.get(a.instanceId) ?? 0) - (order.get(b.instanceId) ?? 0),
   );
 
   return { items: nextItems, allPlaced };

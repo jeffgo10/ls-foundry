@@ -19,16 +19,16 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| `@jeffgo10/shared-types` | **0.1.2** | Custom canvas + print DPI in layout JSON |
-| `@jeffgo10/react-canvas-designer` | **0.2.5** | `canvasMarginMm` (cut-line bounds); `minResizeSizeMm`; customizable canvas + selection dimensions |
+| `@jeffgo10/shared-types` | **0.2.0** | `instanceId` + `assetId` per layout item |
+| `@jeffgo10/react-canvas-designer` | **0.2.6** | Same image twice on one sheet; deduped export assets |
 | `@jeffgo10/helpers` | 0.1.0 | |
 | `@jeffgo10/canvas-upscaler` | **0.1.1** | Output size from layout dimensions |
 
 Install both designer packages together:
 
 ```json
-"@jeffgo10/shared-types": "0.1.2",
-"@jeffgo10/react-canvas-designer": "0.2.5",
+"@jeffgo10/shared-types": "0.2.0",
+"@jeffgo10/react-canvas-designer": "0.2.6",
 "@jeffgo10/canvas-upscaler": "0.1.1"
 ```
 
@@ -37,8 +37,8 @@ See [engineering-notes.md](./engineering-notes.md#package-version-mismatch-react
 ## Checklist
 
 - [x] **1.1** pnpm workspaces + Turborepo (repo root)
-- [x] **1.2** `@jeffgo10/shared-types` (v0.1.2) — layout schema, A4 defaults, physical dimension helpers, customizable `canvasWidth`/`canvasHeight` + `designDpi`/`printDpi`
-- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.5) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds)
+- [x] **1.2** `@jeffgo10/shared-types` (v0.2.0) — layout schema, A4 defaults, physical dimension helpers, customizable `canvasWidth`/`canvasHeight` + `designDpi`/`printDpi`, `instanceId`/`assetId` split
+- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.6) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds), duplicate library images on one sheet
 - [x] **1.4** `@jeffgo10/canvas-upscaler` (v0.1.1) — JSON CLI; print output size from layout dimensions + DPI
 - [x] **1.5** `@jeffgo10/helpers/image` — contour tracing, blob URL → data URL
 - [x] **1.6** Docs test page — `apps/docs` `/stickpak`
@@ -63,6 +63,7 @@ See [canvas-scaling.md](./canvas-scaling.md) for the full Konva → upscaler tra
   "printDpi": 300,
   "items": [
     {
+      "instanceId": "sticker-1-a",
       "assetId": "sticker-1",
       "x": 120,
       "y": 200,

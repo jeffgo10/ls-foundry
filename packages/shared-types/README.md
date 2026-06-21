@@ -40,6 +40,7 @@ const layout: CanvasLayout = {
   printDpi: 300,
   items: [
     {
+      instanceId: "sticker-1-a",
       assetId: "sticker-1",
       x: 120,
       y: 200,
