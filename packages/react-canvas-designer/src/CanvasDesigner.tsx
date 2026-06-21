@@ -133,7 +133,7 @@ export type CanvasDesignerProps = {
 export type ImageSourceFromUrl = {
   url: string;
   mimeType?: string;
-  /** Links canvas item to S3 asset; defaults to a new UUID. */
+  /** Library / S3 asset id; a new canvas instanceId is always generated. */
   assetId?: string;
 };
 
@@ -394,7 +394,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const showMarginGuide = showCanvasMargin ?? canvasMarginMm > 0;
 
     const selectedItem = useMemo(
-      () => items.find((item) => item.assetId === selectedId) ?? null,
+      () => items.find((item) => item.instanceId === selectedId) ?? null,
       [items, selectedId],
     );
 
@@ -449,36 +449,51 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const layout = useMemo<CanvasLayout>(() => {
       const base = createEmptyLayout(canvasConfig);
-      base.items = items.map(({ assetId, x, y, scaleX, scaleY, rotation }) => ({
-        assetId,
-        x,
-        y,
-        scaleX,
-        scaleY,
-        rotation,
-      }));
+      base.items = items.map(
+        ({ instanceId, assetId, x, y, scaleX, scaleY, rotation }) => ({
+          instanceId,
+          assetId,
+          x,
+          y,
+          scaleX,
+          scaleY,
+          rotation,
+        }),
+      );
       return base;
     }, [items, canvasConfig]);
 
     const buildExport = useCallback(async (): Promise<CanvasLayoutExport> => {
-      const assets = await Promise.all(
-        items.map(async (item) => {
-          const { mimeType, dataUrl } = await blobUrlToDataUrl(item.src);
-          return {
-            assetId: item.assetId,
-            mimeType: item.mimeType || mimeType,
-            dataUrl,
-          };
-        }),
-      );
+      const assetById = new Map<
+        string,
+        { assetId: string; mimeType: string; dataUrl: string }
+      >();
 
-      return { layout, assets };
+      for (const item of items) {
+        if (assetById.has(item.assetId)) {
+          continue;
+        }
+        const { mimeType, dataUrl } = await blobUrlToDataUrl(item.src);
+        assetById.set(item.assetId, {
+          assetId: item.assetId,
+          mimeType: item.mimeType || mimeType,
+          dataUrl,
+        });
+      }
+
+      return { layout, assets: [...assetById.values()] };
     }, [items, layout]);
 
     const exportLayoutState = useCallback(() => {
+      const assetById = new Map<string, { assetId: string; mimeType: string }>();
+      for (const item of items) {
+        if (!assetById.has(item.assetId)) {
+          assetById.set(item.assetId, { assetId: item.assetId, mimeType: item.mimeType });
+        }
+      }
       return {
         layout,
-        assets: items.map(({ assetId, mimeType }) => ({ assetId, mimeType })),
+        assets: [...assetById.values()],
       };
     }, [items, layout]);
 
@@ -505,7 +520,13 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             image.onload = () => {
               const cutLinePoints = traceAlphaContour(image, image.width, image.height);
               placed.push({
-                ...item,
+                instanceId: item.instanceId ?? crypto.randomUUID(),
+                assetId: item.assetId,
+                x: item.x,
+                y: item.y,
+                scaleX: item.scaleX,
+                scaleY: item.scaleY,
+                rotation: item.rotation,
                 src: source.url,
                 mimeType: source.mimeType ?? "image/png",
                 width: image.width,
@@ -576,11 +597,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       if (!activeId) return;
 
       setItems((current) => {
-        const item = current.find((entry) => entry.assetId === activeId);
+        const item = current.find((entry) => entry.instanceId === activeId);
         if (item?.src.startsWith("blob:")) {
           URL.revokeObjectURL(item.src);
         }
-        return current.filter((entry) => entry.assetId !== activeId);
+        return current.filter((entry) => entry.instanceId !== activeId);
       });
       shapeRefs.current.delete(activeId);
       setSelectedId(null);
@@ -657,7 +678,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const updateItem = useCallback((next: PlacedImage) => {
       setItems((current) =>
-        current.map((entry) => (entry.assetId === next.assetId ? next : entry)),
+        current.map((entry) =>
+          entry.instanceId === next.instanceId ? next : entry,
+        ),
       );
     }, []);
 
@@ -683,10 +706,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         image.crossOrigin = "anonymous";
         image.src = src;
         image.onload = () => {
-          const id = assetId ?? crypto.randomUUID();
+          const instanceId = crypto.randomUUID();
+          const resolvedAssetId = assetId ?? instanceId;
           const cutLinePoints = traceAlphaContour(image, image.width, image.height);
           const draft: PlacedImage = {
-            assetId: id,
+            instanceId,
+            assetId: resolvedAssetId,
             src,
             mimeType,
             x: 0,
@@ -706,7 +731,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             canvasConfig.designDpi,
           );
           setItems((current) => [...current, placed]);
-          setSelectedId(id);
+          setSelectedId(instanceId);
           if (autoArrangeOnAdd) {
             pendingAutoArrangeRef.current = true;
           }
@@ -853,7 +878,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               ) : null}
               {items.map((item) => (
                 <DraggableImage
-                  key={item.assetId}
+                  key={item.instanceId}
                   item={item}
                   showCutLine={showCutLine}
                   cutLineColor={cutLineColor}
@@ -862,13 +887,13 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   canvasWidth={canvasConfig.canvasWidth}
                   canvasHeight={canvasConfig.canvasHeight}
                   canvasMarginMm={canvasMarginMm}
-                  onSelect={() => setSelectedId(item.assetId)}
+                  onSelect={() => setSelectedId(item.instanceId)}
                   onChange={updateItem}
                   shapeRef={(node) => {
                     if (node) {
-                      shapeRefs.current.set(item.assetId, node);
+                      shapeRefs.current.set(item.instanceId, node);
                     } else {
-                      shapeRefs.current.delete(item.assetId);
+                      shapeRefs.current.delete(item.instanceId);
                     }
                   }}
                 />

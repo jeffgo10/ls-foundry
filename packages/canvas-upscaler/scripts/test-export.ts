@@ -12,6 +12,7 @@ if (!assetPath) {
 
 const layout = createEmptyLayout();
 layout.items.push({
+  instanceId: "sample-instance",
   assetId: "sample",
   x: 120,
   y: 200,

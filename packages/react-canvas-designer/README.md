@@ -104,7 +104,18 @@ Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a s
 | `loadLayoutFromSources({ layout, sources })` | Restore from presigned URLs |
 | `clearCanvas()` | Remove all stickers |
 | `arrangeAll({ gapMm?, canvasMarginMm? })` | Pack stickers by cut-line spacing |
-| `addImagesFromUrls(sources)` | Place images from remote URLs |
+| `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
+
+## Layout item identity
+
+Each sticker in layout JSON has two ids:
+
+| Field | Purpose |
+|-------|---------|
+| `instanceId` | Unique per canvas placement — React keys, selection, transforms |
+| `assetId` | Library / S3 reference — shared when the same image appears twice |
+
+`addImagesFromUrls([{ url, assetId }])` always creates a new `instanceId`. Export assets are deduped by `assetId`.
 
 ## Coordinate system
 

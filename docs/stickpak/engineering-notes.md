@@ -2,6 +2,16 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Duplicate library images on one sheet (`instanceId` / `assetId`)
+
+**Symptom:** React duplicate-key warning when adding the same library image twice (or re-adding one already on the canvas in a multi-select batch).
+
+**Cause:** `assetId` was used as both the S3/library reference and the React key / selection id.
+
+**Fix (June 2026):** `shared-types@0.2.0`, `react-canvas-designer@0.2.6`. Layout items now carry **`instanceId`** (unique per canvas sticker — keys, selection, transforms) and **`assetId`** (shared library reference for export/upscale). `addImagesFromUrls([{ url, assetId }])` always mints a new `instanceId`; export assets are deduped by `assetId`. Legacy layouts without `instanceId` get one assigned on load.
+
+**Storefront pins:** `@jeffgo10/shared-types@0.2.0`, `@jeffgo10/react-canvas-designer@0.2.6`.
+
 ## Canvas edge margin (`canvasMarginMm`)
 
 **Feature:** Restrict sticker placement to a printable inset. When set to e.g. 10 mm, drag, resize, drop placement, auto-arrange, and layout restore keep the **alpha cut line** inside the margin band (transparent image padding may extend past it).
@@ -210,9 +220,9 @@ Migrated for marketing/articles SSR. Konva via `dynamic(..., { ssr: false })` + 
 
 **API:** `presign-upload` returns `uploadUrl` (PUT) and `readUrl` (presigned GET, 15 min).
 
-**Canvas designer (`@jeffgo10/react-canvas-designer` v0.2.5+, `@jeffgo10/shared-types` v0.1.2+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `canvasMarginMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
+**Canvas designer (`@jeffgo10/react-canvas-designer` v0.2.6+, `@jeffgo10/shared-types` v0.2.0+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `canvasMarginMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
 
-**Storefront:** Install `@jeffgo10/react-canvas-designer@0.2.5`, `@jeffgo10/shared-types@0.1.2`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
+**Storefront:** Install `@jeffgo10/react-canvas-designer@0.2.6`, `@jeffgo10/shared-types@0.2.0`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
 
 **CORS:** Source bucket allows GET/PUT from browser origins (CDK `cors` on source bucket). Redeploy LocalStack infra if canvas image fails to load after upload.
 
