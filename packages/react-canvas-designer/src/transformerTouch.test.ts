@@ -1,4 +1,5 @@
 import {
+  applyTransformerAnchorHitArea,
   CANVAS_INTERACTION_STYLE,
   getTransformerTouchProfile,
   isCoarsePointerDevice,
@@ -32,9 +33,34 @@ describe("transformerTouch", () => {
     expect(isCoarsePointerDevice()).toBe(true);
   });
 
+  it("returns false on fine-pointer desktops", () => {
+    window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+    expect(isCoarsePointerDevice()).toBe(false);
+  });
+
+  it("returns false when matchMedia is unavailable", () => {
+    // @ts-expect-error test override
+    window.matchMedia = undefined;
+    expect(isCoarsePointerDevice()).toBe(false);
+  });
+
   it("returns null touch profile on fine-pointer desktops", () => {
     window.matchMedia = jest.fn().mockReturnValue({ matches: false });
     expect(getTransformerTouchProfile(false)).toBeNull();
+    expect(getTransformerTouchProfile()).toBeNull();
+  });
+
+  it("auto-detects touch profile on coarse-pointer devices", () => {
+    Object.defineProperty(window, "ontouchstart", {
+      configurable: true,
+      value: () => {},
+    });
+    expect(getTransformerTouchProfile()).toEqual({
+      anchorSize: 14,
+      rotateAnchorOffset: 36,
+      borderStrokeWidth: 2,
+      anchorHitStrokeWidth: 28,
+    });
   });
 
   it("returns enlarged anchors when touchFriendly is true", () => {
@@ -45,5 +71,11 @@ describe("transformerTouch", () => {
       borderStrokeWidth: 2,
       anchorHitStrokeWidth: 28,
     });
+  });
+
+  it("applies enlarged hit area to transformer anchors", () => {
+    const anchor = { hitStrokeWidth: jest.fn() };
+    applyTransformerAnchorHitArea(anchor as never, 28);
+    expect(anchor.hitStrokeWidth).toHaveBeenCalledWith(28);
   });
 });
