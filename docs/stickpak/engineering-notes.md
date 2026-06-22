@@ -10,7 +10,23 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Fix (June 2026):** `shared-types@0.2.0`, `react-canvas-designer@0.2.6`. Layout items now carry **`instanceId`** (unique per canvas sticker — keys, selection, transforms) and **`assetId`** (shared library reference for export/upscale). `addImagesFromUrls([{ url, assetId }])` always mints a new `instanceId`; export assets are deduped by `assetId`. Legacy layouts without `instanceId` get one assigned on load.
 
-**Storefront pins:** `@jeffgo10/shared-types@0.2.0`, `@jeffgo10/react-canvas-designer@0.2.6`.
+**Storefront pins:** `@jeffgo10/shared-types@0.2.0`, `@jeffgo10/react-canvas-designer@0.2.7`.
+
+## Mobile resize/rotate on touch devices
+
+**When:** June 2026 (`react-canvas-designer` v0.2.7).
+
+**Problem:** On phones, Konva transformer handles are hard to grab; resize/rotate often fails. Long-press on a CSS `background-image` on `.konvajs-content` can open the browser Save image menu. Viewport pan/pinch can compete with single-finger transform gestures.
+
+**Engine fixes (`react-canvas-designer`):**
+- Auto-enlarge transformer anchors + invisible hit areas on coarse-pointer devices (`touchFriendly` prop overrides).
+- `CANVAS_INTERACTION_STYLE` on the designer shell (`touch-action: none`, no touch callout / text selection).
+- `backgroundImageUrl` — draw the A4 page inside Konva with `listening={false}` instead of CSS background on the canvas element.
+- `onSelectedIdChange` — storefront can disable viewport pan while a sticker is selected.
+
+**Storefront follow-up (`sticker-print-app`):** pass `backgroundImageUrl`, wire `onSelectedIdChange` into `useCanvasViewport`, remove `--canvas-bg-image` from `.konvajs-content` in `globals.css`.
+
+**Code:** `packages/react-canvas-designer/src/transformerTouch.ts`, `CanvasDesigner.tsx`
 
 ## Canvas edge margin (`canvasMarginMm`)
 
@@ -297,6 +313,27 @@ On push to `master` when `packages/**` or `pnpm-lock.yaml` changes, workflow `.g
 **Reminder:** Bump `packages/*/package.json` versions before merge — CI publishes whatever version is on `master`.
 
 **Obsidian:** `LS Foundry/Notes — CI package publish on master.md`
+
+## Monorepo unit tests + PR CI (Jest)
+
+**When:** June 2026.
+
+**Tooling:** Jest + React Testing Library at repo root; per-package `jest.config.cjs`; shared mocks in `@ls-foundry/test-utils` (Konva, Next.js dynamic, PNG fixtures).
+
+**Commands:**
+
+| Command | Purpose |
+|---------|---------|
+| `pnpm test` | All packages via Turborepo |
+| `pnpm test:coverage` | Same as CI — enforces per-file thresholds |
+
+**Coverage:** Pure modules (`shared-types`, `helpers`, `canvas-upscaler`, designer utils) target **≥ 90%** lines/functions. Integration-heavy files (`CanvasDesigner.tsx`, `GlbViewer.tsx`, docs showcase sections) use **per-file floors** in each package `jest.config.cjs` (branches often **≥ 85%** where practical).
+
+**CI:** `.github/workflows/ci.yml` runs on **every pull request** → `pnpm test:coverage`. Installs native deps for `canvas` (upscaler) on Ubuntu.
+
+**Agent rule:** `.cursor/rules/ls-foundry-unit-tests.mdc` — new components/hooks/exports require co-located `*.test.ts(x)`.
+
+**Obsidian:** `LS Foundry/Notes — Unit tests and PR CI.md`, `LS Foundry/Cursor rules and slash commands.md`
 
 ## `@jeffgo10/gl-viewer` (LiteShadeMedia consumer)
 

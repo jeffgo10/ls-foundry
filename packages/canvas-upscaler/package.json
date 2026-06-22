@@ -27,6 +27,8 @@
     "clean": "rm -rf dist",
     "test:export": "tsx scripts/test-export.ts",
     "test:json": "tsx scripts/upscale-from-json.ts",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests",
     "prepublishOnly": "pnpm run build"
   },
   "publishConfig": {
@@ -37,6 +39,7 @@
     "canvas": "^3.1.0"
   },
   "devDependencies": {
+    "@ls-foundry/test-utils": "workspace:*",
     "@ls-foundry/tsconfig": "workspace:*",
     "@types/node": "^22.15.3",
     "tsup": "^8.4.0",

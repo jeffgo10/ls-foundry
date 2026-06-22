@@ -25,6 +25,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests",
     "prepublishOnly": "pnpm run build"
   },
   "publishConfig": {

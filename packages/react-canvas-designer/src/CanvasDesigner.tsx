@@ -57,6 +57,11 @@ import {
   DEFAULT_MIN_RESIZE_SIZE_MM,
   getMinResizeDimensionsPx,
 } from "./resizeConstraints";
+import {
+  applyTransformerAnchorHitArea,
+  CANVAS_INTERACTION_STYLE,
+  getTransformerTouchProfile,
+} from "./transformerTouch";
 
 export const TRANSFORMER_COLOR = "#2563eb";
 
@@ -128,6 +133,19 @@ export type CanvasDesignerProps = {
   showCanvasMargin?: boolean;
   /** Stroke color for the margin guide. Default `#94a3b8`. */
   canvasMarginColor?: string;
+  /**
+   * Enlarge transformer anchors and hit areas for touch devices.
+   * Default: auto-detect coarse pointer / touch.
+   */
+  touchFriendly?: boolean;
+  /**
+   * Optional page background drawn inside Konva (non-interactive).
+   * Prefer this over a CSS `background-image` on `.konvajs-content` on mobile
+   * so long-press does not trigger the browser Save image menu.
+   */
+  backgroundImageUrl?: string;
+  /** Fired when the selected sticker changes (e.g. disable viewport pan while editing). */
+  onSelectedIdChange?: (selectedId: string | null) => void;
 };
 
 export type ImageSourceFromUrl = {
@@ -359,11 +377,17 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       canvasMarginMm = 0,
       showCanvasMargin,
       canvasMarginColor = "#94a3b8",
+      touchFriendly,
+      backgroundImageUrl,
+      onSelectedIdChange,
     },
     ref,
   ) {
     const [items, setItems] = useState<PlacedImage[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(
+      null,
+    );
     const [canvasConfig, setCanvasConfig] = useState({
       canvasWidth: canvasWidthProp ?? CANVAS_WIDTH,
       canvasHeight: canvasHeightProp ?? CANVAS_HEIGHT,
@@ -379,6 +403,42 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     selectedIdRef.current = selectedId;
     const onSelectionDimensionsChangeRef = useRef(onSelectionDimensionsChange);
     onSelectionDimensionsChangeRef.current = onSelectionDimensionsChange;
+    const onSelectedIdChangeRef = useRef(onSelectedIdChange);
+    onSelectedIdChangeRef.current = onSelectedIdChange;
+
+    const transformerTouchProfile = useMemo(
+      () => getTransformerTouchProfile(touchFriendly),
+      [touchFriendly],
+    );
+
+    const transformerAnchorStyleFunc = useMemo(() => {
+      if (!transformerTouchProfile) {
+        return undefined;
+      }
+      const { anchorHitStrokeWidth } = transformerTouchProfile;
+      return (anchor: Konva.Rect) => {
+        applyTransformerAnchorHitArea(anchor, anchorHitStrokeWidth);
+      };
+    }, [transformerTouchProfile]);
+
+    useEffect(() => {
+      onSelectedIdChangeRef.current?.(selectedId);
+    }, [selectedId]);
+
+    useEffect(() => {
+      if (!backgroundImageUrl) {
+        setBackgroundImage(null);
+        return;
+      }
+
+      const element = new window.Image();
+      element.crossOrigin = "anonymous";
+      element.src = backgroundImageUrl;
+      element.onload = () => setBackgroundImage(element);
+      return () => {
+        element.onload = null;
+      };
+    }, [backgroundImageUrl]);
 
     useEffect(() => {
       setCanvasConfig({
@@ -821,6 +881,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       <div className={className}>
         <div
           {...getRootProps()}
+          data-canvas-designer=""
+          onContextMenu={(event) => event.preventDefault()}
           style={{
             position: "relative",
             display: "inline-block",
@@ -830,9 +892,16 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             borderRadius: 8,
             boxSizing: "content-box",
             overflow: "hidden",
-            background: isDragActive ? "#f8fafc" : "#ffffff",
+            background: backgroundImageUrl
+              ? isDragActive
+                ? "#f8fafc"
+                : "transparent"
+              : isDragActive
+                ? "#f8fafc"
+                : "#ffffff",
             lineHeight: 0,
             verticalAlign: "top",
+            ...CANVAS_INTERACTION_STYLE,
           }}
         >
           <input {...getInputProps()} />
@@ -859,11 +928,20 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           <Stage
             width={canvasConfig.canvasWidth}
             height={canvasConfig.canvasHeight}
-            style={{ display: "block" }}
+            style={{ display: "block", ...CANVAS_INTERACTION_STYLE }}
             onMouseDown={deselect}
             onTouchStart={deselect}
+            onContextMenu={(event) => event.evt.preventDefault()}
           >
             <Layer>
+              {backgroundImage ? (
+                <KonvaImage
+                  image={backgroundImage}
+                  width={canvasConfig.canvasWidth}
+                  height={canvasConfig.canvasHeight}
+                  listening={false}
+                />
+              ) : null}
               {showMarginGuide && marginPx > 0 ? (
                 <Rect
                   x={marginPx}
@@ -908,12 +986,14 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   "bottom-left",
                   "bottom-right",
                 ]}
-                anchorSize={8}
+                anchorSize={transformerTouchProfile?.anchorSize ?? 8}
                 anchorCornerRadius={2}
                 borderStroke={TRANSFORMER_COLOR}
+                borderStrokeWidth={transformerTouchProfile?.borderStrokeWidth ?? 1}
                 anchorStroke={TRANSFORMER_COLOR}
                 anchorFill="#ffffff"
-                rotateAnchorOffset={24}
+                rotateAnchorOffset={transformerTouchProfile?.rotateAnchorOffset ?? 24}
+                anchorStyleFunc={transformerAnchorStyleFunc}
                 boundBoxFunc={resizeBoundBoxFunc}
               />
               {showSelectionDimensions &&

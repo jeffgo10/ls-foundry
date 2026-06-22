@@ -22,12 +22,15 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests",
     "prepublishOnly": "pnpm run build"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
   "devDependencies": {
+    "@ls-foundry/test-utils": "workspace:*",
     "@ls-foundry/tsconfig": "workspace:*",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3"

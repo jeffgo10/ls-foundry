@@ -25,6 +25,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests",
     "prepublishOnly": "pnpm run build"
   },
   "peerDependencies": {
@@ -33,6 +35,7 @@
     "three": ">=0.170.0 <1.0.0"
   },
   "devDependencies": {
+    "@ls-foundry/test-utils": "workspace:*",
     "@ls-foundry/tsconfig": "workspace:*",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
