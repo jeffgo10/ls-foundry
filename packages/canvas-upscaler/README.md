@@ -48,6 +48,8 @@ const png2 = await upscaleLayoutToPng({ layout: exported.layout, assets });
 
 Output dimensions come from `getPrintDimensions(layout)` in `@jeffgo10/shared-types` (default A4: **2481 × 3507** px @ 300 DPI).
 
+Each export also includes **1 mm opaque white squares** at all four corners (sized at `printDpi`) for Silhouette Studio scale-and-fit alignment.
+
 ## CLI (monorepo dev)
 
 From the repo root, after exporting JSON from `/stickpak`:

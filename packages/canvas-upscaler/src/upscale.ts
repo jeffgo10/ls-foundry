@@ -1,6 +1,8 @@
 import {
   getLayoutDpiScale,
   getPrintDimensions,
+  getPrintDpi,
+  mmToCanvasPixels,
   type CanvasLayout,
   type CanvasLayoutExport,
 } from "@jeffgo10/shared-types";
@@ -16,6 +18,29 @@ export type UpscaleOptions = {
   layout: CanvasLayout;
   assets: AssetSource[];
 };
+
+/** Physical size of each Silhouette alignment square at print corners. */
+export const SILHOUETTE_CORNER_MARKER_MM = 1;
+
+function drawSilhouetteCornerMarkers(
+  context: CanvasRenderingContext2D,
+  printWidth: number,
+  printHeight: number,
+  markerPx: number,
+) {
+  context.save();
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, markerPx, markerPx);
+  context.fillRect(printWidth - markerPx, 0, markerPx, markerPx);
+  context.fillRect(0, printHeight - markerPx, markerPx, markerPx);
+  context.fillRect(
+    printWidth - markerPx,
+    printHeight - markerPx,
+    markerPx,
+    markerPx,
+  );
+  context.restore();
+}
 
 /**
  * Mirror Konva Group transform order (translate → rotate → scale) at print DPI.
@@ -78,6 +103,11 @@ export async function upscaleLayoutToPng({
     const image = await loadAssetSource(source);
     drawItem(context, image, item, scale);
   }
+
+  const markerPx = Math.round(
+    mmToCanvasPixels(SILHOUETTE_CORNER_MARKER_MM, getPrintDpi(layout)),
+  );
+  drawSilhouetteCornerMarkers(context, printWidth, printHeight, markerPx);
 
   return canvas.toBuffer("image/png");
 }

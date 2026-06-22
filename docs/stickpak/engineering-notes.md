@@ -160,6 +160,18 @@ Avoid `react-canvas-designer@0.1.1` from the registry.
 
 `.npmrc`: `@jeffgo10:registry=https://npm.pkg.github.com` + token with `write:packages`.
 
+## Silhouette corner markers (upscaler)
+
+**When:** June 2026 (`canvas-upscaler` v0.2.0).
+
+**Goal:** Easier scale-and-fit when importing print PNGs into Silhouette Studio.
+
+**Fix:** After rendering layout items, `upscaleLayoutToPng` draws **1 mm opaque white squares** at all four print corners. Size uses `mmToCanvasPixels(1, printDpi)` (12 px @ 300 DPI). Exported constant: `SILHOUETTE_CORNER_MARKER_MM`.
+
+**Code:** `packages/canvas-upscaler/src/upscale.ts` — `drawSilhouetteCornerMarkers()`.
+
+See [canvas-scaling.md](./canvas-scaling.md).
+
 ## Upscaler Konva transform mismatch
 
 **Symptom:** Print PNG misaligned vs browser canvas, especially rotated stickers.
@@ -236,9 +248,9 @@ Migrated for marketing/articles SSR. Konva via `dynamic(..., { ssr: false })` + 
 
 **API:** `presign-upload` returns `uploadUrl` (PUT) and `readUrl` (presigned GET, 15 min).
 
-**Canvas designer (`@jeffgo10/react-canvas-designer` v0.2.6+, `@jeffgo10/shared-types` v0.2.0+, `@jeffgo10/canvas-upscaler` v0.1.1+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `canvasMarginMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
+**Canvas designer (`@jeffgo10/react-canvas-designer` v0.2.6+, `@jeffgo10/shared-types` v0.2.0+, `@jeffgo10/canvas-upscaler` v0.2.0+):** Imperative APIs — `addImagesFromUrls`, `exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`, `arrangeAll`, `exportLayout`. Props include `showCutLine`, `autoArrangeGapMm`, `canvasMarginMm`, `showSelectionDimensions`, `canvasWidth`/`canvasHeight`/`designDpi`/`printDpi`, `onReady` (Next.js). Delete/Backspace removes selected sticker.
 
-**Storefront:** Install `@jeffgo10/react-canvas-designer@0.2.6`, `@jeffgo10/shared-types@0.2.0`, and `@jeffgo10/canvas-upscaler@0.1.1` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
+**Storefront:** Install `@jeffgo10/react-canvas-designer@0.2.6`, `@jeffgo10/shared-types@0.2.0`, and `@jeffgo10/canvas-upscaler@0.2.0` from GitHub Packages, or pnpm-link from `ls-foundry` during local dev.
 
 **CORS:** Source bucket allows GET/PUT from browser origins (CDK `cors` on source bucket). Redeploy LocalStack infra if canvas image fails to load after upload.
 

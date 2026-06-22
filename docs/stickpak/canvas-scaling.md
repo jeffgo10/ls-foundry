@@ -11,8 +11,9 @@ Synced from Obsidian (`StickPak/Detailed Canvas Scaling for upscale export`).
 
 ## Backend (300 DPI print canvas)
 
-- Output canvas: **2481 × 3507** px @ 300 DPI (transparent PNG).
+- Output canvas: **2481 × 3507** px @ 300 DPI (transparent PNG with **1 mm opaque white squares** at each corner for Silhouette alignment).
 - Scale factor: `300 / 72` (≈ 4.1667).
+- **Silhouette corner markers:** 1 mm opaque white squares at all four corners (`mmToCanvasPixels(1, printDpi)`); constant `SILHOUETTE_CORNER_MARKER_MM` in `@jeffgo10/canvas-upscaler`.
 - For every layout coordinate:
 
 $$\text{Target} = \text{Source} \times \frac{300}{72}$$
