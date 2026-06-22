@@ -17,8 +17,9 @@ By physically splitting the codebase into a core reusable engine and a domain-sp
   - Canvas edge margin (`canvasMarginMm`) — clamp on alpha cut line; fit oversized drops.
   - Remote URLs (`addImagesFromUrls`), S3 persistence API (`exportLayoutState`, `loadLayoutFromSources`, `clearCanvas`).
   - Delete/Backspace removes selected sticker.
-- **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler` v0.1.1):**
+- **1.4 The Backend Math Upscaler (`@jeffgo10/canvas-upscaler` v0.2.0):**
   - Print PNG size derived from layout dimensions × (`printDpi` / `designDpi`). A4 default unchanged.
+  - **1 mm opaque white corner squares** on every export for Silhouette Studio scale-and-fit.
 
 See [phase-1.md](./phase-1.md) for package locations and implementation status in this repo.
 

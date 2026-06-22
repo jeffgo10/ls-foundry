@@ -1,8 +1,12 @@
-import { createCanvas } from "canvas";
+import { createCanvas, loadImage } from "canvas";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createEmptyLayout } from "@jeffgo10/shared-types";
+import {
+  createEmptyLayout,
+  getPrintDpi,
+  mmToCanvasPixels,
+} from "@jeffgo10/shared-types";
 import { upscaleLayoutToPng } from "./upscale";
 
 function validPngDataUrl(width = 10, height = 10): string {
@@ -15,6 +19,41 @@ function validPngDataUrl(width = 10, height = 10): string {
 
 describe("canvas-upscaler", () => {
   const dataUrl = validPngDataUrl();
+
+  it("draws 1mm opaque white squares at each print corner for Silhouette alignment", async () => {
+    const layout = createEmptyLayout();
+    const buffer = await upscaleLayoutToPng({ layout, assets: [] });
+    const image = await loadImage(buffer);
+    const canvas = createCanvas(image.width, image.height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0);
+
+    const markerPx = Math.round(mmToCanvasPixels(1, getPrintDpi(layout)));
+    const corners = [
+      [0, 0],
+      [image.width - markerPx, 0],
+      [0, image.height - markerPx],
+      [image.width - markerPx, image.height - markerPx],
+    ] as const;
+
+    for (const [x, y] of corners) {
+      const { data } = ctx.getImageData(x, y, markerPx, markerPx);
+      for (let i = 0; i < data.length; i += 4) {
+        expect(data[i]).toBe(255);
+        expect(data[i + 1]).toBe(255);
+        expect(data[i + 2]).toBe(255);
+        expect(data[i + 3]).toBe(255);
+      }
+    }
+
+    const center = ctx.getImageData(
+      Math.floor(image.width / 2),
+      Math.floor(image.height / 2),
+      1,
+      1,
+    );
+    expect(center.data[3]).toBe(0);
+  });
 
   it("upscales a single-item layout to print dimensions", async () => {
     const layout = createEmptyLayout();
