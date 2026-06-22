@@ -1,0 +1,40 @@
+---
+description: Unit test requirements — Jest, RTL, 90% coverage per package
+alwaysApply: true
+---
+
+# ls-foundry — unit tests
+
+Every new **component**, **hook**, or **exported function** must ship with co-located tests.
+
+## Requirements
+
+- **File naming:** `*.test.ts` or `*.test.ts(x)` next to source, or under `__tests__/`
+- **React:** Jest + React Testing Library (`@testing-library/react`)
+- **Pure TS:** Jest only (no RTL)
+- **Coverage:** ≥ 90% lines/functions/statements on pure modules; per-file thresholds in each package `jest.config.cjs` (integration components use documented floors)
+- **Branches:** ≥ 85% where practical (Konva/Three.js paths may use lower per-file floors)
+- **Exempt:** type-only files, barrel re-exports (`index.ts`, `types.ts`), placeholder packages with no `src/`
+
+## Commands
+
+```bash
+pnpm test                  # all packages via turbo
+pnpm test:coverage         # with coverage thresholds (same as CI)
+pnpm test --filter=@jeffgo10/shared-types   # single package
+```
+
+Run `pnpm test` locally before opening a PR that changes package source.
+
+## CI
+
+Every pull request runs `.github/workflows/ci.yml` → `pnpm test:coverage`. PRs fail if any package drops below its threshold.
+
+## Shared helpers
+
+Use `@ls-foundry/test-utils` for Konva/Three.js mocks, tiny PNG fixtures, and mock image builders — do not duplicate large mock blocks in each test file.
+
+## When adding code
+
+1. Add or extend the co-located `*.test.ts(x)` in the same PR
+2. If changing `@jeffgo10/*` published packages, ensure tests pass and bump version per `ls-foundry-core.mdc`

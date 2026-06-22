@@ -25,6 +25,13 @@ export type {
   FormatSelectionDimensions,
   SelectionDimensionsResult,
 } from "./selectionDimensions";
+export {
+  applyTransformerAnchorHitArea,
+  CANVAS_INTERACTION_STYLE,
+  getTransformerTouchProfile,
+  isCoarsePointerDevice,
+  type TransformerTouchProfile,
+} from "./transformerTouch";
 export type {
   CanvasLayoutAsset,
   CanvasLayoutExport,

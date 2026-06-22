@@ -94,6 +94,9 @@ Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a s
 | `showCanvasMargin` | `true` when margin > 0 | Dashed printable-area guide |
 | `minResizeSizeMm` | `25.4` | Minimum shorter side when resizing (mm) |
 | `showSelectionDimensions` | `false` | On-canvas W × H captions |
+| `touchFriendly` | auto (coarse pointer) | Larger transformer anchors + hit areas on touch devices |
+| `backgroundImageUrl` | — | A4/page background inside Konva (`listening={false}`) — avoids mobile Save-image long-press on CSS backgrounds |
+| `onSelectedIdChange` | — | Selection id callback (e.g. pause viewport pan while editing) |
 
 ## Imperative API (`ref` / `onReady`)
 
@@ -129,6 +132,8 @@ See monorepo `docs/stickpak/canvas-scaling.md` for 72 → 300 DPI math.
 Re-exports from `@jeffgo10/shared-types`: `CANVAS_WIDTH`, `CANVAS_HEIGHT`, `mmToCanvasPixels`, `formatCanvasDimensions`, etc.
 
 Margin / resize utilities: `fitItemToCanvasArea`, `clampItemPosition`, `getMinResizeScale`, `DEFAULT_MIN_RESIZE_SIZE_MM`, …
+
+Mobile touch helpers: `CANVAS_INTERACTION_STYLE`, `getTransformerTouchProfile`, `isCoarsePointerDevice`.
 
 ## Local demo
 
