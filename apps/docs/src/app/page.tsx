@@ -19,6 +19,12 @@ function HomePage() {
         >
           StickPak canvas designer →
         </Link>
+        <Link
+          href="/3d-label"
+          className="mt-2 block text-xs tracking-[0.15em] text-white/40 underline-offset-4 hover:text-white/70 hover:underline"
+        >
+          3D label customizer →
+        </Link>
       </header>
       <LidarSprayViewerSection />
     </main>

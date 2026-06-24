@@ -53,6 +53,7 @@ Also sync **repo markdown** (`docs/stickpak/`) when Obsidian is updated — repo
 | Resolved bug, gotcha, non-obvious fix | `StickPak/noteworthy/Notes — <short title>.md` | Create **or** update if same topic |
 | Engineering notes index | `StickPak/noteworthy/StickPak Engineering Notes.md` | Add row when creating noteworthy note |
 | `@jeffgo10/gl-viewer` API or integration | `LiteShadeMedia/08 gl-viewer Package.md`, `07 LiDAR AR 3D Viewer.md` | Patch or append |
+| `@jeffgo10/three-d-label-customizer` | `LS Foundry/Notes — three-d-label-customizer.md`, `docs/three-d-label-customizer/` | Create or update in **`LS Foundry/`** (not StickPak) |
 | Monorepo tooling (no consumer app) | `LS Foundry/Notes — <topic>.md`, `LS Foundry/Cursor rules and slash commands.md` | Create or update in `LS Foundry/` folder |
 
 **Noteworthy naming:** `Notes — <Topic>.md` (match existing style in `StickPak/noteworthy/`).
@@ -174,5 +175,6 @@ If nothing material changed, say so — do not create empty or duplicate notes.
 - Put secrets, tokens, or `.env` values in Obsidian notes.
 - Update Obsidian when MCP pre-check fails (except to tell the user to fix MCP).
 - Put StickPak canvas/upscaler notes in `LS Foundry/` — use `StickPak/`.
+- Put `three-d-label-customizer` notes in `StickPak/` or `LiteShadeMedia/` — use `LS Foundry/Notes — three-d-label-customizer`.
 - Put gl-viewer consumer docs in `LS Foundry/` — use `LiteShadeMedia/`.
 - Create long narrative docs — quick-reference in Obsidian; detail in `docs/stickpak/`.

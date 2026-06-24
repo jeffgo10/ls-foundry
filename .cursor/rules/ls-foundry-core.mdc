@@ -10,8 +10,9 @@ Monorepo: **pnpm** workspaces + **Turborepo**. Repo: [github.com/jeffgo10/ls-fou
 ## Layout
 
 ```
-apps/docs/          # Next.js showcase (@ls-foundry/docs) — /stickpak test page
+apps/docs/          # Next.js showcase (@ls-foundry/docs) — /stickpak, /3d-label
 docs/stickpak/      # StickPak Phase 1 docs (mirror Obsidian StickPak/)
+docs/three-d-label-customizer/  # Standalone 3D label warper (mirror Obsidian LS Foundry/)
 packages/           # publishable + internal packages
 ```
 
@@ -19,7 +20,7 @@ packages/           # publishable + internal packages
 
 | Scope | Use | Examples |
 |-------|-----|----------|
-| `@jeffgo10/*` | **Published** to GitHub Packages (`npm.pkg.github.com`) | `shared-types`, `react-canvas-designer`, `canvas-upscaler`, `helpers`, `gl-viewer` (v0.3.1; consumed by **LiteShadeMedia**) |
+| `@jeffgo10/*` | **Published** to GitHub Packages (`npm.pkg.github.com`) | `shared-types`, `react-canvas-designer`, `canvas-upscaler`, `three-d-label-customizer`, `helpers`, `gl-viewer` (v0.3.1; consumed by **LiteShadeMedia**) |
 | `@ls-foundry/*` | **Private** monorepo-only | `docs`, `tsconfig`, `ui`, `utils`, `maps` |
 
 Publish scope must match GitHub owner (`@jeffgo10`). Bump versions in `packages/*/package.json` before `pnpm run deploy`.
@@ -45,6 +46,15 @@ Also update the pin table below, `docs/stickpak/phase-1.md` version table + inst
 | `@jeffgo10/canvas-upscaler` | 0.2.0 |
 
 Always bump `shared-types` first when changing layout/DPI APIs; keep dependent package pins in sync.
+
+## Other published packages (not StickPak)
+
+| Package | Version | Docs |
+|---------|---------|------|
+| `@jeffgo10/three-d-label-customizer` | 0.1.0 | `docs/three-d-label-customizer/` |
+| `@jeffgo10/gl-viewer` | 0.3.1 | `packages/gl-viewer/` (consumer: **LiteShadeMedia**) |
+
+`three-d-label-customizer` is a **standalone** product mockup package. Obsidian: `LS Foundry/Notes — three-d-label-customizer`.
 
 ## Coding conventions
 
@@ -81,5 +91,6 @@ pnpm run dev --filter=@ls-foundry/docs   # → localhost:3000/stickpak
 | `docs/stickpak/engineering-notes.md` | Issues/fixes log |
 | `docs/stickpak/canvas-scaling.md` | 72→300 DPI math |
 | `docs/stickpak/roadmap.md` | Six-phase plan |
+| `docs/three-d-label-customizer/` | 3D label warper (separate from Phase 1) |
 
 When the user asks to update notes, sync **both** repo docs and Obsidian (see `ls-foundry-obsidian-sync.mdc`). Run **`/sync-obsidian-notes`**. Run **`/create-github-pr`** to open a PR (auto branch + commit when on `master`).
