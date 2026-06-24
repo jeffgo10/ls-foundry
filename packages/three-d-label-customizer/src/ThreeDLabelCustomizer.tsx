@@ -146,7 +146,7 @@ export function ThreeDLabelCustomizer({
         {!ready && !isScanning ? (
           <div className="tdlc-loading">Load product and label images</div>
         ) : null}
-        {ready && targetBounds ? (
+        {ready && targetBounds && displayCanvasSrc ? (
           <Canvas
             className="tdlc-canvas"
             gl={{ alpha: true, antialias: true }}
