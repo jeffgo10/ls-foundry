@@ -16,13 +16,15 @@ ls-foundry/
 ├── apps/
 │   └── docs/                 # Next.js showcase
 ├── docs/
-│   └── stickpak/             # StickPak roadmap + Phase 1 notes (from Obsidian)
+│   ├── stickpak/             # StickPak roadmap + Phase 1 notes (from Obsidian)
+│   └── three-d-label-customizer/  # 3D label warping product notes
 ├── packages/
 │   ├── gl-viewer/            # @jeffgo10/gl-viewer — GLB / LiDAR viewer
 │   ├── helpers/              # @jeffgo10/helpers — shared utilities (e.g. ./image)
 │   ├── shared-types/         # @jeffgo10/shared-types — StickPak canvas layout types
 │   ├── react-canvas-designer/# @jeffgo10/react-canvas-designer — 72 DPI Konva designer
 │   ├── canvas-upscaler/      # @jeffgo10/canvas-upscaler — 300 DPI print upscaler
+│   ├── three-d-label-customizer/ # @jeffgo10/three-d-label-customizer — R3F label warping
 │   ├── config-ts/            # Shared TS configs (@ls-foundry/tsconfig)
 │   ├── maps/                 # placeholder
 │   ├── ui/                   # placeholder
@@ -47,7 +49,7 @@ ls-foundry/
 | `pnpm run deploy:dry-run` | Same as `deploy` with `--dry-run` |
 | `pnpm run deploy:nogit` | Publish with `--no-git-checks` (use when the tree is not clean) |
 
-Published packages: `@jeffgo10/gl-viewer`, `@jeffgo10/shared-types`, `@jeffgo10/helpers`, `@jeffgo10/react-canvas-designer`, `@jeffgo10/canvas-upscaler`. Placeholders (`utils`, `ui`, `maps`, `config-ts`) and `apps/*` stay private.
+Published packages: `@jeffgo10/gl-viewer`, `@jeffgo10/shared-types`, `@jeffgo10/helpers`, `@jeffgo10/react-canvas-designer`, `@jeffgo10/canvas-upscaler`, `@jeffgo10/three-d-label-customizer`. Placeholders (`utils`, `ui`, `maps`, `config-ts`) and `apps/*` stay private.
 
 Bump versions in the relevant `packages/*/package.json` before each publish. Authenticate to `npm.pkg.github.com` with a token that has `write:packages`. Map `@jeffgo10:registry` → `https://npm.pkg.github.com` in `.npmrc`.
 
@@ -63,7 +65,7 @@ Manual run: GitHub → Actions → **Publish packages** → **Run workflow**.
 pnpm run dev --filter=@ls-foundry/docs
 ```
 
-Open the URL shown in the terminal (default port 3000). Place assets such as `spray.glb` under `apps/docs/public/` when testing local GLB paths.
+Open the URL shown in the terminal (default port 3000). Routes: `/` (GL viewer), `/stickpak` (canvas designer), `/3d-label` (3D label customizer). Place assets such as `spray.glb` under `apps/docs/public/` when testing local GLB paths.
 
 ## StickPak (Phase 1)
 
@@ -80,6 +82,7 @@ Planning notes and the Phase 1 core engine live in [docs/stickpak](./docs/stickp
 | Package | Description |
 |---------|-------------|
 | [@jeffgo10/gl-viewer](./packages/gl-viewer/README.md) | Headless React viewer for GLB (orbit, walk, WebXR AR) |
+| [@jeffgo10/three-d-label-customizer](./packages/three-d-label-customizer/README.md) | R3F neon-green scan + curved label texture warping |
 
 Further packages will be documented here as they ship.
 
