@@ -6,7 +6,7 @@ Repository: [github.com/jeffgo10/ls-foundry](https://github.com/jeffgo10/ls-foun
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) (LTS 20 or 22 recommended; avoid odd majors if Corepack misbehaves)
+- [Node.js](https://nodejs.org/) 22 LTS (matches CI and AWS Lambda `nodejs22.x`; avoid odd majors if Corepack misbehaves)
 - [pnpm](https://pnpm.io/) 9.x (`packageManager` is pinned in root `package.json`; `corepack enable` or `npm i -g pnpm` works)
 
 ## Layout
