@@ -2,6 +2,7 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: {
+    gestures: "src/gestures/index.ts",
     image: "src/image/index.ts",
   },
   format: ["esm", "cjs"],
