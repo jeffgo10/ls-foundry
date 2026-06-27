@@ -347,6 +347,20 @@ On push to `master` when `packages/**` or `pnpm-lock.yaml` changes, workflow `.g
 
 **Obsidian:** `LS Foundry/Notes — Unit tests and PR CI.md`, `LS Foundry/Cursor rules and slash commands.md`
 
+## `@jeffgo10/helpers` v0.2.0 — gestures + image utils (June 2026)
+
+**When:** June 2026. **PR:** [ls-foundry #12](https://github.com/jeffgo10/ls-foundry/pull/12).
+
+**New subpath:** `@jeffgo10/helpers/gestures` — generic `usePointerTransformGestures<T>` with injectable `onPan` / `onPinch` / `clamp` reducers; geometry helpers; maps CSS pointer deltas to logical export coords via `logicalSize`. **Peer:** `react` ^18 | ^19.
+
+**Extended:** `@jeffgo10/helpers/image` — `loadImage`, `downloadCanvasAsPng`, `exportCanvasToBlob` (plus existing `traceAlphaContour`, `blobUrlToDataUrl`).
+
+**Consumer:** CrowdBadge — thin adapter for badge `PhotoPlacement`; imports image helpers in badge canvas. Domain types stay in the app, not in helpers.
+
+**Docs:** `packages/helpers/README.md`. **Obsidian:** `LS Foundry/Notes — helpers gestures subpath.md`.
+
+**Publish:** merge to `master` → CI `deploy:changed` bumps GitHub Packages to **0.2.0**.
+
 ## `@jeffgo10/gl-viewer` (LiteShadeMedia consumer)
 
 **Source:** `packages/gl-viewer/` in this repo (v0.3.1).

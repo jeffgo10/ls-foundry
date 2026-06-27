@@ -21,7 +21,7 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 |---------|---------|-------|
 | `@jeffgo10/shared-types` | **0.2.0** | `instanceId` + `assetId` per layout item |
 | `@jeffgo10/react-canvas-designer` | **0.2.7** | Mobile touch-friendly transformer; Konva background + selection callback |
-| `@jeffgo10/helpers` | 0.1.0 | |
+| `@jeffgo10/helpers` | **0.2.0** | `./image` + `./gestures`; CrowdBadge consumer (PR #12 pending) |
 | `@jeffgo10/canvas-upscaler` | **0.2.0** | Output size from layout dimensions; 1 mm corner markers |
 
 Install both designer packages together:
@@ -40,7 +40,7 @@ See [engineering-notes.md](./engineering-notes.md#package-version-mismatch-react
 - [x] **1.2** `@jeffgo10/shared-types` (v0.2.0) — layout schema, A4 defaults, physical dimension helpers, customizable `canvasWidth`/`canvasHeight` + `designDpi`/`printDpi`, `instanceId`/`assetId` split
 - [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.7) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds), duplicate library images on one sheet, mobile touch-friendly transformer
 - [x] **1.4** `@jeffgo10/canvas-upscaler` (v0.2.0) — JSON CLI; print output size from layout dimensions + DPI; 1 mm Silhouette corner markers
-- [x] **1.5** `@jeffgo10/helpers/image` — contour tracing, blob URL → data URL
+- [x] **1.5** `@jeffgo10/helpers` (v0.2.0) — `./image` (contour, blob URL, `loadImage`, canvas PNG export) + `./gestures` (`usePointerTransformGestures`)
 - [x] **1.6** Docs test page — `apps/docs` `/stickpak`
 
 ## Canvas coordinate system
