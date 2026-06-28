@@ -24,9 +24,17 @@ module.exports = {
       ...threshold90,
       branches: 80,
     },
+    "./src/browser/isRestrictedInAppBrowser.ts": threshold90,
+    "./src/clipboard/useCopyLink.ts": {
+      ...threshold90,
+      branches: 85,
+    },
     "./src/image/blobUrlToDataUrl.ts": threshold90,
+    "./src/image/canvasToPngDataUrl.ts": threshold90,
+    "./src/image/dataUrlToBlob.ts": threshold90,
     "./src/image/downloadCanvasAsPng.ts": threshold90,
     "./src/image/exportCanvasToBlob.ts": threshold90,
+    "./src/image/isMobileBrowser.ts": threshold90,
     "./src/image/loadImage.ts": threshold90,
     "./src/image/traceAlphaContour.ts": {
       ...threshold90,
