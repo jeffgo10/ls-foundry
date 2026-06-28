@@ -94,6 +94,7 @@ Cursor rules and a slash command keep repo docs and Obsidian in sync:
 |------|---------|
 | `.cursor/rules/ls-foundry-core.mdc` | Monorepo layout, package scopes, conventions |
 | `.cursor/rules/ls-foundry-obsidian-sync.mdc` | Obsidian MCP workflow and vault folder map |
+| `.cursor/commands/extract-to-foundry.md` | `/extract-to-foundry` — DRY cross-platform shared code to `@jeffgo10/*` |
 | `.cursor/commands/sync-obsidian-notes.md` | `/sync-obsidian-notes` — sync vault + optional rule refresh |
 | `.cursor/commands/create-github-pr.md` | `/create-github-pr` — auto branch from `master`, auto-commit, push, open PR |
 
