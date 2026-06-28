@@ -6,6 +6,8 @@ Published subpaths:
 
 - **`@jeffgo10/helpers/image`** — pure DOM/canvas image utilities
 - **`@jeffgo10/helpers/gestures`** — pointer pan/pinch/rotate hook + geometry helpers
+- **`@jeffgo10/helpers/browser`** — in-app WebView detection for export UX
+- **`@jeffgo10/helpers/clipboard`** — `useCopyLink` React hook for copy-to-clipboard UI
 
 Source: [github.com/jeffgo10/ls-foundry](https://github.com/jeffgo10/ls-foundry) (`packages/helpers`).
 
@@ -27,6 +29,7 @@ pnpm add @jeffgo10/helpers
 ```ts
 import {
   blobUrlToDataUrl,
+  canvasToPngDataUrl,
   downloadCanvasAsPng,
   exportCanvasToBlob,
   loadImage,
@@ -50,7 +53,27 @@ Loads an image with `crossOrigin = "anonymous"`; rejects on error.
 
 ### `downloadCanvasAsPng(canvas, filename)` / `exportCanvasToBlob(canvas)`
 
-Client-side PNG download and blob export from an `HTMLCanvasElement`.
+Client-side PNG download and blob export from an `HTMLCanvasElement`. Mobile browsers use a blob object URL so downloads work after async work.
+
+### `canvasToPngDataUrl(canvas)`
+
+Returns `canvas.toDataURL("image/png")` for overlays or in-app save flows.
+
+## `@jeffgo10/helpers/browser`
+
+```ts
+import { isRestrictedInAppBrowser } from "@jeffgo10/helpers/browser";
+```
+
+Detects in-app browsers (Meta Messenger, Instagram, WeChat, etc.) that block programmatic downloads.
+
+## `@jeffgo10/helpers/clipboard`
+
+```ts
+import { useCopyLink } from "@jeffgo10/helpers/clipboard";
+```
+
+**Peer dependency:** `react` ^18 or ^19. Consumer components should be client components.
 
 ## `@jeffgo10/helpers/gestures`
 

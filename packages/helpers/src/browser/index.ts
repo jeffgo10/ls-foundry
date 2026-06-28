@@ -1,0 +1,1 @@
+export { isRestrictedInAppBrowser } from "./isRestrictedInAppBrowser";
