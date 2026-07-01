@@ -104,3 +104,92 @@ export function buildDuplicatesToFit<T extends MarginBoundsItem & { instanceId: 
 
   return { copies, addedCount: copies.length };
 }
+
+function getItemsAxisAlignedBounds(
+  items: readonly MarginBoundsItem[],
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const item of items) {
+    const bounds = getItemAxisAlignedBounds(item);
+    minX = Math.min(minX, bounds.minX);
+    minY = Math.min(minY, bounds.minY);
+    maxX = Math.max(maxX, bounds.maxX);
+    maxY = Math.max(maxY, bounds.maxY);
+  }
+
+  return { minX, minY, maxX, maxY };
+}
+
+/** Cut-line spacing between the current block and the next copy block. */
+export function getAdjacentBlockTranslation(
+  block: readonly MarginBoundsItem[],
+  direction: DuplicateFillDirection,
+  gapPx = 0,
+): { dx: number; dy: number } {
+  const { minX, minY, maxX, maxY } = getItemsAxisAlignedBounds(block);
+  const blockWidth = maxX - minX;
+  const blockHeight = maxY - minY;
+
+  if (direction === "horizontal") {
+    return { dx: blockWidth + gapPx, dy: 0 };
+  }
+
+  return { dx: 0, dy: blockHeight + gapPx };
+}
+
+/**
+ * Duplicate every item in `sources` together as a block along an axis until the
+ * next block would extend past the printable area. Preserves relative layout.
+ */
+export function buildGroupDuplicatesToFit<
+  T extends MarginBoundsItem & { instanceId: string },
+>(
+  sources: readonly T[],
+  direction: DuplicateFillDirection,
+  options: DuplicateFillOptions,
+): DuplicateFillResult<T> {
+  if (sources.length === 0) {
+    return { copies: [], addedCount: 0 };
+  }
+  if (sources.length === 1) {
+    return buildDuplicatesToFit(sources[0]!, direction, options);
+  }
+
+  const marginPx = getCanvasMarginPx(options.marginMm ?? 0, options.designDpi);
+  const gapPx = mmToCanvasPixels(options.gapMm ?? 0, options.designDpi);
+  const maxCopies = options.maxCopies ?? 500;
+  const copies: T[] = [];
+  let lastBlock: readonly MarginBoundsItem[] = sources;
+
+  for (let generation = 0; generation < maxCopies; generation += 1) {
+    const { dx, dy } = getAdjacentBlockTranslation(lastBlock, direction, gapPx);
+    const candidates = sources.map((template, index) => ({
+      ...template,
+      instanceId: options.createInstanceId(),
+      x: lastBlock[index]!.x + dx,
+      y: lastBlock[index]!.y + dy,
+    }));
+
+    if (
+      !candidates.every((candidate) =>
+        copyFitsInPrintableArea(
+          candidate,
+          options.canvasWidth,
+          options.canvasHeight,
+          marginPx,
+        ),
+      )
+    ) {
+      break;
+    }
+
+    copies.push(...candidates);
+    lastBlock = candidates;
+  }
+
+  return { copies, addedCount: copies.length };
+}

@@ -29,12 +29,12 @@ function StickPakCanvasSection() {
   const [autoArrangeOnAdd, setAutoArrangeOnAdd] = useState(false);
   const [showSelectionDimensions, setShowSelectionDimensions] = useState(true);
   const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("mm");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [arrangeMessage, setArrangeMessage] = useState("");
   const [duplicateMessage, setDuplicateMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
-  const hasSelection = selectedId !== null;
+  const hasSelection = selectedIds.length > 0;
 
   const handleExport = async () => {
     if (!designerRef.current) return;
@@ -166,7 +166,7 @@ function StickPakCanvasSection() {
           autoArrangeOnAdd={autoArrangeOnAdd}
           showSelectionDimensions={showSelectionDimensions}
           dimensionUnit={dimensionUnit}
-          onSelectedIdChange={setSelectedId}
+          onSelectedIdsChange={setSelectedIds}
           onAutoArrange={({ allPlaced }) => {
             setDuplicateMessage("");
             setArrangeMessage(
@@ -180,8 +180,10 @@ function StickPakCanvasSection() {
       <div className="space-y-3">
         <p className="text-sm text-white/50">
           {hasSelection
-            ? "Selected sticker — duplicate to fill a row or column inside the printable margin."
-            : "Click a sticker to select it, then duplicate horizontally or vertically."}
+            ? selectedIds.length > 1
+              ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate.`
+              : "Selected sticker — duplicate to fill a row or column inside the printable margin."
+            : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select."}
         </p>
         <div className="flex flex-wrap gap-3">
           <button

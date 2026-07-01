@@ -54,18 +54,41 @@ import {
 import {
   clampNodeScale,
   clampResizeBox,
+  constrainMultiSelectBoundBox,
   DEFAULT_MIN_RESIZE_SIZE_MM,
   getMinResizeDimensionsPx,
 } from "./resizeConstraints";
+import {
+  isAdditivePointerEvent,
+  isCanvasBackgroundTarget,
+  isTransformerTarget,
+  primarySelectedId,
+  resolveStickerInstanceId,
+  toggleShiftSelection,
+} from "./selection";
+import {
+  getMarqueeHitInstanceIds,
+  isMarqueeClick,
+  mergeMarqueeSelection,
+  normalizeMarqueeRect,
+  type MarqueeRect,
+} from "./marqueeSelection";
 import {
   applyTransformerAnchorHitArea,
   CANVAS_INTERACTION_STYLE,
   getTransformerTouchProfile,
 } from "./transformerTouch";
 import {
-  buildDuplicatesToFit,
+  buildGroupDuplicatesToFit,
   type DuplicateFillDirection,
 } from "./duplicateFill";
+import {
+  applyGroupTransformFromProxy,
+  getSelectionAxisAlignedBox,
+  readProxyState,
+  type GroupTransformSnapshot,
+  type ProxyState,
+} from "./groupTransform";
 
 export const TRANSFORMER_COLOR = "#2563eb";
 
@@ -148,8 +171,14 @@ export type CanvasDesignerProps = {
    * so long-press does not trigger the browser Save image menu.
    */
   backgroundImageUrl?: string;
-  /** Fired when the selected sticker changes (e.g. disable viewport pan while editing). */
+  /**
+   * Fired when the primary selected sticker changes (last clicked).
+   * `null` when nothing is selected. With multi-select, still reports the
+   * most recently clicked id so viewport pan can stay disabled while editing.
+   */
   onSelectedIdChange?: (selectedId: string | null) => void;
+  /** Fired when the full selection set changes (Shift/Ctrl/Cmd multi-select). */
+  onSelectedIdsChange?: (selectedIds: string[]) => void;
 };
 
 export type ImageSourceFromUrl = {
@@ -190,12 +219,14 @@ export type CanvasDesignerHandle = {
   /** Place images from remote URLs (e.g. presigned S3 GET URLs). */
   addImagesFromUrls: (sources: ImageSourceFromUrl[]) => void;
   /**
-   * Duplicate the selected sticker to the right until the printable area is full.
+   * Duplicate the selected sticker(s) to the right until the printable area is full.
+   * Multi-select copies the whole selection together as a block each generation.
    * Spacing uses cut-line bounds plus `autoArrangeGapMm` (override via `gapMm`).
    */
   duplicateSelectedHorizontally: (options?: DuplicateFillHandleOptions) => number;
   /**
-   * Duplicate the selected sticker downward until the printable area is full.
+   * Duplicate the selected sticker(s) downward until the printable area is full.
+   * Multi-select copies the whole selection together as a block each generation.
    * Spacing uses cut-line bounds plus `autoArrangeGapMm` (override via `gapMm`).
    */
   duplicateSelectedVertically: (options?: DuplicateFillHandleOptions) => number;
@@ -213,6 +244,7 @@ function DraggableImage({
   onSelect,
   onChange,
   shapeRef,
+  draggable,
 }: {
   item: PlacedImage;
   showCutLine: boolean;
@@ -222,9 +254,10 @@ function DraggableImage({
   canvasWidth: number;
   canvasHeight: number;
   canvasMarginMm: number;
-  onSelect: () => void;
+  onSelect: (additive: boolean) => void;
   onChange: (next: PlacedImage) => void;
   shapeRef: (node: Konva.Group | null) => void;
+  draggable: boolean;
 }) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [cutLinePoints, setCutLinePoints] = useState<number[]>([]);
@@ -270,7 +303,7 @@ function DraggableImage({
 
   const select = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
     event.cancelBubble = true;
-    onSelect();
+    onSelect(isAdditivePointerEvent(event.evt));
   };
 
   const syncFromNode = (node: Konva.Group) => {
@@ -343,10 +376,10 @@ function DraggableImage({
       scaleX={item.scaleX}
       scaleY={item.scaleY}
       rotation={item.rotation}
-      draggable
+      draggable={draggable}
       dragBoundFunc={dragBoundFunc}
-      onMouseDown={select}
-      onTouchStart={select}
+      onClick={select}
+      onTap={select}
       onDragEnd={(event) => syncFromNode(event.target as Konva.Group)}
       onTransform={(event) => syncFromNode(event.target as Konva.Group)}
       onTransformEnd={(event) => syncFromNode(event.target as Konva.Group)}
@@ -399,11 +432,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       touchFriendly,
       backgroundImageUrl,
       onSelectedIdChange,
+      onSelectedIdsChange,
     },
     ref,
   ) {
     const [items, setItems] = useState<PlacedImage[]>([]);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(
       null,
     );
@@ -415,15 +449,26 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     });
     const shapeRefs = useRef(new Map<string, Konva.Group>());
     const transformerRef = useRef<Konva.Transformer>(null);
+    const multiSelectProxyRef = useRef<Konva.Group>(null);
+    const groupTransformSnapshotRef = useRef<GroupTransformSnapshot | null>(null);
+    const frozenProxyBoxRef = useRef<ProxyState | null>(null);
+    const isGroupTransformingRef = useRef(false);
+    const [groupTransforming, setGroupTransforming] = useState(false);
+    const isMarqueeActiveRef = useRef(false);
+    const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+    const marqueeRectRef = useRef<MarqueeRect | null>(null);
+    const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
     const pendingAutoArrangeRef = useRef(false);
     const itemsRef = useRef(items);
     itemsRef.current = items;
-    const selectedIdRef = useRef(selectedId);
-    selectedIdRef.current = selectedId;
+    const selectedIdsRef = useRef(selectedIds);
+    selectedIdsRef.current = selectedIds;
     const onSelectionDimensionsChangeRef = useRef(onSelectionDimensionsChange);
     onSelectionDimensionsChangeRef.current = onSelectionDimensionsChange;
     const onSelectedIdChangeRef = useRef(onSelectedIdChange);
     onSelectedIdChangeRef.current = onSelectedIdChange;
+    const onSelectedIdsChangeRef = useRef(onSelectedIdsChange);
+    onSelectedIdsChangeRef.current = onSelectedIdsChange;
 
     const transformerTouchProfile = useMemo(
       () => getTransformerTouchProfile(touchFriendly),
@@ -441,8 +486,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     }, [transformerTouchProfile]);
 
     useEffect(() => {
-      onSelectedIdChangeRef.current?.(selectedId);
-    }, [selectedId]);
+      onSelectedIdChangeRef.current?.(primarySelectedId(selectedIds));
+      onSelectedIdsChangeRef.current?.(selectedIds);
+    }, [selectedIds]);
 
     useEffect(() => {
       if (!backgroundImageUrl) {
@@ -472,10 +518,39 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const marginPx = getCanvasMarginPx(canvasMarginMm, canvasConfig.designDpi);
     const showMarginGuide = showCanvasMargin ?? canvasMarginMm > 0;
 
-    const selectedItem = useMemo(
-      () => items.find((item) => item.instanceId === selectedId) ?? null,
-      [items, selectedId],
+    const selectedIdSet = useMemo(
+      () => new Set(selectedIds),
+      [selectedIds],
     );
+    const multiSelectActive = selectedIds.length > 1;
+    const primarySelectedIdValue = primarySelectedId(selectedIds);
+
+    const selectedItem = useMemo(() => {
+      if (!primarySelectedIdValue) {
+        return null;
+      }
+      return (
+        items.find((item) => item.instanceId === primarySelectedIdValue) ?? null
+      );
+    }, [items, primarySelectedIdValue]);
+
+    const selectedItems = useMemo(
+      () => items.filter((item) => selectedIdSet.has(item.instanceId)),
+      [items, selectedIdSet],
+    );
+
+    const multiSelectProxyBox = useMemo(() => {
+      if (!multiSelectActive) {
+        return null;
+      }
+      return getSelectionAxisAlignedBox(selectedItems);
+    }, [multiSelectActive, selectedItems]);
+
+    const activeProxyBox =
+      (isGroupTransformingRef.current || groupTransforming) &&
+      frozenProxyBoxRef.current
+        ? frozenProxyBoxRef.current
+        : multiSelectProxyBox;
 
     const selectionDimensions = useMemo(() => {
       if (!showSelectionDimensions || !selectedItem) {
@@ -638,7 +713,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             );
           }),
         );
-        setSelectedId(null);
+        setSelectedIds([]);
         shapeRefs.current.clear();
         setCanvasConfig({
           canvasWidth: input.layout.canvasWidth,
@@ -652,7 +727,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const clearCanvas = useCallback(() => {
       setItems([]);
-      setSelectedId(null);
+      setSelectedIds([]);
       shapeRefs.current.clear();
     }, []);
 
@@ -663,7 +738,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     }, [buildExport, onExport]);
 
     const clearSelection = useCallback(() => {
-      setSelectedId(null);
+      setSelectedIds([]);
       const transformer = transformerRef.current;
       if (transformer) {
         transformer.nodes([]);
@@ -671,19 +746,23 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       }
     }, []);
 
-    const deleteSelectedItem = useCallback(() => {
-      const activeId = selectedIdRef.current;
-      if (!activeId) return;
+    const deleteSelectedItems = useCallback(() => {
+      const activeIds = selectedIdsRef.current;
+      if (activeIds.length === 0) return;
 
+      const idSet = new Set(activeIds);
       setItems((current) => {
-        const item = current.find((entry) => entry.instanceId === activeId);
-        if (item?.src.startsWith("blob:")) {
-          URL.revokeObjectURL(item.src);
+        for (const item of current) {
+          if (idSet.has(item.instanceId) && item.src.startsWith("blob:")) {
+            URL.revokeObjectURL(item.src);
+          }
         }
-        return current.filter((entry) => entry.instanceId !== activeId);
+        return current.filter((entry) => !idSet.has(entry.instanceId));
       });
-      shapeRefs.current.delete(activeId);
-      setSelectedId(null);
+      for (const id of activeIds) {
+        shapeRefs.current.delete(id);
+      }
+      setSelectedIds([]);
 
       const transformer = transformerRef.current;
       if (transformer) {
@@ -695,7 +774,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     useEffect(() => {
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key !== "Delete" && event.key !== "Backspace") return;
-        if (!selectedIdRef.current) return;
+        if (selectedIdsRef.current.length === 0) return;
 
         const target = event.target;
         if (
@@ -709,12 +788,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
 
         event.preventDefault();
-        deleteSelectedItem();
+        deleteSelectedItems();
       };
 
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
-    }, [deleteSelectedItem]);
+    }, [deleteSelectedItems]);
 
     const runAutoArrange = useCallback(
       async (options?: AutoArrangeOptions): Promise<boolean> => {
@@ -743,17 +822,200 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     );
 
     useEffect(() => {
+      if (isGroupTransformingRef.current) {
+        return;
+      }
       const transformer = transformerRef.current;
-      const node = selectedId ? shapeRefs.current.get(selectedId) : undefined;
       if (!transformer) return;
 
-      if (node) {
-        transformer.nodes([node]);
+      if (multiSelectActive) {
+        const proxy = multiSelectProxyRef.current;
+        transformer.nodes(proxy ? [proxy] : []);
+      } else if (selectedIds.length === 1) {
+        const node = shapeRefs.current.get(selectedIds[0]!);
+        transformer.nodes(node ? [node] : []);
       } else {
         transformer.nodes([]);
       }
       transformer.getLayer()?.batchDraw();
-    }, [selectedId, items]);
+    }, [multiSelectActive, selectedIds, items, activeProxyBox]);
+
+    useEffect(() => {
+      if (
+        isGroupTransformingRef.current ||
+        groupTransforming ||
+        !multiSelectActive ||
+        !activeProxyBox
+      ) {
+        return;
+      }
+      const proxy = multiSelectProxyRef.current;
+      if (!proxy) {
+        return;
+      }
+      proxy.position({ x: activeProxyBox.x, y: activeProxyBox.y });
+      proxy.rotation(0);
+      proxy.scale({ x: 1, y: 1 });
+      proxy.getLayer()?.batchDraw();
+    }, [groupTransforming, multiSelectActive, activeProxyBox]);
+
+    const clampPlacedTransform = useCallback(
+      (draft: PlacedImage): PlacedImage => {
+        let rotation = draft.rotation;
+        let scaleX = draft.scaleX;
+        let scaleY = draft.scaleY;
+        const minScaled = clampNodeScale(
+          scaleX,
+          scaleY,
+          draft.width,
+          draft.height,
+          minResizeSizeMm,
+          canvasConfig.designDpi,
+        );
+        scaleX = minScaled.scaleX;
+        scaleY = minScaled.scaleY;
+
+        let working: PlacedImage = { ...draft, scaleX, scaleY, rotation };
+        const fitted = fitItemToCanvasArea(
+          working,
+          canvasConfig.canvasWidth,
+          canvasConfig.canvasHeight,
+          canvasMarginMm,
+          canvasConfig.designDpi,
+        );
+        scaleX = fitted.scaleX;
+        scaleY = fitted.scaleY;
+        working = { ...fitted, scaleX, scaleY, rotation };
+
+        const { x, y } = clampItemPosition(
+          working,
+          canvasConfig.canvasWidth,
+          canvasConfig.canvasHeight,
+          canvasMarginMm,
+          canvasConfig.designDpi,
+          { x: draft.x, y: draft.y },
+        );
+        return { ...working, x, y };
+      },
+      [canvasConfig, canvasMarginMm, minResizeSizeMm],
+    );
+
+    const applyLiveGroupTransform = useCallback(() => {
+      const snapshot = groupTransformSnapshotRef.current;
+      const proxy = multiSelectProxyRef.current;
+      const box = frozenProxyBoxRef.current;
+      if (!snapshot || !proxy || !box) {
+        return;
+      }
+
+      const next = applyGroupTransformFromProxy(
+        snapshot,
+        readProxyState(proxy, box.width, box.height),
+      );
+
+      setItems((current) =>
+        current.map((entry) => {
+          const updated = next.find((item) => item.instanceId === entry.instanceId);
+          if (!updated) {
+            return entry;
+          }
+          return clampPlacedTransform({ ...entry, ...updated });
+        }),
+      );
+    }, [clampPlacedTransform]);
+
+    const beginGroupInteraction = useCallback(() => {
+      if (groupTransformSnapshotRef.current) {
+        return;
+      }
+      const proxy = multiSelectProxyRef.current;
+      const selected = itemsRef.current.filter((item) =>
+        selectedIdsRef.current.includes(item.instanceId),
+      );
+      const box = getSelectionAxisAlignedBox(selected);
+      if (!proxy || !box || selected.length < 2) {
+        return;
+      }
+
+      frozenProxyBoxRef.current = box;
+      isGroupTransformingRef.current = true;
+      setGroupTransforming(true);
+      groupTransformSnapshotRef.current = {
+        items: selected.map((item) => ({
+          instanceId: item.instanceId,
+          x: item.x,
+          y: item.y,
+          scaleX: item.scaleX,
+          scaleY: item.scaleY,
+          rotation: item.rotation,
+          width: item.width,
+          height: item.height,
+        })),
+        proxy: readProxyState(proxy, box.width, box.height),
+      };
+    }, []);
+
+    const endGroupInteraction = useCallback(() => {
+      applyLiveGroupTransform();
+      const proxy = multiSelectProxyRef.current;
+      if (proxy) {
+        proxy.rotation(0);
+        proxy.scaleX(1);
+        proxy.scaleY(1);
+      }
+      groupTransformSnapshotRef.current = null;
+      frozenProxyBoxRef.current = null;
+      isGroupTransformingRef.current = false;
+      setGroupTransforming(false);
+    }, [applyLiveGroupTransform]);
+
+    useEffect(() => {
+      const transformer = transformerRef.current;
+      const proxy = multiSelectProxyRef.current;
+      if (!proxy || !multiSelectActive) {
+        return;
+      }
+
+      const begin = () => {
+        beginGroupInteraction();
+      };
+      const sync = () => {
+        applyLiveGroupTransform();
+      };
+      const end = () => {
+        endGroupInteraction();
+      };
+
+      proxy.on("dragstart transformstart", begin);
+      proxy.on("dragmove transform", sync);
+      proxy.on("dragend transformend", end);
+
+      const back = transformer?.findOne(".back");
+      back?.on("dragstart", begin);
+      back?.on("dragmove", sync);
+      back?.on("dragend", end);
+      transformer?.on("transformstart", begin);
+      transformer?.on("transform", sync);
+      transformer?.on("transformend", end);
+
+      return () => {
+        proxy.off("dragstart transformstart", begin);
+        proxy.off("dragmove transform", sync);
+        proxy.off("dragend transformend", end);
+        back?.off("dragstart", begin);
+        back?.off("dragmove", sync);
+        back?.off("dragend", end);
+        transformer?.off("transformstart", begin);
+        transformer?.off("transform", sync);
+        transformer?.off("transformend", end);
+      };
+    }, [
+      multiSelectActive,
+      activeProxyBox,
+      beginGroupInteraction,
+      applyLiveGroupTransform,
+      endGroupInteraction,
+    ]);
 
     const updateItem = useCallback((next: PlacedImage) => {
       setItems((current) =>
@@ -765,19 +1027,142 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const resizeBoundBoxFunc = useCallback(
       (oldBox: { x: number; y: number; width: number; height: number; rotation: number }, newBox: { x: number; y: number; width: number; height: number; rotation: number }) => {
-        if (!selectedItem) {
+        if (selectedItems.length === 0) {
           return newBox;
         }
-        const { minWidthPx, minHeightPx } = getMinResizeDimensionsPx(
-          selectedItem.width,
-          selectedItem.height,
+        if (selectedItems.length === 1) {
+          const item = selectedItems[0]!;
+          const { minWidthPx, minHeightPx } = getMinResizeDimensionsPx(
+            item.width,
+            item.height,
+            minResizeSizeMm,
+            canvasConfig.designDpi,
+          );
+          return clampResizeBox(oldBox, newBox, minWidthPx, minHeightPx);
+        }
+
+        return constrainMultiSelectBoundBox(
+          oldBox,
+          newBox,
+          selectedItems,
           minResizeSizeMm,
           canvasConfig.designDpi,
         );
-        return clampResizeBox(oldBox, newBox, minWidthPx, minHeightPx);
       },
-      [selectedItem, minResizeSizeMm, canvasConfig.designDpi],
+      [selectedItems, minResizeSizeMm, canvasConfig.designDpi],
     );
+
+    const handleSelectItem = useCallback((instanceId: string, additive: boolean) => {
+      setSelectedIds((current) =>
+        toggleShiftSelection(current, instanceId, additive),
+      );
+    }, []);
+
+    const updateMarqueeRect = useCallback((rect: MarqueeRect | null) => {
+      marqueeRectRef.current = rect;
+      setMarqueeRect(rect);
+    }, []);
+
+    const handleStageMouseDown = useCallback(
+      (event: KonvaEventObject<MouseEvent>) => {
+        const nativeEvent = event.evt;
+        if (!(nativeEvent instanceof MouseEvent) || nativeEvent.button !== 0) {
+          return;
+        }
+
+        const target = event.target as Konva.Node;
+        if (resolveStickerInstanceId(target, shapeRefs.current)) {
+          return;
+        }
+        if (isTransformerTarget(target)) {
+          return;
+        }
+        if (!isCanvasBackgroundTarget(target)) {
+          return;
+        }
+
+        const stage = target.getStage();
+        const pos = stage?.getPointerPosition();
+        if (!stage || !pos) {
+          return;
+        }
+
+        isMarqueeActiveRef.current = true;
+        marqueeStartRef.current = pos;
+        updateMarqueeRect({ x: pos.x, y: pos.y, width: 0, height: 0 });
+      },
+      [updateMarqueeRect],
+    );
+
+    const handleStageMouseMove = useCallback(
+      (event: KonvaEventObject<MouseEvent>) => {
+        if (!isMarqueeActiveRef.current || !marqueeStartRef.current) {
+          return;
+        }
+
+        const stage = event.target.getStage();
+        const pos = stage?.getPointerPosition();
+        if (!pos) {
+          return;
+        }
+
+        updateMarqueeRect(
+          normalizeMarqueeRect(
+            marqueeStartRef.current.x,
+            marqueeStartRef.current.y,
+            pos.x,
+            pos.y,
+          ),
+        );
+      },
+      [updateMarqueeRect],
+    );
+
+    const finishMarquee = useCallback(
+      (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+        if (!isMarqueeActiveRef.current) {
+          return;
+        }
+
+        isMarqueeActiveRef.current = false;
+        marqueeStartRef.current = null;
+
+        const rect = marqueeRectRef.current;
+        updateMarqueeRect(null);
+
+        if (!rect) {
+          return;
+        }
+
+        if (isMarqueeClick(rect)) {
+          setSelectedIds([]);
+          return;
+        }
+
+        const hitIds = getMarqueeHitInstanceIds(itemsRef.current, rect);
+        const additive = isAdditivePointerEvent(event.evt);
+        setSelectedIds(
+          mergeMarqueeSelection(selectedIdsRef.current, hitIds, additive),
+        );
+      },
+      [updateMarqueeRect],
+    );
+
+    useEffect(() => {
+      if (!marqueeRect) {
+        return;
+      }
+
+      const onWindowMouseUp = (nativeEvent: MouseEvent) => {
+        finishMarquee({
+          evt: nativeEvent,
+          target: { getStage: () => null },
+        } as KonvaEventObject<MouseEvent>);
+      };
+
+      window.addEventListener("mouseup", onWindowMouseUp);
+      return () => window.removeEventListener("mouseup", onWindowMouseUp);
+    }, [marqueeRect, finishMarquee]);
 
     const placeImageSource = useCallback(
       (src: string, mimeType: string, assetId?: string) => {
@@ -810,7 +1195,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             canvasConfig.designDpi,
           );
           setItems((current) => [...current, placed]);
-          setSelectedId(instanceId);
+          setSelectedIds([instanceId]);
           if (autoArrangeOnAdd) {
             pendingAutoArrangeRef.current = true;
           }
@@ -848,26 +1233,37 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         direction: DuplicateFillDirection,
         options?: DuplicateFillHandleOptions,
       ): number => {
-        const activeId = selectedIdRef.current;
-        if (!activeId) {
+        const activeIds = selectedIdsRef.current;
+        if (activeIds.length === 0) {
           return 0;
         }
 
-        const source = itemsRef.current.find(
-          (entry) => entry.instanceId === activeId,
-        );
-        if (!source) {
+        const idOrder = new Map(activeIds.map((id, index) => [id, index]));
+        const sources = itemsRef.current
+          .filter((entry) => idOrder.has(entry.instanceId))
+          .sort(
+            (a, b) =>
+              (idOrder.get(a.instanceId) ?? 0) -
+              (idOrder.get(b.instanceId) ?? 0),
+          );
+        if (sources.length === 0) {
           return 0;
         }
 
-        const { copies, addedCount } = buildDuplicatesToFit(source, direction, {
+        const fillOptions = {
           canvasWidth: canvasConfig.canvasWidth,
           canvasHeight: canvasConfig.canvasHeight,
           marginMm: canvasMarginMm,
           designDpi: canvasConfig.designDpi,
           gapMm: options?.gapMm ?? autoArrangeGapMm,
           createInstanceId: () => crypto.randomUUID(),
-        });
+        };
+
+        const { copies, addedCount } = buildGroupDuplicatesToFit(
+          sources,
+          direction,
+          fillOptions,
+        );
 
         if (addedCount === 0) {
           return 0;
@@ -942,12 +1338,6 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       noClick: items.length > 0,
     });
 
-    const deselect = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
-      if (event.target === event.target.getStage()) {
-        setSelectedId(null);
-      }
-    };
-
     return (
       <div className={className}>
         <div
@@ -1000,8 +1390,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             width={canvasConfig.canvasWidth}
             height={canvasConfig.canvasHeight}
             style={{ display: "block", ...CANVAS_INTERACTION_STYLE }}
-            onMouseDown={deselect}
-            onTouchStart={deselect}
+            onMouseDown={handleStageMouseDown}
+            onMouseMove={handleStageMouseMove}
+            onMouseUp={finishMarquee}
             onContextMenu={(event) => event.evt.preventDefault()}
           >
             <Layer>
@@ -1036,8 +1427,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   canvasWidth={canvasConfig.canvasWidth}
                   canvasHeight={canvasConfig.canvasHeight}
                   canvasMarginMm={canvasMarginMm}
-                  onSelect={() => setSelectedId(item.instanceId)}
+                  onSelect={(additive) =>
+                    handleSelectItem(item.instanceId, additive)
+                  }
                   onChange={updateItem}
+                  draggable={!multiSelectActive}
                   shapeRef={(node) => {
                     if (node) {
                       shapeRefs.current.set(item.instanceId, node);
@@ -1047,10 +1441,34 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   }}
                 />
               ))}
+              {marqueeRect ? (
+                <Rect
+                  x={marqueeRect.x}
+                  y={marqueeRect.y}
+                  width={marqueeRect.width}
+                  height={marqueeRect.height}
+                  fill="rgba(37, 99, 235, 0.12)"
+                  stroke={TRANSFORMER_COLOR}
+                  strokeWidth={1}
+                  dash={[4, 4]}
+                  listening={false}
+                />
+              ) : null}
+              {multiSelectActive && activeProxyBox ? (
+                <Group ref={multiSelectProxyRef}>
+                  <Rect
+                    width={activeProxyBox.width}
+                    height={activeProxyBox.height}
+                    fill="rgba(0,0,0,0.001)"
+                    listening={false}
+                  />
+                </Group>
+              ) : null}
               <Transformer
                 ref={transformerRef}
                 keepRatio
                 rotateEnabled
+                shouldOverdrawWholeArea
                 enabledAnchors={[
                   "top-left",
                   "top-right",
@@ -1068,11 +1486,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 boundBoxFunc={resizeBoundBoxFunc}
               />
               {showSelectionDimensions &&
-              selectedId &&
+              selectedIds.length === 1 &&
+              primarySelectedIdValue &&
               selectedItem &&
               selectionDimensionLabels ? (
                 <SelectionDimensionLabels
-                  node={shapeRefs.current.get(selectedId)}
+                  node={shapeRefs.current.get(primarySelectedIdValue)}
                   localWidth={selectedItem.width}
                   localHeight={selectedItem.height}
                   widthLabel={selectionDimensionLabels.width}

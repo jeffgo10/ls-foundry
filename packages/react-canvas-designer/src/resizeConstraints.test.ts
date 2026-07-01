@@ -2,9 +2,11 @@ import { CANVAS_DPI } from "@jeffgo10/shared-types";
 import {
   clampNodeScale,
   clampResizeBox,
+  constrainMultiSelectBoundBox,
   DEFAULT_MIN_RESIZE_SIZE_MM,
   getMinResizeDimensionsPx,
   getMinResizeScale,
+  isMultiSelectResizeRatioAllowed,
 } from "./resizeConstraints";
 
 describe("resizeConstraints", () => {
@@ -40,6 +42,84 @@ describe("resizeConstraints", () => {
     it("rejects box below minimum", () => {
       const newBox = { x: 0, y: 0, width: 10, height: 5, rotation: 0 };
       expect(clampResizeBox(oldBox, newBox, 50, 30)).toBe(oldBox);
+    });
+  });
+
+  describe("constrainMultiSelectBoundBox", () => {
+    const oldBox = { x: 0, y: 0, width: 200, height: 100, rotation: 0 };
+
+    it("allows rotation even when the axis-aligned width shrinks", () => {
+      const newBox = { x: 10, y: 10, width: 120, height: 180, rotation: 45 };
+      expect(
+        constrainMultiSelectBoundBox(
+          oldBox,
+          newBox,
+          [{ width: 100, height: 80, scaleX: 1, scaleY: 1 }],
+          25.4,
+          CANVAS_DPI,
+        ),
+      ).toBe(newBox);
+    });
+
+    it("allows pure translation", () => {
+      const newBox = { x: 30, y: 20, width: 200, height: 100, rotation: 0 };
+      expect(
+        constrainMultiSelectBoundBox(
+          oldBox,
+          newBox,
+          [{ width: 100, height: 80, scaleX: 1, scaleY: 1 }],
+          25.4,
+          CANVAS_DPI,
+        ),
+      ).toBe(newBox);
+    });
+
+    it("rejects scale shrink below minimum", () => {
+      const newBox = { x: 0, y: 0, width: 20, height: 10, rotation: 0 };
+      expect(
+        constrainMultiSelectBoundBox(
+          oldBox,
+          newBox,
+          [{ width: 100, height: 100, scaleX: 0.05, scaleY: 0.05 }],
+          25.4,
+          CANVAS_DPI,
+        ),
+      ).toBe(oldBox);
+    });
+  });
+
+  describe("isMultiSelectResizeRatioAllowed", () => {
+    it("allows growth", () => {
+      expect(
+        isMultiSelectResizeRatioAllowed(
+          [{ width: 100, height: 100, scaleX: 1, scaleY: 1 }],
+          25.4,
+          CANVAS_DPI,
+          1.5,
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects shrink below minimum for any item", () => {
+      expect(
+        isMultiSelectResizeRatioAllowed(
+          [{ width: 100, height: 100, scaleX: 0.05, scaleY: 0.05 }],
+          25.4,
+          CANVAS_DPI,
+          0.5,
+        ),
+      ).toBe(false);
+    });
+
+    it("allows moderate shrink when all items stay above minimum", () => {
+      expect(
+        isMultiSelectResizeRatioAllowed(
+          [{ width: 200, height: 200, scaleX: 2, scaleY: 2 }],
+          25.4,
+          CANVAS_DPI,
+          0.9,
+        ),
+      ).toBe(true);
     });
   });
 

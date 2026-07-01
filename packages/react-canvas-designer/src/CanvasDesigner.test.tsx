@@ -95,6 +95,24 @@ describe("CanvasDesigner", () => {
     );
   });
 
+  it("calls onSelectedIdsChange with the full selection set", async () => {
+    const onSelectedIdsChange = jest.fn();
+    const ref = createRef<CanvasDesignerHandle>();
+    render(
+      <CanvasDesigner ref={ref} onSelectedIdsChange={onSelectedIdsChange} />,
+    );
+    await waitFor(() => expect(ref.current).toBeTruthy());
+    expect(onSelectedIdsChange).toHaveBeenCalledWith([]);
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(onSelectedIdsChange).toHaveBeenLastCalledWith([expect.any(String)]),
+    );
+  });
+
   it("renders Konva background image when backgroundImageUrl is set", async () => {
     render(<CanvasDesigner backgroundImageUrl="https://example.com/a4.png" />);
     await waitFor(() =>
@@ -191,8 +209,8 @@ describe("CanvasDesigner", () => {
   });
 
   it("returns 0 when duplicate fill adds no copies", async () => {
-    const buildDuplicatesToFit = jest
-      .spyOn(duplicateFillModule, "buildDuplicatesToFit")
+    const buildGroupDuplicatesToFit = jest
+      .spyOn(duplicateFillModule, "buildGroupDuplicatesToFit")
       .mockReturnValue({ copies: [], addedCount: 0 });
 
     const ref = createRef<CanvasDesignerHandle>();
@@ -208,6 +226,6 @@ describe("CanvasDesigner", () => {
     );
 
     expect(ref.current!.duplicateSelectedHorizontally()).toBe(0);
-    buildDuplicatesToFit.mockRestore();
+    buildGroupDuplicatesToFit.mockRestore();
   });
 });

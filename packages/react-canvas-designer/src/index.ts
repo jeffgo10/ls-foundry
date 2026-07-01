@@ -9,6 +9,7 @@ export {
 export type { AutoArrangeOptions } from "./autoArrange";
 export {
   buildDuplicatesToFit,
+  buildGroupDuplicatesToFit,
   getAdjacentCopyPosition,
   type DuplicateFillDirection,
   type DuplicateFillOptions,

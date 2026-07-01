@@ -96,7 +96,8 @@ Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a s
 | `showSelectionDimensions` | `false` | On-canvas W × H captions |
 | `touchFriendly` | auto (coarse pointer) | Larger transformer anchors + hit areas on touch devices |
 | `backgroundImageUrl` | — | A4/page background inside Konva (`listening={false}`) — avoids mobile Save-image long-press on CSS backgrounds |
-| `onSelectedIdChange` | — | Selection id callback (e.g. pause viewport pan while editing) |
+| `onSelectedIdChange` | — | Primary selection id (last clicked); `null` when empty |
+| `onSelectedIdsChange` | — | Full selection set (Shift/Ctrl/Cmd multi-select) |
 
 ## Imperative API (`ref` / `onReady`)
 
@@ -107,8 +108,8 @@ Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a s
 | `loadLayoutFromSources({ layout, sources })` | Restore from presigned URLs |
 | `clearCanvas()` | Remove all stickers |
 | `arrangeAll({ gapMm?, canvasMarginMm? })` | Pack stickers by cut-line spacing |
-| `duplicateSelectedHorizontally({ gapMm? })` | Copies of the selection to the right until the printable area is full; uses `autoArrangeGapMm` cut-line spacing by default |
-| `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; uses `autoArrangeGapMm` cut-line spacing by default |
+| `duplicateSelectedHorizontally({ gapMm? })` | Copies of the selection to the right until the printable area is full; multi-select duplicates the whole block together |
+| `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; multi-select duplicates the whole block together |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
 
 ## Layout item identity
@@ -135,7 +136,7 @@ Re-exports from `@jeffgo10/shared-types`: `CANVAS_WIDTH`, `CANVAS_HEIGHT`, `mmTo
 
 Margin / resize utilities: `fitItemToCanvasArea`, `clampItemPosition`, `getMinResizeScale`, `DEFAULT_MIN_RESIZE_SIZE_MM`, …
 
-Duplicate fill helpers: `buildDuplicatesToFit`, `getAdjacentCopyPosition`.
+Duplicate fill helpers: `buildDuplicatesToFit`, `buildGroupDuplicatesToFit`, `getAdjacentCopyPosition`.
 
 Mobile touch helpers: `CANVAS_INTERACTION_STYLE`, `getTransformerTouchProfile`, `isCoarsePointerDevice`.
 
