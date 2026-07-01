@@ -62,6 +62,10 @@ import {
   CANVAS_INTERACTION_STYLE,
   getTransformerTouchProfile,
 } from "./transformerTouch";
+import {
+  buildDuplicatesToFit,
+  type DuplicateFillDirection,
+} from "./duplicateFill";
 
 export const TRANSFORMER_COLOR = "#2563eb";
 
@@ -160,6 +164,11 @@ export type LayoutLoadInput = {
   sources: ImageSourceFromUrl[];
 };
 
+export type DuplicateFillHandleOptions = {
+  /** Cut-line gap in millimeters. Defaults to the designer `autoArrangeGapMm` prop. */
+  gapMm?: number;
+};
+
 export type CanvasDesignerHandle = {
   exportLayout: () => Promise<CanvasLayoutExport>;
   /** Layout transforms + asset ids for S3-backed persistence (no base64). */
@@ -180,6 +189,16 @@ export type CanvasDesignerHandle = {
   autoArrange: (options?: AutoArrangeOptions) => Promise<boolean>;
   /** Place images from remote URLs (e.g. presigned S3 GET URLs). */
   addImagesFromUrls: (sources: ImageSourceFromUrl[]) => void;
+  /**
+   * Duplicate the selected sticker to the right until the printable area is full.
+   * Spacing uses cut-line bounds plus `autoArrangeGapMm` (override via `gapMm`).
+   */
+  duplicateSelectedHorizontally: (options?: DuplicateFillHandleOptions) => number;
+  /**
+   * Duplicate the selected sticker downward until the printable area is full.
+   * Spacing uses cut-line bounds plus `autoArrangeGapMm` (override via `gapMm`).
+   */
+  duplicateSelectedVertically: (options?: DuplicateFillHandleOptions) => number;
 };
 
 function DraggableImage({
@@ -824,6 +843,54 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       [placeImageSource],
     );
 
+    const duplicateSelectedToFit = useCallback(
+      (
+        direction: DuplicateFillDirection,
+        options?: DuplicateFillHandleOptions,
+      ): number => {
+        const activeId = selectedIdRef.current;
+        if (!activeId) {
+          return 0;
+        }
+
+        const source = itemsRef.current.find(
+          (entry) => entry.instanceId === activeId,
+        );
+        if (!source) {
+          return 0;
+        }
+
+        const { copies, addedCount } = buildDuplicatesToFit(source, direction, {
+          canvasWidth: canvasConfig.canvasWidth,
+          canvasHeight: canvasConfig.canvasHeight,
+          marginMm: canvasMarginMm,
+          designDpi: canvasConfig.designDpi,
+          gapMm: options?.gapMm ?? autoArrangeGapMm,
+          createInstanceId: () => crypto.randomUUID(),
+        });
+
+        if (addedCount === 0) {
+          return 0;
+        }
+
+        setItems((current) => [...current, ...copies]);
+        return addedCount;
+      },
+      [autoArrangeGapMm, canvasConfig, canvasMarginMm],
+    );
+
+    const duplicateSelectedHorizontally = useCallback(
+      (options?: DuplicateFillHandleOptions) =>
+        duplicateSelectedToFit("horizontal", options),
+      [duplicateSelectedToFit],
+    );
+
+    const duplicateSelectedVertically = useCallback(
+      (options?: DuplicateFillHandleOptions) =>
+        duplicateSelectedToFit("vertical", options),
+      [duplicateSelectedToFit],
+    );
+
     const handle = useMemo(
       () => ({
         exportLayout,
@@ -833,6 +900,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         arrangeAll: runAutoArrange,
         autoArrange: runAutoArrange,
         addImagesFromUrls,
+        duplicateSelectedHorizontally,
+        duplicateSelectedVertically,
       }),
       [
         exportLayout,
@@ -841,6 +910,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         clearCanvas,
         runAutoArrange,
         addImagesFromUrls,
+        duplicateSelectedHorizontally,
+        duplicateSelectedVertically,
       ],
     );
 

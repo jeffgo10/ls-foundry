@@ -20,15 +20,15 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 | Package | Version | Notes |
 |---------|---------|-------|
 | `@jeffgo10/shared-types` | **0.2.0** | `instanceId` + `assetId` per layout item |
-| `@jeffgo10/react-canvas-designer` | **0.2.7** | Mobile touch-friendly transformer; Konva background + selection callback |
-| `@jeffgo10/helpers` | **0.2.0** | `./image` + `./gestures`; CrowdBadge consumer (PR #12 pending) |
+| `@jeffgo10/react-canvas-designer` | **0.2.9** | Duplicate selected sticker horizontally/vertically with cut-line gap |
+| `@jeffgo10/helpers` | **0.3.0** | `./image`, `./gestures`, `./browser`, `./clipboard`; CrowdBadge consumer |
 | `@jeffgo10/canvas-upscaler` | **0.2.0** | Output size from layout dimensions; 1 mm corner markers |
 
 Install both designer packages together:
 
 ```json
 "@jeffgo10/shared-types": "0.2.0",
-"@jeffgo10/react-canvas-designer": "0.2.7",
+"@jeffgo10/react-canvas-designer": "0.2.9",
 "@jeffgo10/canvas-upscaler": "0.2.0"
 ```
 
@@ -38,9 +38,9 @@ See [engineering-notes.md](./engineering-notes.md#package-version-mismatch-react
 
 - [x] **1.1** pnpm workspaces + Turborepo (repo root)
 - [x] **1.2** `@jeffgo10/shared-types` (v0.2.0) — layout schema, A4 defaults, physical dimension helpers, customizable `canvasWidth`/`canvasHeight` + `designDpi`/`printDpi`, `instanceId`/`assetId` split
-- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.7) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds), duplicate library images on one sheet, mobile touch-friendly transformer
+- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.2.9) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds), duplicate library images on one sheet, mobile touch-friendly transformer, **duplicate selected sticker to fill row/column** (`duplicateSelectedHorizontally` / `duplicateSelectedVertically` with cut-line gap)
 - [x] **1.4** `@jeffgo10/canvas-upscaler` (v0.2.0) — JSON CLI; print output size from layout dimensions + DPI; 1 mm Silhouette corner markers
-- [x] **1.5** `@jeffgo10/helpers` (v0.2.0) — `./image` (contour, blob URL, `loadImage`, canvas PNG export) + `./gestures` (`usePointerTransformGestures`)
+- [x] **1.5** `@jeffgo10/helpers` (v0.3.0) — `./image` (contour, blob URL, mobile-safe PNG download) + `./gestures` + `./browser` + `./clipboard`
 - [x] **1.6** Docs test page — `apps/docs` `/stickpak`
 
 ## Canvas coordinate system

@@ -107,6 +107,8 @@ Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a s
 | `loadLayoutFromSources({ layout, sources })` | Restore from presigned URLs |
 | `clearCanvas()` | Remove all stickers |
 | `arrangeAll({ gapMm?, canvasMarginMm? })` | Pack stickers by cut-line spacing |
+| `duplicateSelectedHorizontally({ gapMm? })` | Copies of the selection to the right until the printable area is full; uses `autoArrangeGapMm` cut-line spacing by default |
+| `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; uses `autoArrangeGapMm` cut-line spacing by default |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
 
 ## Layout item identity
@@ -132,6 +134,8 @@ See monorepo `docs/stickpak/canvas-scaling.md` for 72 → 300 DPI math.
 Re-exports from `@jeffgo10/shared-types`: `CANVAS_WIDTH`, `CANVAS_HEIGHT`, `mmToCanvasPixels`, `formatCanvasDimensions`, etc.
 
 Margin / resize utilities: `fitItemToCanvasArea`, `clampItemPosition`, `getMinResizeScale`, `DEFAULT_MIN_RESIZE_SIZE_MM`, …
+
+Duplicate fill helpers: `buildDuplicatesToFit`, `getAdjacentCopyPosition`.
 
 Mobile touch helpers: `CANVAS_INTERACTION_STYLE`, `getTransformerTouchProfile`, `isCoarsePointerDevice`.
 

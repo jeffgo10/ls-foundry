@@ -17,6 +17,8 @@ Dual-write important changes to **monorepo markdown** (`docs/stickpak/`) **and**
 /sync-obsidian-notes rules only
 /sync-obsidian-notes both: <summary of changes to document>
 
+/extract-to-foundry
+
 /create-github-pr
 /create-github-pr draft only
 /create-github-pr no commit
@@ -65,6 +67,7 @@ Optional: `obsidian_simple_search` to locate notes before editing.
 | Canvas/DPI spec | `docs/stickpak/canvas-scaling.md` | `StickPak/Detailed Canvas Scaling for upscale export.md` |
 | `@jeffgo10/gl-viewer` API or publish | `packages/gl-viewer/README.md` | `LiteShadeMedia/08 gl-viewer Package.md`; also `07 LiDAR AR 3D Viewer.md` if showcase UX changes |
 | Monorepo agent tooling | `.cursor/rules/`, `.cursor/commands/` | `LS Foundry/Cursor rules and slash commands.md`, `LS Foundry/00 Index.md` |
+| `@jeffgo10/helpers` API or publish | `packages/helpers/README.md` | `LS Foundry/Notes — helpers gestures subpath.md` |
 | `@jeffgo10/three-d-label-customizer` | `docs/three-d-label-customizer/` | `LS Foundry/Notes — three-d-label-customizer.md` |
 | Agent version bump policy | `ls-foundry-core.mdc` | `LS Foundry/Cursor rules and slash commands.md` |
 | CI / package publish workflow | `README.md`, `scripts/publish-changed.sh` | `LS Foundry/Notes — CI package publish on master.md`, `Phase 1 Complete — ls-foundry.md` |

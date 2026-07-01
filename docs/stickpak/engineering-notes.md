@@ -10,7 +10,17 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Fix (June 2026):** `shared-types@0.2.0`, `react-canvas-designer@0.2.6`. Layout items now carry **`instanceId`** (unique per canvas sticker — keys, selection, transforms) and **`assetId`** (shared library reference for export/upscale). `addImagesFromUrls([{ url, assetId }])` always mints a new `instanceId`; export assets are deduped by `assetId`. Legacy layouts without `instanceId` get one assigned on load.
 
-**Storefront pins:** `@jeffgo10/shared-types@0.2.0`, `@jeffgo10/react-canvas-designer@0.2.7`.
+**Storefront pins:** `@jeffgo10/shared-types@0.2.0`, `@jeffgo10/react-canvas-designer@0.2.9`.
+
+## Duplicate selected sticker to fill row/column
+
+**When:** June 2026 (`react-canvas-designer` v0.2.8–0.2.9).
+
+**Feature:** Silhouette-designer-style fill — duplicate the selected sticker to the right or downward until the next copy would extend past the printable area (`canvasMarginMm` inset). Spacing between cut-line outlines uses `autoArrangeGapMm` (same as auto-arrange; override per call via `{ gapMm }`).
+
+**API:** `duplicateSelectedHorizontally({ gapMm? })` and `duplicateSelectedVertically({ gapMm? })` on `CanvasDesignerHandle`; each returns the number of copies added (0 when nothing is selected or no copy fits).
+
+**Code:** `packages/react-canvas-designer/src/duplicateFill.ts`, `CanvasDesigner.tsx`
 
 ## Mobile resize/rotate on touch devices
 
@@ -281,7 +291,7 @@ See Obsidian **Phase 3 — sticker-print-app** and `sticker-print-app/docs/phase
 | `ls-foundry-core.mdc` | Monorepo layout, `@jeffgo10/*` scopes, package versions, coding conventions |
 | `ls-foundry-obsidian-sync.mdc` | Dual-write to Obsidian, vault folder map, MCP pre-check |
 
-**Slash commands:** `/sync-obsidian-notes` (vault sync), `/create-github-pr` (branch → PR via `gh`; auto branch/commit from `master`; **post-merge cleanup** via `/create-github-pr cleanup`). See `.cursor/commands/`.
+**Slash commands:** `/sync-obsidian-notes` (vault sync), `/create-github-pr` (branch → PR via `gh`; auto branch/commit from `master`; **post-merge cleanup** via `/create-github-pr cleanup`), `/extract-to-foundry` (audit/extract cross-platform shared code to `@jeffgo10/*`; repo gate on clean `master`; opens PR after package edits). See `.cursor/commands/`.
 
 **PR #1 merged (June 2026):** Agent tooling shipped on `master` (`chore/cursor-agent-tooling-and-pr-command`).
 
@@ -360,6 +370,27 @@ On push to `master` when `packages/**` or `pnpm-lock.yaml` changes, workflow `.g
 **Docs:** `packages/helpers/README.md`. **Obsidian:** `LS Foundry/Notes — helpers gestures subpath.md`.
 
 **Publish:** merge to `master` → CI `deploy:changed` bumps GitHub Packages to **0.2.0**.
+
+## `@jeffgo10/helpers` v0.3.0 — browser, clipboard, mobile download (June 2026)
+
+**When:** June 2026. **PRs:** [ls-foundry #14](https://github.com/jeffgo10/ls-foundry/pull/14) (feature), coverage fix on same branch.
+
+**New subpaths:**
+
+| Import | Exports |
+|--------|---------|
+| `@jeffgo10/helpers/browser` | `isRestrictedInAppBrowser` — Meta/Instagram/WeChat in-app WebViews that block downloads |
+| `@jeffgo10/helpers/clipboard` | `useCopyLink` — copy-to-clipboard React hook (**peer:** `react` ^18 \| ^19) |
+
+**Extended `@jeffgo10/helpers/image`:** `canvasToPngDataUrl`, `dataUrlToBlob`, `isMobileBrowser`; `downloadCanvasAsPng` uses blob object URLs on mobile so async export still triggers a save.
+
+**Consumer:** CrowdBadge — removed local `detect-restricted-in-app-browser`, `use-copy-link`, and duplicate canvas export helpers; pins `@jeffgo10/helpers@^0.3.0`.
+
+**Agent workflow:** `/extract-to-foundry` — DRY extraction slash command (PR #13); Step 0 requires clean ls-foundry `master` before package edits.
+
+**Docs:** `packages/helpers/README.md`. **Obsidian:** `LS Foundry/Notes — helpers gestures subpath.md`, `LS Foundry/Cursor rules and slash commands.md`.
+
+**Publish:** merge to `master` → CI `deploy:changed` publishes **0.3.0**.
 
 ## `@jeffgo10/gl-viewer` (LiteShadeMedia consumer)
 

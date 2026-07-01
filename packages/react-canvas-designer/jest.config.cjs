@@ -37,5 +37,6 @@ module.exports = {
       lines: 55,
       statements: 55,
     },
+    "./src/duplicateFill.ts": threshold90,
   },
 };
