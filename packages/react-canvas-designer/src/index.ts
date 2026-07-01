@@ -2,10 +2,18 @@ export {
   CanvasDesigner,
   type CanvasDesignerHandle,
   type CanvasDesignerProps,
+  type DuplicateFillHandleOptions,
   type ImageSourceFromUrl,
   type LayoutLoadInput,
 } from "./CanvasDesigner";
 export type { AutoArrangeOptions } from "./autoArrange";
+export {
+  buildDuplicatesToFit,
+  getAdjacentCopyPosition,
+  type DuplicateFillDirection,
+  type DuplicateFillOptions,
+  type DuplicateFillResult,
+} from "./duplicateFill";
 export {
   DEFAULT_MIN_RESIZE_SIZE_MM,
   getMinResizeDimensionsPx,

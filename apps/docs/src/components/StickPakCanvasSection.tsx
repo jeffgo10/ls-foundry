@@ -23,15 +23,18 @@ const CanvasDesigner = dynamic(
 function StickPakCanvasSection() {
   const designerRef = useRef<CanvasDesignerHandle | null>(null);
   const [exportedJson, setExportedJson] = useState("");
-  const [showCutLine, setShowCutLine] = useState(false);
+  const [showCutLine, setShowCutLine] = useState(true);
   const [autoArrangeGapMm, setAutoArrangeGapMm] = useState(5);
   const [canvasMarginMm, setCanvasMarginMm] = useState(10);
   const [autoArrangeOnAdd, setAutoArrangeOnAdd] = useState(false);
   const [showSelectionDimensions, setShowSelectionDimensions] = useState(true);
   const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("mm");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [arrangeMessage, setArrangeMessage] = useState("");
+  const [duplicateMessage, setDuplicateMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
+  const hasSelection = selectedId !== null;
 
   const handleExport = async () => {
     if (!designerRef.current) return;
@@ -45,11 +48,31 @@ function StickPakCanvasSection() {
     }
   };
 
+  const handleDuplicate = (direction: "horizontal" | "vertical") => {
+    if (!designerRef.current) return;
+
+    setArrangeMessage("");
+    const duplicateOptions = { gapMm: autoArrangeGapMm };
+    const addedCount =
+      direction === "horizontal"
+        ? designerRef.current.duplicateSelectedHorizontally(duplicateOptions)
+        : designerRef.current.duplicateSelectedVertically(duplicateOptions);
+
+    setDuplicateMessage(
+      addedCount > 0
+        ? `Added ${addedCount} ${direction} cop${addedCount === 1 ? "y" : "ies"} with ${autoArrangeGapMm} mm cut-line gap.`
+        : hasSelection
+          ? `No ${direction} copies fit inside the printable area with ${autoArrangeGapMm} mm cut-line gap.`
+          : "Select a sticker on the canvas first.",
+    );
+  };
+
   const handleArrangeAll = async () => {
     if (!designerRef.current) return;
 
     setIsArranging(true);
     setArrangeMessage("");
+    setDuplicateMessage("");
     try {
       const allPlaced = await designerRef.current.arrangeAll({
         gapMm: autoArrangeGapMm,
@@ -102,9 +125,11 @@ function StickPakCanvasSection() {
           min={0}
           step={0.5}
           value={autoArrangeGapMm}
+          aria-label="Cut-line gap (mm)"
           onChange={(event) => setAutoArrangeGapMm(Number(event.target.value))}
           className="w-20 rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
         />
+        <span className="text-white/40">Used by arrange + duplicate fill</span>
       </label>
       <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
         <input
@@ -141,7 +166,9 @@ function StickPakCanvasSection() {
           autoArrangeOnAdd={autoArrangeOnAdd}
           showSelectionDimensions={showSelectionDimensions}
           dimensionUnit={dimensionUnit}
+          onSelectedIdChange={setSelectedId}
           onAutoArrange={({ allPlaced }) => {
+            setDuplicateMessage("");
             setArrangeMessage(
               allPlaced
                 ? "All stickers arranged with cut-line spacing."
@@ -151,7 +178,28 @@ function StickPakCanvasSection() {
         />
       </div>
       <div className="space-y-3">
+        <p className="text-sm text-white/50">
+          {hasSelection
+            ? "Selected sticker — duplicate to fill a row or column inside the printable margin."
+            : "Click a sticker to select it, then duplicate horizontally or vertically."}
+        </p>
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => handleDuplicate("horizontal")}
+            disabled={!hasSelection}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Duplicate horizontally
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDuplicate("vertical")}
+            disabled={!hasSelection}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Duplicate vertically
+          </button>
           <button
             type="button"
             onClick={handleArrangeAll}
@@ -169,6 +217,9 @@ function StickPakCanvasSection() {
             {isExporting ? "Exporting…" : "Export"}
           </button>
         </div>
+        {duplicateMessage ? (
+          <p className="text-sm text-white/50">{duplicateMessage}</p>
+        ) : null}
         {arrangeMessage ? (
           <p className="text-sm text-white/50">{arrangeMessage}</p>
         ) : null}

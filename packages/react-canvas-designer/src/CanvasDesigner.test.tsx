@@ -2,6 +2,7 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import { createRef } from "react";
 import { installMockImageLoader } from "@ls-foundry/test-utils";
 import { CanvasDesigner, type CanvasDesignerHandle } from "./CanvasDesigner";
+import * as duplicateFillModule from "./duplicateFill";
 
 jest.mock("react-dropzone", () => ({
   useDropzone: () => ({
@@ -130,5 +131,83 @@ describe("CanvasDesigner", () => {
     const payload = await ref.current!.exportLayout();
     expect(payload.layout.items).toHaveLength(1);
     expect(onExport).toHaveBeenCalled();
+  });
+
+  it("duplicates the selected sticker horizontally until the printable edge", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} canvasMarginMm={0} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    let addedCount = 0;
+    act(() => {
+      addedCount = ref.current!.duplicateSelectedHorizontally();
+    });
+    expect(addedCount).toBeGreaterThan(0);
+    expect(ref.current!.exportLayoutState().layout.items.length).toBe(
+      1 + addedCount,
+    );
+  });
+
+  it("returns 0 when duplicating with no selection", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    expect(ref.current!.duplicateSelectedHorizontally()).toBe(0);
+    expect(ref.current!.duplicateSelectedVertically()).toBe(0);
+  });
+
+  it("duplicates the selected sticker vertically with an explicit gap", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(
+      <CanvasDesigner ref={ref} canvasMarginMm={0} autoArrangeGapMm={5} />,
+    );
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    let addedCount = 0;
+    act(() => {
+      addedCount = ref.current!.duplicateSelectedVertically({ gapMm: 5 });
+    });
+    expect(addedCount).toBeGreaterThan(0);
+    expect(ref.current!.exportLayoutState().layout.items.length).toBe(
+      1 + addedCount,
+    );
+  });
+
+  it("returns 0 when duplicate fill adds no copies", async () => {
+    const buildDuplicatesToFit = jest
+      .spyOn(duplicateFillModule, "buildDuplicatesToFit")
+      .mockReturnValue({ copies: [], addedCount: 0 });
+
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} canvasMarginMm={0} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    expect(ref.current!.duplicateSelectedHorizontally()).toBe(0);
+    buildDuplicatesToFit.mockRestore();
   });
 });

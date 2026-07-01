@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
     // Compile workspace package source during `next dev` (avoid stale dist bundles).
     config.resolve.alias = {
       ...config.resolve.alias,
+      "@jeffgo10/react-canvas-designer": path.join(
+        packageSrc,
+        "react-canvas-designer/src/index.ts",
+      ),
       "@jeffgo10/three-d-label-customizer": path.join(
         packageSrc,
         "three-d-label-customizer/src/index.ts",
