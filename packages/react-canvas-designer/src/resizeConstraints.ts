@@ -48,6 +48,72 @@ export function clampResizeBox(
   return newBox;
 }
 
+export type ScaledItemDimensions = {
+  width: number;
+  height: number;
+  scaleX: number;
+  scaleY: number;
+};
+
+/** Whether uniformly scaling items by `ratio` keeps every sticker above min size. */
+export function isMultiSelectResizeRatioAllowed(
+  items: readonly ScaledItemDimensions[],
+  minResizeSizeMm: number,
+  dpi: number,
+  ratio: number,
+): boolean {
+  if (ratio >= 1) {
+    return true;
+  }
+
+  for (const item of items) {
+    const scaledX = item.scaleX * ratio;
+    const scaledY = item.scaleY * ratio;
+    const clamped = clampNodeScale(
+      scaledX,
+      scaledY,
+      item.width,
+      item.height,
+      minResizeSizeMm,
+      dpi,
+    );
+    if (
+      Math.abs(clamped.scaleX - scaledX) > 1e-9 ||
+      Math.abs(clamped.scaleY - scaledY) > 1e-9
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/** Multi-select transformer box: allow move/rotate; only block scale-below-min. */
+export function constrainMultiSelectBoundBox(
+  oldBox: ResizeBox,
+  newBox: ResizeBox,
+  items: readonly ScaledItemDimensions[],
+  minResizeSizeMm: number,
+  dpi: number,
+): ResizeBox {
+  if (Math.abs(newBox.rotation - oldBox.rotation) > 1e-4) {
+    return newBox;
+  }
+
+  const widthUnchanged = Math.abs(newBox.width - oldBox.width) < 1e-3;
+  const heightUnchanged = Math.abs(newBox.height - oldBox.height) < 1e-3;
+  if (widthUnchanged && heightUnchanged) {
+    return newBox;
+  }
+
+  const ratio = oldBox.width > 0 ? newBox.width / oldBox.width : 1;
+  if (isMultiSelectResizeRatioAllowed(items, minResizeSizeMm, dpi, ratio)) {
+    return newBox;
+  }
+
+  return oldBox;
+}
+
 /** Clamp uniform scale on a Konva group so the shorter side stays above the minimum. */
 export function clampNodeScale(
   scaleX: number,

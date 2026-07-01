@@ -6,6 +6,7 @@ import {
 } from "@jeffgo10/shared-types";
 import {
   buildDuplicatesToFit,
+  buildGroupDuplicatesToFit,
   getAdjacentCopyPosition,
   type DuplicateFillDirection,
 } from "./duplicateFill";
@@ -137,5 +138,60 @@ describe("buildDuplicatesToFit", () => {
     const sourceBounds = getItemAxisAlignedBounds(source);
     const firstCopyBounds = getItemAxisAlignedBounds(copies[0]!);
     expect(firstCopyBounds.minX - sourceBounds.maxX).toBeCloseTo(gapPx, 1);
+  });
+});
+
+describe("buildGroupDuplicatesToFit", () => {
+  function duplicateGroup(
+    sources: TestItem[],
+    direction: DuplicateFillDirection,
+    options: Partial<Parameters<typeof buildGroupDuplicatesToFit>[2]> = {},
+  ) {
+    let counter = 0;
+    return buildGroupDuplicatesToFit(sources, direction, {
+      canvasWidth: CANVAS_WIDTH,
+      canvasHeight: CANVAS_HEIGHT,
+      designDpi: CANVAS_DPI,
+      createInstanceId: () => `copy-${++counter}`,
+      ...options,
+    });
+  }
+
+  it("delegates to single-item fill when only one source is provided", () => {
+    const single = duplicate(makeItem(), "horizontal");
+    const group = duplicateGroup([makeItem()], "horizontal");
+    expect(group.addedCount).toBe(single.addedCount);
+  });
+
+  it("duplicates every selected sticker together as a block", () => {
+    const left = makeItem({ instanceId: "left", x: 40, y: 50 });
+    const right = makeItem({
+      instanceId: "right",
+      assetId: "asset-2",
+      x: 180,
+      y: 50,
+    });
+
+    const { copies, addedCount } = duplicateGroup([left, right], "horizontal");
+    expect(addedCount).toBeGreaterThan(0);
+    expect(addedCount % 2).toBe(0);
+
+    const firstGeneration = copies.slice(0, 2);
+    expect(firstGeneration[1]!.x - firstGeneration[0]!.x).toBeCloseTo(
+      right.x - left.x,
+      1,
+    );
+    expect(firstGeneration[1]!.y - firstGeneration[0]!.y).toBeCloseTo(
+      right.y - left.y,
+      1,
+    );
+  });
+
+  it("returns no copies when the block already touches the edge", () => {
+    const left = makeItem({ instanceId: "left", x: 40, y: 50 });
+    const right = makeItem({ instanceId: "right", x: 480, y: 50, width: 100 });
+    const { addedCount, copies } = duplicateGroup([left, right], "horizontal");
+    expect(addedCount).toBe(0);
+    expect(copies).toEqual([]);
   });
 });

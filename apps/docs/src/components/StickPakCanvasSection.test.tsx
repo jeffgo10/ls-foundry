@@ -9,11 +9,11 @@ const exportLayout = jest.fn(async () => ({
   assets: [],
 }));
 
-let mockSelectedId: string | null = "sticker-1";
+let mockSelectedIds: string[] = ["sticker-1"];
 
 jest.mock("next/dynamic", () => () =>
-  forwardRef<CanvasDesignerHandle, { onSelectedIdChange?: (id: string | null) => void }>(
-    function MockCanvasDesigner({ onSelectedIdChange }, ref) {
+  forwardRef<CanvasDesignerHandle, { onSelectedIdsChange?: (ids: string[]) => void }>(
+    function MockCanvasDesigner({ onSelectedIdsChange }, ref) {
       useImperativeHandle(ref, () => ({
         exportLayout,
         exportLayoutState: jest.fn(),
@@ -27,8 +27,8 @@ jest.mock("next/dynamic", () => () =>
       }));
 
       useEffect(() => {
-        onSelectedIdChange?.(mockSelectedId);
-      }, [onSelectedIdChange]);
+        onSelectedIdsChange?.(mockSelectedIds);
+      }, [onSelectedIdsChange]);
 
       return <div data-testid="canvas-designer">CanvasDesigner</div>;
     },
@@ -41,7 +41,7 @@ import StickPakCanvasSection from "./StickPakCanvasSection";
 
 describe("StickPakCanvasSection", () => {
   beforeEach(() => {
-    mockSelectedId = "sticker-1";
+    mockSelectedIds = ["sticker-1"];
     duplicateSelectedHorizontally.mockReset().mockReturnValue(2);
     duplicateSelectedVertically.mockReset().mockReturnValue(1);
     arrangeAll.mockReset().mockResolvedValue(true);
@@ -79,7 +79,7 @@ describe("StickPakCanvasSection", () => {
   });
 
   it("disables duplicate buttons when nothing is selected", () => {
-    mockSelectedId = null;
+    mockSelectedIds = [];
     render(<StickPakCanvasSection />);
 
     expect(

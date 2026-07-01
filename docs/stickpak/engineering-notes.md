@@ -10,7 +10,27 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Fix (June 2026):** `shared-types@0.2.0`, `react-canvas-designer@0.2.6`. Layout items now carry **`instanceId`** (unique per canvas sticker — keys, selection, transforms) and **`assetId`** (shared library reference for export/upscale). `addImagesFromUrls([{ url, assetId }])` always mints a new `instanceId`; export assets are deduped by `assetId`. Legacy layouts without `instanceId` get one assigned on load.
 
-**Storefront pins:** `@jeffgo10/shared-types@0.2.0`, `@jeffgo10/react-canvas-designer@0.2.9`.
+**Storefront pins:** `@jeffgo10/shared-types@0.2.0`, `@jeffgo10/react-canvas-designer@0.2.10`.
+
+## Shift multi-select transform box
+
+**When:** July 2026 (`react-canvas-designer` v0.2.10).
+
+**Feature:** Shift-click (or Ctrl/Cmd-click) to add or remove stickers from the selection. The Konva `Transformer` attaches to all selected nodes — group move, uniform resize, and rotate. Per-sticker drag is disabled while multiple are selected (use the transform box border to move the group). Delete/Backspace removes every selected sticker. Dimension captions stay single-selection only.
+
+**API:** `onSelectedIdsChange(selectedIds: string[])` for the full set; `onSelectedIdChange` still reports the last-clicked id for viewport-pan wiring. Duplicate fill duplicates every selected sticker together as a block (v0.2.15).
+
+**Fix (v0.2.11):** Selection uses sticker `onClick`/`onTap` (not `onMouseDown`) so Shift/Ctrl/Cmd modifiers are read reliably and draggable `mousedown` no longer races additive select. Modifier detection accepts `PointerEvent` as well as `MouseEvent`.
+
+**Fix (v0.2.12):** Multi-select uses a proxy selection box + `groupTransform.ts` so move / rotate / scale preserve relative sticker positions (Konva multi-node `Transformer` rotates each node around its own origin).
+
+**Fix (v0.2.13):** Wire transformer **back** `dragstart`/`dragmove`/`dragend` (border move does not fire `transform`). Freeze proxy + skip `transformer.nodes()` refresh while interacting. `constrainMultiSelectBoundBox` allows rotation and translation (old `boundBoxFunc` blocked rotate when AABB width shrank).
+
+**Feature (v0.2.14):** Marquee (rubber-band) selection — drag on empty canvas to draw a box; stickers whose cut-line bounds intersect the box are selected. Shift/Ctrl/Cmd adds to the current selection. A click without drag still clears selection.
+
+**Feature (v0.2.15):** `duplicateSelectedHorizontally` / `duplicateSelectedVertically` duplicate every selected sticker together as a block (preserves relative layout) until the printable area is full. `buildGroupDuplicatesToFit` in `duplicateFill.ts`.
+
+**Code:** `packages/react-canvas-designer/src/selection.ts`, `groupTransform.ts`, `marqueeSelection.ts`, `duplicateFill.ts` (`buildGroupDuplicatesToFit`), `resizeConstraints.ts` (`constrainMultiSelectBoundBox`), `CanvasDesigner.tsx`
 
 ## Duplicate selected sticker to fill row/column
 
