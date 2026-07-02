@@ -5,22 +5,27 @@ import type {
   DimensionUnit,
 } from "@jeffgo10/react-canvas-designer";
 import dynamic from "next/dynamic";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+function CanvasDesignerLoading() {
+  return (
+    <div className="flex h-[400px] items-center justify-center rounded-xl border border-white/10 bg-[#070708] text-xs tracking-[0.2em] text-white/40">
+      LOADING CANVAS…
+    </div>
+  );
+}
 
 const CanvasDesigner = dynamic(
   () =>
     import("@jeffgo10/react-canvas-designer").then((m) => m.CanvasDesigner),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-[400px] items-center justify-center rounded-xl border border-white/10 bg-[#070708] text-xs tracking-[0.2em] text-white/40">
-        LOADING CANVAS…
-      </div>
-    ),
+    loading: () => <CanvasDesignerLoading />,
   },
 );
 
 function StickPakCanvasSection() {
+  const [isMounted, setIsMounted] = useState(false);
   const designerRef = useRef<CanvasDesignerHandle | null>(null);
   const [exportedJson, setExportedJson] = useState("");
   const [showCutLine, setShowCutLine] = useState(true);
@@ -35,6 +40,18 @@ function StickPakCanvasSection() {
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
   const hasSelection = selectedIds.length > 0;
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <CanvasDesignerLoading />
+      </div>
+    );
+  }
 
   const handleExport = async () => {
     if (!designerRef.current) return;

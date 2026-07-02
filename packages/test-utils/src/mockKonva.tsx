@@ -97,12 +97,16 @@ export const Transformer = forwardRef<
   {
     nodes: (nodes?: unknown[]) => unknown[];
     getLayer: () => { batchDraw: () => void } | null;
+    resizeEnabled: (enabled?: boolean) => boolean;
+    rotateEnabled: (enabled?: boolean) => boolean;
   },
   KonvaStubProps
 >(function TransformerStub(_props, ref) {
   const apiRef = useRef({
     nodes: jest.fn((nodes?: unknown[]) => nodes ?? []),
     getLayer: () => ({ batchDraw: jest.fn() }),
+    resizeEnabled: jest.fn((enabled = true) => enabled),
+    rotateEnabled: jest.fn((enabled = true) => enabled),
   });
   useImperativeHandle(ref, () => apiRef.current);
   return <div data-konva="Transformer" />;

@@ -1,6 +1,13 @@
 import type Konva from "konva";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Text } from "react-konva";
+import type { DimensionUnit } from "@jeffgo10/shared-types";
+import { PINCH_LIVE_NODE_EVENT } from "./selectedStickerPinch";
+import {
+  formatDimensionAxisValue,
+  getSelectionDimensions,
+  type FormatSelectionDimensions,
+} from "./selectionDimensions";
 
 const LABEL_FONT_SIZE = 10;
 const LABEL_OFFSET = 6;
@@ -26,6 +33,13 @@ type SelectionDimensionLabelsProps = {
   widthLabel: string;
   heightLabel: string;
   color?: string;
+  /** Re-read scale from the node on pinchlive + transform events. */
+  liveDimensionFormatting?: {
+    unit: DimensionUnit;
+    dpi: number;
+    decimalPlaces: number;
+    formatSelectionDimensions?: FormatSelectionDimensions;
+  };
 };
 
 function midpoint(a: Point, b: Point): Point {
@@ -134,11 +148,20 @@ export function SelectionDimensionLabels({
   widthLabel,
   heightLabel,
   color = "#2563eb",
+  liveDimensionFormatting,
 }: SelectionDimensionLabelsProps) {
   const [placements, setPlacements] = useState<OrientedPlacements>({
     width: { x: 0, y: 0, rotation: 0 },
     height: { x: 0, y: 0, rotation: 0 },
   });
+  const [axisLabels, setAxisLabels] = useState({
+    width: widthLabel,
+    height: heightLabel,
+  });
+
+  useEffect(() => {
+    setAxisLabels({ width: widthLabel, height: heightLabel });
+  }, [widthLabel, heightLabel]);
 
   useEffect(() => {
     if (!node) {
@@ -149,15 +172,51 @@ export function SelectionDimensionLabels({
       setPlacements(
         getOrientedLabelPlacements(node, localWidth, localHeight, LABEL_OFFSET),
       );
+
+      if (liveDimensionFormatting) {
+        const widthPx = localWidth * Math.abs(node.scaleX());
+        const heightPx = localHeight * Math.abs(node.scaleY());
+        const dimensions = getSelectionDimensions(
+          widthPx,
+          heightPx,
+          liveDimensionFormatting.unit,
+          liveDimensionFormatting.dpi,
+          liveDimensionFormatting.decimalPlaces,
+          liveDimensionFormatting.formatSelectionDimensions,
+        );
+        setAxisLabels({
+          width: formatDimensionAxisValue(
+            dimensions.width,
+            dimensions.unit,
+            liveDimensionFormatting.decimalPlaces,
+          ),
+          height: formatDimensionAxisValue(
+            dimensions.height,
+            dimensions.unit,
+            liveDimensionFormatting.decimalPlaces,
+          ),
+        });
+      }
     };
 
     update();
-    node.on("transform dragmove dragend transformend", update);
+    const events = [
+      "transform",
+      "dragmove",
+      "dragend",
+      "transformend",
+      PINCH_LIVE_NODE_EVENT,
+    ] as const;
+    for (const event of events) {
+      node.on(event, update);
+    }
 
     return () => {
-      node.off("transform dragmove dragend transformend", update);
+      for (const event of events) {
+        node.off(event, update);
+      }
     };
-  }, [node, localWidth, localHeight]);
+  }, [node, localWidth, localHeight, liveDimensionFormatting]);
 
   if (!node) {
     return null;
@@ -168,14 +227,14 @@ export function SelectionDimensionLabels({
       <AxisLabel
         x={placements.width.x}
         y={placements.width.y}
-        text={widthLabel}
+        text={axisLabels.width}
         rotation={placements.width.rotation}
         color={color}
       />
       <AxisLabel
         x={placements.height.x}
         y={placements.height.y}
-        text={heightLabel}
+        text={axisLabels.height}
         rotation={placements.height.rotation}
         color={color}
       />

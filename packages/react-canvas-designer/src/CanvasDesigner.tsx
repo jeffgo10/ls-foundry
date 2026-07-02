@@ -79,6 +79,19 @@ import {
   getTransformerTouchProfile,
 } from "./transformerTouch";
 import {
+  beginPinchTransformSession,
+  canPinchResizeSelection,
+  getTouchPairAngleRad,
+  getTouchPairDistance,
+  getTouchPairFromList,
+  isAnyTouchOnElement,
+  isPinchResizeTouchCount,
+  touchPairCentroidToStage,
+  transformFromPinchSession,
+  type PinchTransformSession,
+  PINCH_LIVE_NODE_EVENT,
+} from "./selectedStickerPinch";
+import {
   buildGroupDuplicatesToFit,
   type DuplicateFillDirection,
 } from "./duplicateFill";
@@ -89,6 +102,7 @@ import {
   type GroupTransformSnapshot,
   type ProxyState,
 } from "./groupTransform";
+import { createInstanceId } from "./createInstanceId";
 
 export const TRANSFORMER_COLOR = "#2563eb";
 
@@ -301,9 +315,14 @@ function DraggableImage({
     }
   }, [image, item.width, item.height, onChange]);
 
-  const select = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+  const selectOnPress = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const nativeEvent = event.evt;
+    if (nativeEvent instanceof MouseEvent && nativeEvent.button !== 0) {
+      return;
+    }
+
     event.cancelBubble = true;
-    onSelect(isAdditivePointerEvent(event.evt));
+    onSelect(isAdditivePointerEvent(nativeEvent));
   };
 
   const syncFromNode = (node: Konva.Group) => {
@@ -378,8 +397,8 @@ function DraggableImage({
       rotation={item.rotation}
       draggable={draggable}
       dragBoundFunc={dragBoundFunc}
-      onClick={select}
-      onTap={select}
+      onMouseDown={selectOnPress}
+      onTouchStart={selectOnPress}
       onDragEnd={(event) => syncFromNode(event.target as Konva.Group)}
       onTransform={(event) => syncFromNode(event.target as Konva.Group)}
       onTransformEnd={(event) => syncFromNode(event.target as Konva.Group)}
@@ -458,7 +477,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
     const marqueeRectRef = useRef<MarqueeRect | null>(null);
     const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
+    const [canvasShellReady, setCanvasShellReady] = useState(false);
     const pendingAutoArrangeRef = useRef(false);
+    const pinchResizeSessionRef = useRef<PinchTransformSession | null>(null);
+    const isPinchResizingRef = useRef(false);
+    const pinchWindowCleanupRef = useRef<(() => void) | null>(null);
+    const canvasShellRef = useRef<HTMLDivElement>(null);
     const itemsRef = useRef(items);
     itemsRef.current = items;
     const selectedIdsRef = useRef(selectedIds);
@@ -674,7 +698,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             image.onload = () => {
               const cutLinePoints = traceAlphaContour(image, image.width, image.height);
               placed.push({
-                instanceId: item.instanceId ?? crypto.randomUUID(),
+                instanceId: item.instanceId ?? createInstanceId(),
                 assetId: item.assetId,
                 x: item.x,
                 y: item.y,
@@ -822,7 +846,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     );
 
     useEffect(() => {
-      if (isGroupTransformingRef.current) {
+      if (isGroupTransformingRef.current || isPinchResizingRef.current) {
         return;
       }
       const transformer = transformerRef.current;
@@ -1058,6 +1082,350 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       );
     }, []);
 
+    const detachPinchWindowListeners = useCallback(() => {
+      pinchWindowCleanupRef.current?.();
+    }, []);
+
+    const beginPinchInteraction = useCallback((node: Konva.Group) => {
+      node.stopDrag();
+      node.draggable(false);
+      const transformer = transformerRef.current;
+      if (transformer) {
+        transformer.resizeEnabled(false);
+        transformer.rotateEnabled(false);
+        transformer.getLayer()?.batchDraw();
+      }
+    }, []);
+
+    const restorePinchInteraction = useCallback(() => {
+      const selectedId = selectedIdsRef.current[0];
+      const node = selectedId ? shapeRefs.current.get(selectedId) : null;
+      if (node) {
+        node.draggable(selectedIdsRef.current.length === 1);
+      }
+
+      const transformer = transformerRef.current;
+      if (transformer) {
+        transformer.resizeEnabled(true);
+        transformer.rotateEnabled(true);
+        transformer.getLayer()?.batchDraw();
+      }
+    }, []);
+
+    const syncPinchNodeToItems = useCallback(() => {
+      const selectedId = selectedIdsRef.current[0];
+      if (!selectedId) {
+        return;
+      }
+
+      const node = shapeRefs.current.get(selectedId);
+      const item = itemsRef.current.find((entry) => entry.instanceId === selectedId);
+      if (!node || !item) {
+        return;
+      }
+
+      updateItem(
+        clampPlacedTransform({
+          ...item,
+          x: node.x(),
+          y: node.y(),
+          scaleX: node.scaleX(),
+          scaleY: node.scaleY(),
+          rotation: node.rotation(),
+        }),
+      );
+    }, [clampPlacedTransform, updateItem]);
+
+    const endPinchResize = useCallback(() => {
+      syncPinchNodeToItems();
+      restorePinchInteraction();
+      pinchResizeSessionRef.current = null;
+      isPinchResizingRef.current = false;
+      detachPinchWindowListeners();
+    }, [
+      syncPinchNodeToItems,
+      restorePinchInteraction,
+      detachPinchWindowListeners,
+    ]);
+
+    const tryBeginOrRebasePinchSession = useCallback(
+      (touches: TouchList): boolean => {
+        if (
+          !canPinchResizeSelection(
+            Boolean(transformerTouchProfile),
+            selectedIdsRef.current.length,
+          )
+        ) {
+          return false;
+        }
+
+        const touchPair = getTouchPairFromList(touches);
+        if (!touchPair) {
+          return false;
+        }
+
+        const selectedId = selectedIdsRef.current[0]!;
+        const node = shapeRefs.current.get(selectedId);
+        const stage = node?.getStage();
+        const container = stage?.container();
+        if (!node || !stage || !container) {
+          return false;
+        }
+
+        const containerRect = container.getBoundingClientRect();
+        const startPivotStage = touchPairCentroidToStage(
+          touchPair,
+          containerRect,
+          stage.width(),
+          stage.height(),
+        );
+        const startDistance = getTouchPairDistance(touchPair[0], touchPair[1]);
+        const startAngleRad = getTouchPairAngleRad(touchPair[0], touchPair[1]);
+        const anchorLocal = node
+          .getAbsoluteTransform()
+          .copy()
+          .invert()
+          .point(startPivotStage);
+        const session = beginPinchTransformSession(
+          startDistance,
+          startAngleRad,
+          startPivotStage,
+          anchorLocal,
+          node.scaleX(),
+          node.scaleY(),
+          node.rotation(),
+        );
+        if (!session) {
+          return false;
+        }
+
+        pinchResizeSessionRef.current = session;
+        if (!isPinchResizingRef.current) {
+          isPinchResizingRef.current = true;
+          beginPinchInteraction(node);
+        }
+        return true;
+      },
+      [transformerTouchProfile, beginPinchInteraction],
+    );
+
+    const applyPinchResize = useCallback(
+      (touches: TouchList) => {
+        if (
+          !canPinchResizeSelection(
+            Boolean(transformerTouchProfile),
+            selectedIdsRef.current.length,
+          )
+        ) {
+          return;
+        }
+
+        if (!isPinchResizeTouchCount(touches.length)) {
+          return;
+        }
+
+        if (!pinchResizeSessionRef.current) {
+          tryBeginOrRebasePinchSession(touches);
+        }
+
+        const session = pinchResizeSessionRef.current;
+        if (!session) {
+          return;
+        }
+
+        const touchPair = getTouchPairFromList(touches);
+        if (!touchPair) {
+          return;
+        }
+
+        const selectedId = selectedIdsRef.current[0]!;
+        const item = itemsRef.current.find((entry) => entry.instanceId === selectedId);
+        const node = shapeRefs.current.get(selectedId);
+        const stage = node?.getStage();
+        const container = stage?.container();
+        if (!item || !node || !stage || !container) {
+          return;
+        }
+
+        const containerRect = container.getBoundingClientRect();
+        const currentPivotStage = touchPairCentroidToStage(
+          touchPair,
+          containerRect,
+          stage.width(),
+          stage.height(),
+        );
+        const currentDistance = getTouchPairDistance(touchPair[0], touchPair[1]);
+        const currentAngleRad = getTouchPairAngleRad(touchPair[0], touchPair[1]);
+        const next = transformFromPinchSession(
+          session,
+          currentDistance,
+          currentAngleRad,
+          currentPivotStage,
+        );
+        const clamped = clampNodeScale(
+          next.scaleX,
+          next.scaleY,
+          item.width,
+          item.height,
+          minResizeSizeMm,
+          canvasConfig.designDpi,
+        );
+        const positioned = transformFromPinchSession(
+          session,
+          currentDistance,
+          currentAngleRad,
+          currentPivotStage,
+          clamped,
+        );
+        const placed = clampPlacedTransform({
+          ...item,
+          x: positioned.x,
+          y: positioned.y,
+          scaleX: positioned.scaleX,
+          scaleY: positioned.scaleY,
+          rotation: positioned.rotation,
+        });
+
+        node.x(placed.x);
+        node.y(placed.y);
+        node.scaleX(placed.scaleX);
+        node.scaleY(placed.scaleY);
+        node.rotation(placed.rotation);
+        node.fire(PINCH_LIVE_NODE_EVENT);
+        node.getLayer()?.batchDraw();
+      },
+      [
+        transformerTouchProfile,
+        tryBeginOrRebasePinchSession,
+        clampPlacedTransform,
+        minResizeSizeMm,
+        canvasConfig.designDpi,
+      ],
+    );
+
+    const handlePinchTouchEnd = useCallback(
+      (touches: TouchList) => {
+        if (!isPinchResizingRef.current) {
+          return;
+        }
+
+        if (isPinchResizeTouchCount(touches.length)) {
+          tryBeginOrRebasePinchSession(touches);
+          return;
+        }
+
+        endPinchResize();
+      },
+      [tryBeginOrRebasePinchSession, endPinchResize],
+    );
+
+    const applyPinchResizeRef = useRef(applyPinchResize);
+    applyPinchResizeRef.current = applyPinchResize;
+    const handlePinchTouchEndRef = useRef(handlePinchTouchEnd);
+    handlePinchTouchEndRef.current = handlePinchTouchEnd;
+    const endPinchResizeRef = useRef(endPinchResize);
+    endPinchResizeRef.current = endPinchResize;
+    const detachPinchWindowListenersRef = useRef(detachPinchWindowListeners);
+    detachPinchWindowListenersRef.current = detachPinchWindowListeners;
+
+    const attachPinchWindowListeners = useCallback(() => {
+      if (pinchWindowCleanupRef.current) {
+        return;
+      }
+
+      const onWindowTouchMove = (event: TouchEvent) => {
+        if (!isPinchResizingRef.current) {
+          return;
+        }
+        applyPinchResizeRef.current(event.touches);
+        event.preventDefault();
+      };
+
+      const onWindowTouchEnd = (event: TouchEvent) => {
+        if (!isPinchResizingRef.current) {
+          return;
+        }
+        handlePinchTouchEndRef.current(event.touches);
+      };
+
+      window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
+      window.addEventListener("touchend", onWindowTouchEnd);
+      window.addEventListener("touchcancel", onWindowTouchEnd);
+
+      pinchWindowCleanupRef.current = () => {
+        window.removeEventListener("touchmove", onWindowTouchMove);
+        window.removeEventListener("touchend", onWindowTouchEnd);
+        window.removeEventListener("touchcancel", onWindowTouchEnd);
+        pinchWindowCleanupRef.current = null;
+      };
+    }, []);
+
+    const maybeStartPinchFromShell = useCallback(
+      (touches: TouchList): boolean => {
+        if (!isAnyTouchOnElement(touches, canvasShellRef.current)) {
+          return false;
+        }
+        if (!tryBeginOrRebasePinchSession(touches)) {
+          return false;
+        }
+        attachPinchWindowListeners();
+        applyPinchResize(touches);
+        return true;
+      },
+      [tryBeginOrRebasePinchSession, attachPinchWindowListeners, applyPinchResize],
+    );
+
+    const maybeStartPinchFromShellRef = useRef(maybeStartPinchFromShell);
+    maybeStartPinchFromShellRef.current = maybeStartPinchFromShell;
+
+    useEffect(() => {
+      if (!transformerTouchProfile) {
+        return;
+      }
+
+      const shell = canvasShellRef.current;
+      if (!shell) {
+        return;
+      }
+
+      const onShellTouchStart = (event: TouchEvent) => {
+        if (!isPinchResizeTouchCount(event.touches.length)) {
+          return;
+        }
+        if (maybeStartPinchFromShellRef.current(event.touches)) {
+          event.preventDefault();
+        }
+      };
+
+      const onShellTouchMove = (event: TouchEvent) => {
+        if (isPinchResizingRef.current) {
+          return;
+        }
+        if (!isPinchResizeTouchCount(event.touches.length)) {
+          return;
+        }
+        if (maybeStartPinchFromShellRef.current(event.touches)) {
+          event.preventDefault();
+        }
+      };
+
+      shell.addEventListener("touchstart", onShellTouchStart, {
+        passive: false,
+        capture: true,
+      });
+      shell.addEventListener("touchmove", onShellTouchMove, {
+        passive: false,
+        capture: true,
+      });
+
+      return () => {
+        shell.removeEventListener("touchstart", onShellTouchStart, { capture: true });
+        shell.removeEventListener("touchmove", onShellTouchMove, { capture: true });
+        detachPinchWindowListenersRef.current();
+        endPinchResizeRef.current();
+      };
+    }, [transformerTouchProfile, canvasShellReady]);
+
     const updateMarqueeRect = useCallback((rect: MarqueeRect | null) => {
       marqueeRectRef.current = rect;
       setMarqueeRect(rect);
@@ -1170,7 +1538,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         image.crossOrigin = "anonymous";
         image.src = src;
         image.onload = () => {
-          const instanceId = crypto.randomUUID();
+          const instanceId = createInstanceId();
           const resolvedAssetId = assetId ?? instanceId;
           const cutLinePoints = traceAlphaContour(image, image.width, image.height);
           const draft: PlacedImage = {
@@ -1256,7 +1624,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           marginMm: canvasMarginMm,
           designDpi: canvasConfig.designDpi,
           gapMm: options?.gapMm ?? autoArrangeGapMm,
-          createInstanceId: () => crypto.randomUUID(),
+          createInstanceId,
         };
 
         const { copies, addedCount } = buildGroupDuplicatesToFit(
@@ -1337,11 +1705,19 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       accept: { "image/*": [] },
       noClick: items.length > 0,
     });
+    const { ref: dropzoneRef, ...canvasShellProps } = getRootProps();
 
     return (
       <div className={className}>
         <div
-          {...getRootProps()}
+          {...canvasShellProps}
+          ref={(node) => {
+            canvasShellRef.current = node;
+            setCanvasShellReady(Boolean(node));
+            if (typeof dropzoneRef === "function") {
+              dropzoneRef(node);
+            }
+          }}
           data-canvas-designer=""
           onContextMenu={(event) => event.preventDefault()}
           style={{
@@ -1497,6 +1873,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   widthLabel={selectionDimensionLabels.width}
                   heightLabel={selectionDimensionLabels.height}
                   color={dimensionLabelColor}
+                  liveDimensionFormatting={{
+                    unit: dimensionUnit,
+                    dpi: selectionDpi,
+                    decimalPlaces: dimensionDecimalPlaces,
+                    formatSelectionDimensions,
+                  }}
                 />
               ) : null}
             </Layer>

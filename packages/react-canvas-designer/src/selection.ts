@@ -1,4 +1,4 @@
-/** Plain click replaces selection; Shift/Ctrl/Cmd toggles membership. */
+/** Plain press replaces selection; Shift/Ctrl/Cmd toggles membership. */
 export function toggleShiftSelection(
   currentIds: readonly string[],
   instanceId: string,

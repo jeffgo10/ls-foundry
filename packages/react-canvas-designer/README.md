@@ -80,6 +80,8 @@ import { CanvasDesigner } from "@jeffgo10/react-canvas-designer";
 
 Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a sticker to move, resize, or rotate. **Delete** / **Backspace** removes the selection.
 
+On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers select on **press-down** (not tap-up); with one sticker selected, **pinch** on the canvas to resize uniformly around the pinch center and **twist** to rotate.
+
 ## Key props
 
 | Prop | Default | Purpose |

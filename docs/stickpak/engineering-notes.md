@@ -2,6 +2,29 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Mobile select-on-press + pinch zoom/rotate (SP-006)
+
+**When:** July 2026 (`react-canvas-designer` **v0.2.16** → **v0.2.22**).
+
+**Problem:** On mobile, stickers required tap-then-interact (transform box on `touchend` via `onTap`). Two-finger pinch could not resize/rotate the selected sticker — only transformer handles. Follow-on issues: HTTP LAN dev (`192.168.x.x`) broke `crypto.randomUUID`; pinch felt jumpy; dimension labels drifted during pinch.
+
+**Fix (engine):**
+- **Select-on-press:** Stickers select on `mousedown` / `touchstart` (not `onClick`/`onTap`).
+- **Pinch zoom + rotate:** With exactly one sticker selected on coarse-pointer devices, two-finger pinch on the canvas shell scales uniformly and twists around the **pinch centroid** (`selectedStickerPinch.ts` + window `touchmove` while pinching).
+- **Live gesture without flicker:** During pinch, update Konva node directly; commit to `items` once on `touchend` (avoids React-Konva reset each frame).
+- **Dimension labels:** `SelectionDimensionLabels` listens for custom `pinchlive` node event + reads live scale from the node.
+- **`createInstanceId()`:** Falls back when `crypto.randomUUID` is unavailable (non-secure HTTP on LAN).
+
+**Fix (docs app `/stickpak`):**
+- Client-only mount guard for `StickPakCanvasSection` (avoids `next/dynamic` SSR bailout + extension-injected form attrs on phone).
+- `suppressHydrationWarning` on `<html>` / `<body>` for extension-injected attrs (`__gcr*`).
+
+**Storefront follow-up:** Bump to `@jeffgo10/react-canvas-designer@0.2.22`; keep `touchFriendly` + `onSelectedIdChange` → viewport `lockGestures` wiring.
+
+**Code:** `selectedStickerPinch.ts`, `createInstanceId.ts`, `SelectionDimensionLabels.tsx`, `transformerTouch.ts`, `CanvasDesigner.tsx`, `apps/docs/src/components/StickPakCanvasSection.tsx`
+
+**Related:** [[Notes — Mobile canvas resize rotate (touch)]], [[canvas-engine/Notes — Mobile pinch zoom rotate selected sticker (SP-006)]], StickPak Kanban **SP-006**
+
 ## Duplicate library images on one sheet (`instanceId` / `assetId`)
 
 **Symptom:** React duplicate-key warning when adding the same library image twice (or re-adding one already on the canvas in a multi-select batch).
