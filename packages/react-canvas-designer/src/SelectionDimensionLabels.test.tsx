@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { SelectionDimensionLabels } from "./SelectionDimensionLabels";
 
 function createMockNode(scaleX = 1, scaleY = 1) {
@@ -63,7 +63,9 @@ describe("SelectionDimensionLabels", () => {
         heightLabel="H"
       />,
     );
-    node.emit("transform");
+    act(() => {
+      node.emit("transform");
+    });
     expect(screen.getByText("W")).toBeInTheDocument();
   });
 
@@ -84,7 +86,9 @@ describe("SelectionDimensionLabels", () => {
       />,
     );
 
-    node.emit("pinchlive");
+    act(() => {
+      node.emit("pinchlive");
+    });
     expect(screen.getByText("50.8 mm")).toBeInTheDocument();
   });
 });

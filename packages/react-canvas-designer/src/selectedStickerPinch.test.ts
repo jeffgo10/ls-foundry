@@ -1,4 +1,5 @@
 import {
+  beginPinchResizeSession,
   beginPinchTransformSession,
   canPinchResizeSelection,
   getTouchPairAngleRad,
@@ -8,6 +9,7 @@ import {
   isAnyTouchOnElement,
   isPinchResizeTouchCount,
   localPointToParentOffset,
+  scaleFromPinchSession,
   touchClientToStage,
   touchPairCentroidToStage,
   transformFromPinchSession,
@@ -140,5 +142,38 @@ describe("selectedStickerPinch", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (document as any).elementFromPoint;
+  });
+
+  it("ignores missing touches when checking element hits", () => {
+    const shell = document.createElement("div");
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      writable: true,
+      value: jest.fn(() => null),
+    });
+
+    const sparseTouches = [{ clientX: 0, clientY: 0 }] as unknown as TouchList;
+    Object.defineProperty(sparseTouches, "length", { value: 2 });
+    expect(isAnyTouchOnElement(sparseTouches, shell)).toBe(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (document as any).elementFromPoint;
+  });
+
+  it("rejects invalid pinch transform sessions", () => {
+    expect(beginPinchTransformSession(0, 0, { x: 0, y: 0 }, { x: 0, y: 0 }, 1, 1, 0)).toBeNull();
+    expect(beginPinchResizeSession(0, 1, 1)).toBeNull();
+  });
+
+  it("supports deprecated pinch resize helpers", () => {
+    const session = beginPinchResizeSession(100, 1, 1);
+    expect(session).toEqual({ startDistance: 100, startScaleX: 1, startScaleY: 1 });
+    expect(scaleFromPinchSession(session!, 200)).toEqual({ scaleX: 2, scaleY: 2 });
+  });
+
+  it("returns null when touch pair entries are missing", () => {
+    const sparse = [{ clientX: 1, clientY: 2 }] as unknown as TouchList;
+    Object.defineProperty(sparse, "length", { value: 2 });
+    expect(getTouchPairFromList(sparse)).toBeNull();
   });
 });
