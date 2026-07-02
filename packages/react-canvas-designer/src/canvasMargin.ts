@@ -80,6 +80,39 @@ export function getItemAxisAlignedBounds(
   return { minX, minY, maxX, maxY };
 }
 
+/** Axis-aligned bounds from an explicit alpha cut-line contour in stage space. */
+export function getCutLineAxisAlignedBounds(
+  item: MarginBoundsItem,
+  cutLinePoints: number[],
+  position?: { x: number; y: number },
+): AxisAlignedBounds {
+  const originX = position?.x ?? item.x;
+  const originY = position?.y ?? item.y;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (let i = 0; i < cutLinePoints.length; i += 2) {
+    const { x, y } = transformLocalPoint(
+      cutLinePoints[i]!,
+      cutLinePoints[i + 1]!,
+      item.scaleX,
+      item.scaleY,
+      item.rotation,
+      originX,
+      originY,
+    );
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+
+  return { minX, minY, maxX, maxY };
+}
+
 export function getCanvasMarginPx(marginMm: number, designDpi: number): number {
   if (marginMm <= 0) {
     return 0;

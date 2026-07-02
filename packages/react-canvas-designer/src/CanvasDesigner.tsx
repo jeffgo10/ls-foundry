@@ -9,6 +9,8 @@ import {
   type CanvasItem,
   type CanvasLayout,
   type DimensionUnit,
+  type OverlapVerifyOptions,
+  type OverlapVerifyResult,
 } from "@jeffgo10/shared-types";
 import { blobUrlToDataUrl, traceAlphaContour } from "@jeffgo10/helpers/image";
 import type Konva from "konva";
@@ -37,6 +39,7 @@ import {
   autoArrangeItems,
   type AutoArrangeOptions,
 } from "./autoArrange";
+import { verifyItemOverlaps } from "./overlapVerifier";
 import {
   formatDimensionAxisValue,
   getSelectionDimensions,
@@ -244,12 +247,20 @@ export type CanvasDesignerHandle = {
    * Spacing uses cut-line bounds plus `autoArrangeGapMm` (override via `gapMm`).
    */
   duplicateSelectedVertically: (options?: DuplicateFillHandleOptions) => number;
+  /**
+   * Check whether any sticker cut lines overlap or are closer than `minGapMm`.
+   * Highlights offending stickers when violations are found.
+   */
+  verifyOverlaps: (options?: OverlapVerifyOptions) => Promise<OverlapVerifyResult>;
+  /** Clear overlap violation highlights from the canvas. */
+  clearOverlapHighlights: () => void;
 };
 
 function DraggableImage({
   item,
   showCutLine,
   cutLineColor,
+  showOverlapHighlight,
   minResizeSizeMm,
   designDpi,
   canvasWidth,
@@ -263,6 +274,7 @@ function DraggableImage({
   item: PlacedImage;
   showCutLine: boolean;
   cutLineColor: string;
+  showOverlapHighlight: boolean;
   minResizeSizeMm: number;
   designDpi: number;
   canvasWidth: number;
@@ -408,6 +420,14 @@ function DraggableImage({
         width={item.width}
         height={item.height}
       />
+      {showOverlapHighlight && cutLinePoints.length > 0 ? (
+        <Line
+          points={cutLinePoints}
+          closed
+          fill="rgba(239, 68, 68, 0.4)"
+          listening={false}
+        />
+      ) : null}
       {showCutLine && cutLinePoints.length > 0 ? (
         <Line
           points={cutLinePoints}
@@ -456,6 +476,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     ref,
   ) {
     const [items, setItems] = useState<PlacedImage[]>([]);
+    const [overlapHighlightIds, setOverlapHighlightIds] = useState<string[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(
       null,
@@ -1042,6 +1063,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     ]);
 
     const updateItem = useCallback((next: PlacedImage) => {
+      setOverlapHighlightIds([]);
       setItems((current) =>
         current.map((entry) =>
           entry.instanceId === next.instanceId ? next : entry,
@@ -1655,6 +1677,22 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       [duplicateSelectedToFit],
     );
 
+    const clearOverlapHighlights = useCallback(() => {
+      setOverlapHighlightIds([]);
+    }, []);
+
+    const verifyOverlaps = useCallback(
+      async (options?: OverlapVerifyOptions): Promise<OverlapVerifyResult> => {
+        const result = await verifyItemOverlaps(itemsRef.current, {
+          minGapMm: options?.minGapMm ?? autoArrangeGapMm,
+          designDpi: options?.designDpi ?? canvasConfig.designDpi,
+        });
+        setOverlapHighlightIds(result.overlappingIds);
+        return result;
+      },
+      [autoArrangeGapMm, canvasConfig.designDpi],
+    );
+
     const handle = useMemo(
       () => ({
         exportLayout,
@@ -1666,6 +1704,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         addImagesFromUrls,
         duplicateSelectedHorizontally,
         duplicateSelectedVertically,
+        verifyOverlaps,
+        clearOverlapHighlights,
       }),
       [
         exportLayout,
@@ -1676,6 +1716,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         addImagesFromUrls,
         duplicateSelectedHorizontally,
         duplicateSelectedVertically,
+        verifyOverlaps,
+        clearOverlapHighlights,
       ],
     );
 
@@ -1798,6 +1840,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   item={item}
                   showCutLine={showCutLine}
                   cutLineColor={cutLineColor}
+                  showOverlapHighlight={overlapHighlightIds.includes(item.instanceId)}
                   minResizeSizeMm={minResizeSizeMm}
                   designDpi={canvasConfig.designDpi}
                   canvasWidth={canvasConfig.canvasWidth}

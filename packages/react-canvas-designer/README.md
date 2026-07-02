@@ -110,6 +110,8 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `loadLayoutFromSources({ layout, sources })` | Restore from presigned URLs |
 | `clearCanvas()` | Remove all stickers |
 | `arrangeAll({ gapMm?, canvasMarginMm? })` | Pack stickers by cut-line spacing |
+| `verifyOverlaps({ minGapMm?, designDpi? })` | Detect alpha cut-line overlap / minimum gap violations; highlights offenders along the cut line |
+| `clearOverlapHighlights()` | Remove overlap violation tint from the canvas |
 | `duplicateSelectedHorizontally({ gapMm? })` | Copies of the selection to the right until the printable area is full; multi-select duplicates the whole block together |
 | `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; multi-select duplicates the whole block together |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |

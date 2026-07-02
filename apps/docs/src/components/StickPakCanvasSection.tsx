@@ -37,6 +37,7 @@ function StickPakCanvasSection() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [arrangeMessage, setArrangeMessage] = useState("");
   const [duplicateMessage, setDuplicateMessage] = useState("");
+  const [overlapMessage, setOverlapMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
   const hasSelection = selectedIds.length > 0;
@@ -65,10 +66,31 @@ function StickPakCanvasSection() {
     }
   };
 
+  const handleVerifyOverlaps = async () => {
+    if (!designerRef.current) return;
+
+    setOverlapMessage("");
+    const result = await designerRef.current.verifyOverlaps({
+      minGapMm: autoArrangeGapMm,
+    });
+    if (result.valid) {
+      designerRef.current.clearOverlapHighlights();
+      setOverlapMessage(
+        `No overlaps detected (cut-line gap ≥ ${autoArrangeGapMm} mm).`,
+      );
+      return;
+    }
+
+    setOverlapMessage(
+      `${result.overlappingIds.length} sticker${result.overlappingIds.length === 1 ? "" : "s"} overlap or are too close — highlighted in red.`,
+    );
+  };
+
   const handleDuplicate = (direction: "horizontal" | "vertical") => {
     if (!designerRef.current) return;
 
     setArrangeMessage("");
+    setOverlapMessage("");
     const duplicateOptions = { gapMm: autoArrangeGapMm };
     const addedCount =
       direction === "horizontal"
@@ -90,6 +112,7 @@ function StickPakCanvasSection() {
     setIsArranging(true);
     setArrangeMessage("");
     setDuplicateMessage("");
+    setOverlapMessage("");
     try {
       const allPlaced = await designerRef.current.arrangeAll({
         gapMm: autoArrangeGapMm,
@@ -186,6 +209,7 @@ function StickPakCanvasSection() {
           onSelectedIdsChange={setSelectedIds}
           onAutoArrange={({ allPlaced }) => {
             setDuplicateMessage("");
+            setOverlapMessage("");
             setArrangeMessage(
               allPlaced
                 ? "All stickers arranged with cut-line spacing."
@@ -229,6 +253,13 @@ function StickPakCanvasSection() {
           </button>
           <button
             type="button"
+            onClick={handleVerifyOverlaps}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10"
+          >
+            Check overlaps
+          </button>
+          <button
+            type="button"
             onClick={handleExport}
             disabled={isExporting}
             className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
@@ -241,6 +272,9 @@ function StickPakCanvasSection() {
         ) : null}
         {arrangeMessage ? (
           <p className="text-sm text-white/50">{arrangeMessage}</p>
+        ) : null}
+        {overlapMessage ? (
+          <p className="text-sm text-white/50">{overlapMessage}</p>
         ) : null}
         <textarea
           readOnly

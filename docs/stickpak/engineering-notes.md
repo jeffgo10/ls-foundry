@@ -2,6 +2,24 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Cut-line overlap verifier (SP-007)
+
+**When:** July 2026 (`shared-types` **v0.2.1**, `react-canvas-designer` **v0.2.23**).
+
+**Goal:** Detect sticker images whose alpha cut-line bounds overlap or are closer than a configurable mm gap (same padded AABB model as auto-arrange).
+
+**Engine:**
+- `OverlapVerifyOptions` / `OverlapVerifyResult` in `@jeffgo10/shared-types`.
+- `verifyItemOverlaps()` in `overlapVerifier.ts` — pure cut-line bounds check with optional `minGapMm`.
+- `CanvasDesignerHandle.verifyOverlaps()` highlights offending stickers with a reddish semi-transparent overlay; `clearOverlapHighlights()` clears tint.
+- Highlights clear when the user moves/resizes a sticker.
+
+**Docs app:** `/stickpak` — **Check overlaps** button uses the cut-line gap control.
+
+**Storefront follow-up:** Wire verify before checkout/save; bump `@jeffgo10/shared-types@0.2.1` + `@jeffgo10/react-canvas-designer@0.2.23`.
+
+**Related:** StickPak Kanban **SP-007**, [[Notes — Canvas auto-arrange (arrangeAll)]]
+
 ## Mobile select-on-press + pinch zoom/rotate (SP-006)
 
 **When:** July 2026 (`react-canvas-designer` **v0.2.16** → **v0.2.22**).
