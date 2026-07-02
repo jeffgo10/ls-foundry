@@ -228,4 +228,84 @@ describe("CanvasDesigner", () => {
     expect(ref.current!.duplicateSelectedHorizontally()).toBe(0);
     buildGroupDuplicatesToFit.mockRestore();
   });
+
+  it("pinch-zooms the selected sticker when touchFriendly", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} touchFriendly canvasMarginMm={0} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+    await waitFor(() =>
+      expect(document.querySelector('[data-konva="Group"]')).toBeInTheDocument(),
+    );
+
+    const shell = document.querySelector('[data-canvas-designer=""]');
+    expect(shell).toBeTruthy();
+
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      writable: true,
+      value: jest.fn(() => shell),
+    });
+
+    const makeTouchList = (
+      touches: Array<{ clientX: number; clientY: number }>,
+    ): TouchList => {
+      const list = touches.map((touch, index) => ({
+        ...touch,
+        identifier: index,
+        target: shell,
+      }));
+      return list as unknown as TouchList;
+    };
+
+    const dispatchTouch = (
+      type: string,
+      touches: Array<{ clientX: number; clientY: number }>,
+      target: EventTarget = shell!,
+    ) => {
+      const event = new Event(type, { bubbles: true, cancelable: true }) as TouchEvent;
+      const touchList = makeTouchList(touches);
+      Object.defineProperty(event, "touches", { value: touchList });
+      Object.defineProperty(event, "changedTouches", { value: touchList });
+      target.dispatchEvent(event);
+    };
+
+    const initialScale =
+      ref.current!.exportLayoutState().layout.items[0]!.scaleX;
+
+    act(() => {
+      dispatchTouch("touchstart", [
+        { clientX: 50, clientY: 50 },
+        { clientX: 150, clientY: 50 },
+      ]);
+    });
+
+    act(() => {
+      dispatchTouch(
+        "touchmove",
+        [
+          { clientX: 25, clientY: 50 },
+          { clientX: 175, clientY: 50 },
+        ],
+        window,
+      );
+    });
+
+    act(() => {
+      dispatchTouch("touchend", [], window);
+    });
+
+    const nextScale = ref.current!.exportLayoutState().layout.items[0]!.scaleX;
+    expect(nextScale).toBeGreaterThan(initialScale);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (document as any).elementFromPoint;
+  });
 });

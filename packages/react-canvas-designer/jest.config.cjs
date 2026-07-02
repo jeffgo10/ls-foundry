@@ -28,6 +28,7 @@ module.exports = {
     "./src/selection.ts": threshold90,
     "./src/selectionDimensions.ts": threshold90,
     "./src/transformerTouch.ts": threshold90,
+    "./src/createInstanceId.ts": threshold90,
     "./src/SelectionDimensionLabels.tsx": {
       branches: 55,
       functions: 90,

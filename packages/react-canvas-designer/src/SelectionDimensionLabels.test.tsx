@@ -1,9 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { SelectionDimensionLabels } from "./SelectionDimensionLabels";
 
-function createMockNode() {
+function createMockNode(scaleX = 1, scaleY = 1) {
   const listeners = new Map<string, Set<() => void>>();
   return {
+    scaleX: () => scaleX,
+    scaleY: () => scaleY,
     on: (event: string, handler: () => void) => {
       if (!listeners.has(event)) listeners.set(event, new Set());
       listeners.get(event)!.add(handler);
@@ -61,7 +63,32 @@ describe("SelectionDimensionLabels", () => {
         heightLabel="H"
       />,
     );
-    node.emit("transform");
+    act(() => {
+      node.emit("transform");
+    });
     expect(screen.getByText("W")).toBeInTheDocument();
+  });
+
+  it("updates labels from node scale on pinchlive events", () => {
+    const node = createMockNode(2, 1);
+    render(
+      <SelectionDimensionLabels
+        node={node as never}
+        localWidth={72}
+        localHeight={72}
+        widthLabel="25.4 mm"
+        heightLabel="25.4 mm"
+        liveDimensionFormatting={{
+          unit: "mm",
+          dpi: 72,
+          decimalPlaces: 1,
+        }}
+      />,
+    );
+
+    act(() => {
+      node.emit("pinchlive");
+    });
+    expect(screen.getByText("50.8 mm")).toBeInTheDocument();
   });
 });
