@@ -44,6 +44,8 @@ describe("CanvasDesigner", () => {
     expect(handle.exportLayoutState).toBeDefined();
     expect(handle.clearCanvas).toBeDefined();
     expect(handle.arrangeAll).toBeDefined();
+    expect(handle.verifyOverlaps).toBeDefined();
+    expect(handle.clearOverlapHighlights).toBeDefined();
   });
 
   it("exposes exportLayoutState via ref", async () => {
@@ -130,6 +132,17 @@ describe("CanvasDesigner", () => {
     render(<CanvasDesigner ref={ref} />);
     await waitFor(() => expect(ref.current).toBeTruthy());
     await expect(ref.current!.arrangeAll()).resolves.toBe(true);
+  });
+
+  it("verifyOverlaps reports valid for empty canvas", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+    await expect(ref.current!.verifyOverlaps()).resolves.toEqual({
+      valid: true,
+      overlappingIds: [],
+      pairs: [],
+    });
   });
 
   it("exportLayout returns payload when items exist", async () => {

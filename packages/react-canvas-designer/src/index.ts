@@ -8,6 +8,10 @@ export {
 } from "./CanvasDesigner";
 export type { AutoArrangeOptions } from "./autoArrange";
 export {
+  verifyItemOverlaps,
+  type OverlapVerifyItem,
+} from "./overlapVerifier";
+export {
   buildDuplicatesToFit,
   buildGroupDuplicatesToFit,
   getAdjacentCopyPosition,
@@ -45,6 +49,10 @@ export type {
   CanvasLayoutAsset,
   CanvasLayoutExport,
 } from "./types";
+export type {
+  OverlapVerifyOptions,
+  OverlapVerifyResult,
+} from "@jeffgo10/shared-types";
 export {
   canvasPixelsToUnit,
   formatCanvasDimensions,

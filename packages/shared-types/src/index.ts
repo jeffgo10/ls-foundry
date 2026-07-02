@@ -85,6 +85,25 @@ export type CanvasLayoutExport = {
   assets: CanvasLayoutAsset[];
 };
 
+/** Options for cut-line overlap / minimum-gap verification on the design canvas. */
+export type OverlapVerifyOptions = {
+  /**
+   * Minimum edge-to-edge gap between cut-line bounds in millimeters.
+   * Default 0 — touching outlines count as a violation.
+   */
+  minGapMm?: number;
+  /** Design DPI for mm→px conversion. Default 72. */
+  designDpi?: number;
+};
+
+export type OverlapVerifyResult = {
+  valid: boolean;
+  /** Instance ids of stickers involved in at least one violation. */
+  overlappingIds: string[];
+  /** Unique unordered pairs that violate the gap rule. */
+  pairs: Array<{ a: string; b: string }>;
+};
+
 export function getDesignDpi(
   layout: Pick<CanvasLayout, "designDpi">,
   fallback: number = CANVAS_DPI,

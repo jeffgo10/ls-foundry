@@ -19,16 +19,16 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| `@jeffgo10/shared-types` | **0.2.0** | `instanceId` + `assetId` per layout item |
-| `@jeffgo10/react-canvas-designer` | **0.2.22** | Mobile select-on-press, pinch zoom/rotate selected sticker |
+| `@jeffgo10/shared-types` | **0.2.1** | `instanceId` + `assetId`; overlap verify types |
+| `@jeffgo10/react-canvas-designer` | **0.2.25** | Cut-line overlap uses polygon edge distance (not AABB) |
 | `@jeffgo10/helpers` | **0.3.0** | `./image`, `./gestures`, `./browser`, `./clipboard`; CrowdBadge consumer |
 | `@jeffgo10/canvas-upscaler` | **0.2.0** | Output size from layout dimensions; 1 mm corner markers |
 
 Install both designer packages together:
 
 ```json
-"@jeffgo10/shared-types": "0.2.0",
-"@jeffgo10/react-canvas-designer": "0.2.22",
+"@jeffgo10/shared-types": "0.2.1",
+"@jeffgo10/react-canvas-designer": "0.2.25",
 "@jeffgo10/canvas-upscaler": "0.2.0"
 ```
 
