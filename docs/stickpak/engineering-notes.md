@@ -2,6 +2,27 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## fitToContainer mobile viewport (v0.2.26–0.2.29)
+
+**When:** July 2026 (`react-canvas-designer` **v0.2.29**).
+
+**Problem:** Default A4 canvas (595×842 px) overflows narrow viewports — horizontal scroll on mobile. Storefront had interim CSS hacks on `.konvajs-content`. First `fitToContainer` attempt used CSS-only stage shrinking; dashed shell border, `canvasMarginMm` guide, and W×H labels misaligned on resize.
+
+**Fix (engine):**
+- **`fitToContainer` prop** (boolean, default `false`) — parent must be full width; `ResizeObserver` on container.
+- **Konva-native scale** — stage `width`/`height` = display size; `scaleX`/`scaleY` = fit ratio (never above 1). Design coordinates unchanged for export/clamping.
+- **Shell layout** — content-box width matches scaled stage (not stage + border twice); dashed page border tracks canvas.
+- **Pointer mapping** — `stagePointerToDesign()` for marquee; pinch uses design canvas dimensions.
+- **Selection labels** — `getTransform()` (layer-local) for placement; `displayScale` compensates font/offset so W×H captions stay screen-sized when container resizes.
+
+**Docs app:** `/stickpak` — `fitToContainer` on `CanvasDesigner`; wrapper `w-full` (no `overflow-auto` scroll hack).
+
+**Storefront follow-up:** Bump `@jeffgo10/react-canvas-designer@0.2.29`; pass `fitToContainer` on mobile layout; remove interim viewport CSS hacks.
+
+**Code:** `containerFitScale.ts`, `useContainerFitScale.ts`, `stagePointer.ts`, `SelectionDimensionLabels.tsx`, `CanvasDesigner.tsx`, `apps/docs/src/components/StickPakCanvasSection.tsx`
+
+**Related:** [[Notes — fitToContainer mobile viewport (engine)]], [[Notes — Selection dimension labels]], [[Notes — Mobile canvas fit-to-width viewport]]
+
 ## Cut-line overlap verifier (SP-007)
 
 **When:** July 2026 (`shared-types` **v0.2.1**, `react-canvas-designer` **v0.2.23**).

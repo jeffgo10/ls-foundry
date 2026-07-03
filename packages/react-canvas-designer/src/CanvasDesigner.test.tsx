@@ -36,6 +36,45 @@ describe("CanvasDesigner", () => {
     expect(screen.getByText(/Drop sticker images here/)).toBeInTheDocument();
   });
 
+  it("applies fitToContainer sizing on the canvas shell", async () => {
+    const observe = jest.fn();
+    const disconnect = jest.fn();
+    class MockResizeObserver {
+      callback: ResizeObserverCallback;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        observe();
+      }
+
+      observe = (target: Element) => {
+        Object.defineProperty(target, "clientWidth", {
+          configurable: true,
+          value: 300,
+        });
+        this.callback([], this as unknown as ResizeObserver);
+      };
+
+      disconnect = disconnect;
+    }
+
+    const previous = global.ResizeObserver;
+    global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+    render(
+      <div style={{ width: 300 }}>
+        <CanvasDesigner fitToContainer />
+      </div>,
+    );
+
+    await waitFor(() => {
+      const shell = document.querySelector("[data-canvas-designer]") as HTMLElement;
+      expect(Number.parseFloat(shell.style.width)).toBeCloseTo(298, 0);
+    });
+
+    global.ResizeObserver = previous;
+  });
+
   it("calls onReady with imperative handle", async () => {
     const onReady = jest.fn();
     render(<CanvasDesigner onReady={onReady} />);

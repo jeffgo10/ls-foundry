@@ -81,6 +81,8 @@ import {
   CANVAS_INTERACTION_STYLE,
   getTransformerTouchProfile,
 } from "./transformerTouch";
+import { useContainerFitScale } from "./useContainerFitScale";
+import { stagePointerToDesign } from "./stagePointer";
 import {
   beginPinchTransformSession,
   canPinchResizeSelection,
@@ -196,6 +198,11 @@ export type CanvasDesignerProps = {
   onSelectedIdChange?: (selectedId: string | null) => void;
   /** Fired when the full selection set changes (Shift/Ctrl/Cmd multi-select). */
   onSelectedIdsChange?: (selectedIds: string[]) => void;
+  /**
+   * Scale the canvas down to fit the parent width (never scales above 1).
+   * Parent should span the available width, e.g. `width: 100%`.
+   */
+  fitToContainer?: boolean;
 };
 
 export type ImageSourceFromUrl = {
@@ -472,6 +479,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       backgroundImageUrl,
       onSelectedIdChange,
       onSelectedIdsChange,
+      fitToContainer = false,
     },
     ref,
   ) {
@@ -562,6 +570,17 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const selectionDpi = dimensionDpi ?? canvasConfig.designDpi;
     const marginPx = getCanvasMarginPx(canvasMarginMm, canvasConfig.designDpi);
     const showMarginGuide = showCanvasMargin ?? canvasMarginMm > 0;
+    const { containerRef, fit } = useContainerFitScale(
+      fitToContainer,
+      canvasConfig.canvasWidth,
+      canvasConfig.canvasHeight,
+    );
+    const shellWidth = fitToContainer
+      ? fit.stageDisplayWidth
+      : canvasConfig.canvasWidth;
+    const shellHeight = fitToContainer
+      ? fit.stageDisplayHeight
+      : canvasConfig.canvasHeight;
 
     const selectedIdSet = useMemo(
       () => new Set(selectedIds),
@@ -1198,8 +1217,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         const startPivotStage = touchPairCentroidToStage(
           touchPair,
           containerRect,
-          stage.width(),
-          stage.height(),
+          canvasConfig.canvasWidth,
+          canvasConfig.canvasHeight,
         );
         const startDistance = getTouchPairDistance(touchPair[0], touchPair[1]);
         const startAngleRad = getTouchPairAngleRad(touchPair[0], touchPair[1]);
@@ -1228,7 +1247,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
         return true;
       },
-      [transformerTouchProfile, beginPinchInteraction],
+      [transformerTouchProfile, beginPinchInteraction, canvasConfig.canvasWidth, canvasConfig.canvasHeight],
     );
 
     const applyPinchResize = useCallback(
@@ -1273,8 +1292,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         const currentPivotStage = touchPairCentroidToStage(
           touchPair,
           containerRect,
-          stage.width(),
-          stage.height(),
+          canvasConfig.canvasWidth,
+          canvasConfig.canvasHeight,
         );
         const currentDistance = getTouchPairDistance(touchPair[0], touchPair[1]);
         const currentAngleRad = getTouchPairAngleRad(touchPair[0], touchPair[1]);
@@ -1322,6 +1341,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         clampPlacedTransform,
         minResizeSizeMm,
         canvasConfig.designDpi,
+        canvasConfig.canvasWidth,
+        canvasConfig.canvasHeight,
       ],
     );
 
@@ -1472,7 +1493,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
 
         const stage = target.getStage();
-        const pos = stage?.getPointerPosition();
+        const pos = stage ? stagePointerToDesign(stage) : null;
         if (!stage || !pos) {
           return;
         }
@@ -1491,7 +1512,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
 
         const stage = event.target.getStage();
-        const pos = stage?.getPointerPosition();
+        const pos = stage ? stagePointerToDesign(stage) : null;
         if (!pos) {
           return;
         }
@@ -1750,7 +1771,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const { ref: dropzoneRef, ...canvasShellProps } = getRootProps();
 
     return (
-      <div className={className}>
+      <div
+        ref={fitToContainer ? containerRef : undefined}
+        className={className}
+        style={fitToContainer ? { width: "100%" } : undefined}
+      >
         <div
           {...canvasShellProps}
           ref={(node) => {
@@ -1765,8 +1790,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           style={{
             position: "relative",
             display: "inline-block",
-            width: canvasConfig.canvasWidth,
-            height: canvasConfig.canvasHeight,
+            width: shellWidth,
+            height: shellHeight,
             border: "1px dashed #94a3b8",
             borderRadius: 8,
             boxSizing: "content-box",
@@ -1805,8 +1830,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             </p>
           ) : null}
           <Stage
-            width={canvasConfig.canvasWidth}
-            height={canvasConfig.canvasHeight}
+            width={shellWidth}
+            height={shellHeight}
+            scaleX={fitToContainer ? fit.displayScale : 1}
+            scaleY={fitToContainer ? fit.displayScale : 1}
             style={{ display: "block", ...CANVAS_INTERACTION_STYLE }}
             onMouseDown={handleStageMouseDown}
             onMouseMove={handleStageMouseMove}
@@ -1916,6 +1943,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   widthLabel={selectionDimensionLabels.width}
                   heightLabel={selectionDimensionLabels.height}
                   color={dimensionLabelColor}
+                  displayScale={fitToContainer ? fit.displayScale : 1}
                   liveDimensionFormatting={{
                     unit: dimensionUnit,
                     dpi: selectionDpi,
