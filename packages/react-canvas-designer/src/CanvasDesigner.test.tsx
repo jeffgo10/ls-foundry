@@ -86,6 +86,10 @@ describe("CanvasDesigner", () => {
     expect(handle.verifyOverlaps).toBeDefined();
     expect(handle.clearOverlapHighlights).toBeDefined();
     expect(handle.setSelectedSize).toBeDefined();
+    expect(handle.undo).toBeDefined();
+    expect(handle.redo).toBeDefined();
+    expect(handle.canUndo).toBeDefined();
+    expect(handle.canRedo).toBeDefined();
   });
 
   it("exposes exportLayoutState via ref", async () => {
@@ -95,6 +99,40 @@ describe("CanvasDesigner", () => {
     const state = ref.current!.exportLayoutState();
     expect(state.layout.version).toBe(1);
     expect(state.assets).toEqual([]);
+  });
+
+  it("undoes and redoes sticker placement", async () => {
+    const onHistoryChange = jest.fn();
+    const ref = createRef<CanvasDesignerHandle>();
+    render(
+      <CanvasDesigner ref={ref} onHistoryChange={onHistoryChange} />,
+    );
+    await waitFor(() => expect(ref.current).toBeTruthy());
+    expect(ref.current!.canUndo()).toBe(false);
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() => expect(ref.current!.canUndo()).toBe(true));
+
+    act(() => {
+      expect(ref.current!.undo()).toBe(true);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText(/Drop sticker images here/)).toBeInTheDocument(),
+    );
+    expect(ref.current!.canRedo()).toBe(true);
+
+    act(() => {
+      expect(ref.current!.redo()).toBe(true);
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByText(/Drop sticker images here/)).not.toBeInTheDocument(),
+    );
+    expect(onHistoryChange).toHaveBeenCalled();
   });
 
   it("adds images and clears canvas", async () => {

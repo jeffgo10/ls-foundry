@@ -112,6 +112,17 @@ import {
   type ProxyState,
 } from "./groupTransform";
 import { createInstanceId } from "./createInstanceId";
+import {
+  cloneItemsForHistory,
+  commitGestureHistory,
+  createCanvasHistoryStacks,
+  DEFAULT_HISTORY_LIMIT,
+  getCanRedo,
+  getCanUndo,
+  pushUndoSnapshot,
+  redoHistoryStep,
+  undoHistoryStep,
+} from "./canvasHistory";
 
 export const TRANSFORMER_COLOR = "#2563eb";
 
@@ -207,6 +218,10 @@ export type CanvasDesignerProps = {
    * Parent should span the available width, e.g. `width: 100%`.
    */
   fitToContainer?: boolean;
+  /** Maximum undo snapshots kept in memory. Default 50. */
+  historyLimit?: number;
+  /** Fired when undo/redo availability changes. */
+  onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
 };
 
 export type ImageSourceFromUrl = {
@@ -272,6 +287,12 @@ export type CanvasDesignerHandle = {
    * Returns false when nothing is selected, multiple stickers are selected, or input is invalid.
    */
   setSelectedSize: (options: SetSelectedSizeOptions) => boolean;
+  /** Undo the last design mutation. Returns false when the stack is empty. */
+  undo: () => boolean;
+  /** Redo the last undone mutation. Returns false when the stack is empty. */
+  redo: () => boolean;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 };
 
 function DraggableImage({
@@ -286,6 +307,8 @@ function DraggableImage({
   canvasMarginMm,
   onSelect,
   onChange,
+  onInteractionStart,
+  onInteractionEnd,
   shapeRef,
   draggable,
 }: {
@@ -300,6 +323,8 @@ function DraggableImage({
   canvasMarginMm: number;
   onSelect: (additive: boolean) => void;
   onChange: (next: PlacedImage) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
   shapeRef: (node: Konva.Group | null) => void;
   draggable: boolean;
 }) {
@@ -436,10 +461,18 @@ function DraggableImage({
       draggable={draggable}
       onMouseDown={selectOnPress}
       onTouchStart={selectOnPress}
+      onDragStart={() => onInteractionStart?.()}
       onDragMove={handleDragMove}
-      onDragEnd={(event) => syncFromNode(event.target as Konva.Group)}
+      onDragEnd={(event) => {
+        syncFromNode(event.target as Konva.Group);
+        onInteractionEnd?.();
+      }}
+      onTransformStart={() => onInteractionStart?.()}
       onTransform={(event) => syncFromNode(event.target as Konva.Group)}
-      onTransformEnd={(event) => syncFromNode(event.target as Konva.Group)}
+      onTransformEnd={(event) => {
+        syncFromNode(event.target as Konva.Group);
+        onInteractionEnd?.();
+      }}
     >
       <KonvaImage
         image={image ?? undefined}
@@ -499,6 +532,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       onSelectedIdChange,
       onSelectedIdsChange,
       fitToContainer = false,
+      historyLimit = DEFAULT_HISTORY_LIMIT,
+      onHistoryChange,
     },
     ref,
   ) {
@@ -541,6 +576,99 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     onSelectedIdChangeRef.current = onSelectedIdChange;
     const onSelectedIdsChangeRef = useRef(onSelectedIdsChange);
     onSelectedIdsChangeRef.current = onSelectedIdsChange;
+    const onHistoryChangeRef = useRef(onHistoryChange);
+    onHistoryChangeRef.current = onHistoryChange;
+    const historyStacksRef = useRef(createCanvasHistoryStacks(historyLimit));
+    const isApplyingHistoryRef = useRef(false);
+    const gestureBeforeRef = useRef<PlacedImage[] | null>(null);
+    const [historyRevision, setHistoryRevision] = useState(0);
+
+    const notifyHistoryChange = useCallback(() => {
+      setHistoryRevision((revision) => revision + 1);
+      onHistoryChangeRef.current?.({
+        canUndo: getCanUndo(historyStacksRef.current),
+        canRedo: getCanRedo(historyStacksRef.current),
+      });
+    }, []);
+
+    const pushHistoryBeforeMutation = useCallback(() => {
+      if (isApplyingHistoryRef.current) {
+        return;
+      }
+      historyStacksRef.current = pushUndoSnapshot(
+        historyStacksRef.current,
+        itemsRef.current,
+      );
+      notifyHistoryChange();
+    }, [notifyHistoryChange]);
+
+    const resetHistory = useCallback(() => {
+      historyStacksRef.current = createCanvasHistoryStacks(historyLimit);
+      gestureBeforeRef.current = null;
+      notifyHistoryChange();
+    }, [historyLimit, notifyHistoryChange]);
+
+    const beginHistoryGesture = useCallback(() => {
+      if (isApplyingHistoryRef.current || gestureBeforeRef.current) {
+        return;
+      }
+      gestureBeforeRef.current = cloneItemsForHistory(itemsRef.current);
+    }, []);
+
+    const endHistoryGesture = useCallback(() => {
+      if (isApplyingHistoryRef.current || !gestureBeforeRef.current) {
+        return;
+      }
+      const before = gestureBeforeRef.current;
+      gestureBeforeRef.current = null;
+      historyStacksRef.current = commitGestureHistory(
+        historyStacksRef.current,
+        before,
+        itemsRef.current,
+      );
+      notifyHistoryChange();
+    }, [notifyHistoryChange]);
+
+    const undo = useCallback(() => {
+      const result = undoHistoryStep(historyStacksRef.current, itemsRef.current);
+      if (!result) {
+        return false;
+      }
+
+      isApplyingHistoryRef.current = true;
+      historyStacksRef.current = result.stacks;
+      setItems(result.items);
+      setOverlapHighlightIds([]);
+      isApplyingHistoryRef.current = false;
+      notifyHistoryChange();
+      return true;
+    }, [notifyHistoryChange]);
+
+    const redo = useCallback(() => {
+      const result = redoHistoryStep(historyStacksRef.current, itemsRef.current);
+      if (!result) {
+        return false;
+      }
+
+      isApplyingHistoryRef.current = true;
+      historyStacksRef.current = result.stacks;
+      setItems(result.items);
+      setOverlapHighlightIds([]);
+      isApplyingHistoryRef.current = false;
+      notifyHistoryChange();
+      return true;
+    }, [notifyHistoryChange]);
+
+    const canUndo = useCallback(
+      () => getCanUndo(historyStacksRef.current),
+      // historyRevision keeps the imperative handle in sync after stack changes.
+      [historyRevision],
+    );
+
+    const canRedo = useCallback(
+      () => getCanRedo(historyStacksRef.current),
+      [historyRevision],
+    );
 
     const transformerTouchProfile = useMemo(
       () => getTransformerTouchProfile(touchFriendly),
@@ -796,6 +924,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             );
           }),
         );
+        resetHistory();
         setSelectedIds([]);
         shapeRefs.current.clear();
         setCanvasConfig({
@@ -805,14 +934,23 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           printDpi: getPrintDpi(input.layout),
         });
       },
-      [canvasMarginMm],
+      [canvasMarginMm, resetHistory],
     );
 
     const clearCanvas = useCallback(() => {
+      pushHistoryBeforeMutation();
+      for (const item of itemsRef.current) {
+        if (
+          item.src.startsWith("blob:") &&
+          typeof URL.revokeObjectURL === "function"
+        ) {
+          URL.revokeObjectURL(item.src);
+        }
+      }
       setItems([]);
       setSelectedIds([]);
       shapeRefs.current.clear();
-    }, []);
+    }, [pushHistoryBeforeMutation]);
 
     const exportLayout = useCallback(async () => {
       const payload = await buildExport();
@@ -833,15 +971,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       const activeIds = selectedIdsRef.current;
       if (activeIds.length === 0) return;
 
+      pushHistoryBeforeMutation();
       const idSet = new Set(activeIds);
-      setItems((current) => {
-        for (const item of current) {
-          if (idSet.has(item.instanceId) && item.src.startsWith("blob:")) {
-            URL.revokeObjectURL(item.src);
-          }
-        }
-        return current.filter((entry) => !idSet.has(entry.instanceId));
-      });
+      setItems((current) =>
+        current.filter((entry) => !idSet.has(entry.instanceId)),
+      );
       for (const id of activeIds) {
         shapeRefs.current.delete(id);
       }
@@ -852,23 +986,34 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         transformer.nodes([]);
         transformer.getLayer()?.batchDraw();
       }
-    }, []);
+    }, [pushHistoryBeforeMutation]);
 
     useEffect(() => {
-      const onKeyDown = (event: KeyboardEvent) => {
-        if (event.key !== "Delete" && event.key !== "Backspace") return;
-        if (selectedIdsRef.current.length === 0) return;
+      const isEditableTarget = (target: EventTarget | null) =>
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
 
-        const target = event.target;
-        if (
-          target instanceof HTMLElement &&
-          (target.tagName === "INPUT" ||
-            target.tagName === "TEXTAREA" ||
-            target.tagName === "SELECT" ||
-            target.isContentEditable)
-        ) {
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (isEditableTarget(event.target)) {
           return;
         }
+
+        const mod = event.metaKey || event.ctrlKey;
+        if (mod && event.key.toLowerCase() === "z") {
+          event.preventDefault();
+          if (event.shiftKey) {
+            redo();
+          } else {
+            undo();
+          }
+          return;
+        }
+
+        if (event.key !== "Delete" && event.key !== "Backspace") return;
+        if (selectedIdsRef.current.length === 0) return;
 
         event.preventDefault();
         deleteSelectedItems();
@@ -876,7 +1021,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
-    }, [deleteSelectedItems]);
+    }, [deleteSelectedItems, redo, undo]);
 
     const runAutoArrange = useCallback(
       async (options?: AutoArrangeOptions): Promise<boolean> => {
@@ -897,11 +1042,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           designDpi: options?.designDpi ?? canvasConfig.designDpi,
         });
 
+        pushHistoryBeforeMutation();
         setItems(arranged);
         onAutoArrange?.({ allPlaced });
         return allPlaced;
       },
-      [autoArrangeGapMm, canvasConfig, canvasMarginMm, clearSelection, onAutoArrange],
+      [autoArrangeGapMm, canvasConfig, canvasMarginMm, clearSelection, onAutoArrange, pushHistoryBeforeMutation],
     );
 
     useEffect(() => {
@@ -1023,6 +1169,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       frozenProxyBoxRef.current = box;
       isGroupTransformingRef.current = true;
       setGroupTransforming(true);
+      beginHistoryGesture();
       groupTransformSnapshotRef.current = {
         items: selected.map((item) => ({
           instanceId: item.instanceId,
@@ -1036,7 +1183,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         })),
         proxy: readProxyState(proxy, box.width, box.height),
       };
-    }, []);
+    }, [beginHistoryGesture]);
 
     const endGroupInteraction = useCallback(() => {
       applyLiveGroupTransform();
@@ -1050,7 +1197,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       frozenProxyBoxRef.current = null;
       isGroupTransformingRef.current = false;
       setGroupTransforming(false);
-    }, [applyLiveGroupTransform]);
+      endHistoryGesture();
+    }, [applyLiveGroupTransform, endHistoryGesture]);
 
     useEffect(() => {
       const transformer = transformerRef.current;
@@ -1147,6 +1295,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     }, []);
 
     const beginPinchInteraction = useCallback((node: Konva.Group) => {
+      beginHistoryGesture();
       node.stopDrag();
       node.draggable(false);
       const transformer = transformerRef.current;
@@ -1155,7 +1304,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         transformer.rotateEnabled(false);
         transformer.getLayer()?.batchDraw();
       }
-    }, []);
+    }, [beginHistoryGesture]);
 
     const restorePinchInteraction = useCallback(() => {
       const selectedId = selectedIdsRef.current[0];
@@ -1199,12 +1348,14 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const endPinchResize = useCallback(() => {
       syncPinchNodeToItems();
       restorePinchInteraction();
+      endHistoryGesture();
       pinchResizeSessionRef.current = null;
       isPinchResizingRef.current = false;
       detachPinchWindowListeners();
     }, [
       syncPinchNodeToItems,
       restorePinchInteraction,
+      endHistoryGesture,
       detachPinchWindowListeners,
     ]);
 
@@ -1624,6 +1775,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             canvasMarginMm,
             canvasConfig.designDpi,
           );
+          pushHistoryBeforeMutation();
           setItems((current) => [...current, placed]);
           setSelectedIds([instanceId]);
           if (autoArrangeOnAdd) {
@@ -1634,7 +1786,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           console.error("Failed to load image:", src);
         };
       },
-      [autoArrangeOnAdd, canvasConfig, canvasMarginMm],
+      [autoArrangeOnAdd, canvasConfig, canvasMarginMm, pushHistoryBeforeMutation],
     );
 
     const onDrop = useCallback(
@@ -1699,10 +1851,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           return 0;
         }
 
+        pushHistoryBeforeMutation();
         setItems((current) => [...current, ...copies]);
         return addedCount;
       },
-      [autoArrangeGapMm, canvasConfig, canvasMarginMm],
+      [autoArrangeGapMm, canvasConfig, canvasMarginMm, pushHistoryBeforeMutation],
     );
 
     const duplicateSelectedHorizontally = useCallback(
@@ -1751,6 +1904,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           return false;
         }
 
+        pushHistoryBeforeMutation();
         const next = clampPlacedTransform({
           ...item,
           scaleX: scales.scaleX,
@@ -1774,6 +1928,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         dimensionUnit,
         minResizeSizeMm,
         selectionDpi,
+        pushHistoryBeforeMutation,
         updateItem,
       ],
     );
@@ -1804,6 +1959,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         verifyOverlaps,
         clearOverlapHighlights,
         setSelectedSize,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
       }),
       [
         exportLayout,
@@ -1817,6 +1976,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         verifyOverlaps,
         clearOverlapHighlights,
         setSelectedSize,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
       ],
     );
 
@@ -1955,6 +2118,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                     handleSelectItem(item.instanceId, additive)
                   }
                   onChange={updateItem}
+                  onInteractionStart={beginHistoryGesture}
+                  onInteractionEnd={endHistoryGesture}
                   draggable={!multiSelectActive}
                   shapeRef={(node) => {
                     if (node) {

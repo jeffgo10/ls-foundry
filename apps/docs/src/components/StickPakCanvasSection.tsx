@@ -47,6 +47,8 @@ function StickPakCanvasSection() {
   const [overlapMessage, setOverlapMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const hasSelection = selectedIds.length > 0;
   const hasSingleSelection = selectedIds.length === 1;
 
@@ -318,6 +320,10 @@ function StickPakCanvasSection() {
           dimensionUnit={dimensionUnit}
           onSelectedIdsChange={setSelectedIds}
           onSelectionDimensionsChange={setSelectionDimensions}
+          onHistoryChange={({ canUndo: undoAvailable, canRedo: redoAvailable }) => {
+            setCanUndo(undoAvailable);
+            setCanRedo(redoAvailable);
+          }}
           onAutoArrange={({ allPlaced }) => {
             setDuplicateMessage("");
             setOverlapMessage("");
@@ -338,6 +344,22 @@ function StickPakCanvasSection() {
             : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select."}
         </p>
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => designerRef.current?.undo()}
+            disabled={!canUndo}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => designerRef.current?.redo()}
+            disabled={!canRedo}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Redo
+          </button>
           <button
             type="button"
             onClick={() => handleDuplicate("horizontal")}

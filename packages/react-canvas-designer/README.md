@@ -113,6 +113,8 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `backgroundImageUrl` | — | A4/page background inside Konva (`listening={false}`) — avoids mobile Save-image long-press on CSS backgrounds |
 | `onSelectedIdChange` | — | Primary selection id (last clicked); `null` when empty |
 | `onSelectedIdsChange` | — | Full selection set (Shift/Ctrl/Cmd multi-select) |
+| `historyLimit` | `50` | Maximum undo snapshots kept in memory |
+| `onHistoryChange` | — | `{ canUndo, canRedo }` when stack availability changes |
 
 ## Imperative API (`ref` / `onReady`)
 
@@ -128,6 +130,11 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `duplicateSelectedHorizontally({ gapMm? })` | Copies of the selection to the right until the printable area is full; multi-select duplicates the whole block together |
 | `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; multi-select duplicates the whole block together |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
+| `setSelectedSize({ width?, height?, unit?, lockAspectRatio? })` | Resize the single selected sticker from typed dimensions |
+| `undo()` / `redo()` | Step backward/forward through design mutations; returns `false` when unavailable |
+| `canUndo()` / `canRedo()` | Whether undo/redo is available |
+
+Keyboard shortcuts (when focus is not in a form field): **Ctrl/Cmd+Z** undo, **Ctrl/Cmd+Shift+Z** redo. History covers add/delete/move/resize/rotate/duplicate/arrange/clear and typed size changes. Drag and transform gestures commit one snapshot per interaction. Stack logic lives in `@jeffgo10/history`; canvas-specific cloning in `canvasHistory.ts`.
 
 ## Layout item identity
 
