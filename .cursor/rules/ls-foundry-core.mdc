@@ -42,7 +42,7 @@ Also update the pin table below, `docs/stickpak/phase-1.md` version table + inst
 | Package | Version |
 |---------|---------|
 | `@jeffgo10/shared-types` | 0.2.2 |
-| `@jeffgo10/react-canvas-designer` | 0.2.31 |
+| `@jeffgo10/react-canvas-designer` | 0.2.33 |
 | `@jeffgo10/canvas-upscaler` | 0.2.0 |
 
 Always bump `shared-types` first when changing layout/DPI APIs; keep dependent package pins in sync.
@@ -52,6 +52,7 @@ Always bump `shared-types` first when changing layout/DPI APIs; keep dependent p
 | Package | Version | Docs |
 |---------|---------|------|
 | `@jeffgo10/helpers` | 0.3.0 | `packages/helpers/` (`./image`, `./gestures`, `./browser`, `./clipboard`) |
+| `@jeffgo10/history` | 0.1.0 | `packages/history/` — generic undo/redo snapshot stacks |
 | `@jeffgo10/three-d-label-customizer` | 0.1.0 | `docs/three-d-label-customizer/` |
 | `@jeffgo10/gl-viewer` | 0.3.1 | `packages/gl-viewer/` (consumer: **LiteShadeMedia**) |
 

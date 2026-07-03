@@ -1,0 +1,16 @@
+export {
+  commitGestureHistory,
+  createHistoryStacks,
+  defaultClone,
+  defaultEquals,
+  DEFAULT_HISTORY_LIMIT,
+  getCanRedo,
+  getCanUndo,
+  pushUndoSnapshot,
+  redoStep,
+  resetHistoryStacks,
+  undoStep,
+  type HistoryConfig,
+  type HistoryStacks,
+  type HistoryStepResult,
+} from "./history";

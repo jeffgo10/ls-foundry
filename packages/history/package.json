@@ -1,12 +1,12 @@
 {
-  "name": "@jeffgo10/react-canvas-designer",
-  "version": "0.2.33",
-  "description": "72 DPI A4 Konva canvas for StickPak sticker layout design",
+  "name": "@jeffgo10/history",
+  "version": "0.1.0",
+  "description": "Generic undo/redo snapshot stacks for editors and canvas apps",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/jeffgo10/ls-foundry.git",
-    "directory": "packages/react-canvas-designer"
+    "directory": "packages/history"
   },
   "type": "module",
   "sideEffects": false,
@@ -32,28 +32,8 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "dependencies": {
-    "@jeffgo10/helpers": "workspace:*",
-    "@jeffgo10/history": "workspace:*",
-    "@jeffgo10/shared-types": "workspace:*"
-  },
-  "peerDependencies": {
-    "konva": "^9.0.0",
-    "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0",
-    "react-dropzone": "^14.0.0",
-    "react-konva": "^19.0.0"
-  },
   "devDependencies": {
-    "@ls-foundry/test-utils": "workspace:*",
     "@ls-foundry/tsconfig": "workspace:*",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
-    "konva": "^9.3.20",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-dropzone": "^14.3.8",
-    "react-konva": "^19.0.3",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3"
   }

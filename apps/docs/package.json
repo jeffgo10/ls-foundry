@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@jeffgo10/gl-viewer": "workspace:*",
+    "@jeffgo10/history": "workspace:*",
     "@jeffgo10/react-canvas-designer": "workspace:*",
     "@jeffgo10/shared-types": "workspace:*",
     "@jeffgo10/three-d-label-customizer": "workspace:*",

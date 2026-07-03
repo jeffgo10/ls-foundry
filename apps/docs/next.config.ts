@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@jeffgo10/gl-viewer",
     "@jeffgo10/helpers",
+    "@jeffgo10/history",
     "@jeffgo10/react-canvas-designer",
     "@jeffgo10/shared-types",
     "@jeffgo10/three-d-label-customizer",
@@ -28,6 +29,7 @@ const nextConfig: NextConfig = {
         packageSrc,
         "react-canvas-designer/src/index.ts",
       ),
+      "@jeffgo10/history": path.join(packageSrc, "history/src/index.ts"),
       "@jeffgo10/three-d-label-customizer": path.join(
         packageSrc,
         "three-d-label-customizer/src/index.ts",

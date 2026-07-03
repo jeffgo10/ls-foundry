@@ -2,6 +2,28 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Canvas undo/redo (SP-010)
+
+**When:** July 2026 (`react-canvas-designer` **v0.2.33**, `@jeffgo10/history` **v0.1.0**).
+
+**Goal:** Undo/redo for design mutations — add, delete, move, resize, rotate, duplicate, arrange, clear canvas, and typed size changes.
+
+**Engine:**
+- `@jeffgo10/history` (**v0.1.0**) — generic undo/redo snapshot stacks (`createHistoryStacks`, `pushUndoSnapshot`, `undoStep`/`redoStep`, `commitGestureHistory`).
+- `canvasHistory.ts` — StickPak adapter with `HistoryPlacedImage` clone/equality for cut-line points.
+- Gesture commits on drag/transform/pinch/group-transform **end** (not every frame).
+- `CanvasDesignerHandle.undo()` / `redo()` / `canUndo()` / `canRedo()`; `onHistoryChange` prop.
+- Keyboard: **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z** (skipped when focus is in a form field).
+- `loadLayoutFromSources` resets history; delete no longer revokes blob URLs so undo can restore dropped images.
+
+**Docs app:** `/stickpak` — Undo/Redo toolbar buttons wired to imperative handle.
+
+**Storefront follow-up:** Mount undo/redo buttons on the canvas toolbar; rely on built-in keyboard shortcuts.
+
+**Code:** `packages/history/`, `canvasHistory.ts`, `CanvasDesigner.tsx`, `apps/docs/src/components/StickPakCanvasSection.tsx`
+
+**Related:** StickPak Kanban **SP-010**
+
 ## Manual width/height input for selected sticker (SP-008)
 
 **When:** July 2026 (`shared-types` **v0.2.2**, `react-canvas-designer` **v0.2.31**).
