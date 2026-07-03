@@ -36,6 +36,19 @@ export function canvasPixelsToUnit(
   return inches * 25.4;
 }
 
+/** Convert a physical length to canvas pixels at the given DPI. */
+export function unitToCanvasPixels(
+  value: number,
+  unit: DimensionUnit,
+  dpi: number = CANVAS_DPI,
+): number {
+  if (unit === "mm") {
+    return mmToCanvasPixels(value, dpi);
+  }
+  const inches = unit === "in" ? value : value / 2.54;
+  return inches * dpi;
+}
+
 /** Format scaled canvas item width/height for display. */
 export function formatCanvasDimensions(
   widthPx: number,

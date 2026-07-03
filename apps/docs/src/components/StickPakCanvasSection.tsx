@@ -3,6 +3,7 @@
 import type {
   CanvasDesignerHandle,
   DimensionUnit,
+  SelectionDimensionsResult,
 } from "@jeffgo10/react-canvas-designer";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
@@ -35,12 +36,65 @@ function StickPakCanvasSection() {
   const [showSelectionDimensions, setShowSelectionDimensions] = useState(true);
   const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("mm");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectionDimensions, setSelectionDimensions] =
+    useState<SelectionDimensionsResult | null>(null);
+  const [sizeInputWidth, setSizeInputWidth] = useState("");
+  const [sizeInputHeight, setSizeInputHeight] = useState("");
+  const [lockAspectRatio, setLockAspectRatio] = useState(true);
+  const [sizeInputMessage, setSizeInputMessage] = useState("");
   const [arrangeMessage, setArrangeMessage] = useState("");
   const [duplicateMessage, setDuplicateMessage] = useState("");
   const [overlapMessage, setOverlapMessage] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
   const hasSelection = selectedIds.length > 0;
+  const hasSingleSelection = selectedIds.length === 1;
+
+  useEffect(() => {
+    if (!selectionDimensions) {
+      setSizeInputWidth("");
+      setSizeInputHeight("");
+      return;
+    }
+
+    setSizeInputWidth(selectionDimensions.width.toFixed(1));
+    setSizeInputHeight(selectionDimensions.height.toFixed(1));
+  }, [selectionDimensions]);
+
+  const applyTypedSize = (axis: "width" | "height") => {
+    if (!designerRef.current || !hasSingleSelection) {
+      return;
+    }
+
+    const rawValue = axis === "width" ? sizeInputWidth : sizeInputHeight;
+    const parsed = Number.parseFloat(rawValue);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setSizeInputMessage("Enter a positive number for sticker size.");
+      return;
+    }
+
+    const applied = designerRef.current.setSelectedSize({
+      unit: dimensionUnit,
+      lockAspectRatio,
+      ...(axis === "width" ? { width: parsed } : { height: parsed }),
+    });
+
+    setSizeInputMessage(
+      applied
+        ? `Updated selected sticker ${axis}.`
+        : "Could not apply that size — check the value and printable area.",
+    );
+  };
+
+  const handleSizeInputKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+    axis: "width" | "height",
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      applyTypedSize(axis);
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -181,21 +235,76 @@ function StickPakCanvasSection() {
         Show selected sticker size
       </label>
       {showSelectionDimensions ? (
-        <label className="flex items-center gap-2 text-sm text-white/70">
-          Size unit
-          <select
-            value={dimensionUnit}
-            onChange={(event) =>
-              setDimensionUnit(event.target.value as DimensionUnit)
-            }
-            className="rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
-          >
-            <option value="mm">mm</option>
-            <option value="cm">cm</option>
-            <option value="in">in</option>
-          </select>
-          <span className="text-white/40">@ 72 DPI design canvas</span>
-        </label>
+        <>
+          <label className="flex items-center gap-2 text-sm text-white/70">
+            Size unit
+            <select
+              value={dimensionUnit}
+              onChange={(event) =>
+                setDimensionUnit(event.target.value as DimensionUnit)
+              }
+              className="rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
+            >
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="in">in</option>
+            </select>
+            <span className="text-white/40">@ 72 DPI design canvas</span>
+          </label>
+          {hasSingleSelection ? (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-white/70">
+                <label className="flex items-center gap-2">
+                  Width
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={sizeInputWidth}
+                    aria-label={`Selected sticker width (${dimensionUnit})`}
+                    onChange={(event) => setSizeInputWidth(event.target.value)}
+                    onBlur={() => applyTypedSize("width")}
+                    onKeyDown={(event) =>
+                      handleSizeInputKeyDown(event, "width")
+                    }
+                    className="w-24 rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
+                  />
+                </label>
+                <label className="flex items-center gap-2">
+                  Height
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={sizeInputHeight}
+                    aria-label={`Selected sticker height (${dimensionUnit})`}
+                    onChange={(event) => setSizeInputHeight(event.target.value)}
+                    onBlur={() => applyTypedSize("height")}
+                    onKeyDown={(event) =>
+                      handleSizeInputKeyDown(event, "height")
+                    }
+                    className="w-24 rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
+                  />
+                </label>
+                <span className="text-white/40">{dimensionUnit}</span>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  checked={lockAspectRatio}
+                  onChange={(event) =>
+                    setLockAspectRatio(event.target.checked)
+                  }
+                  className="size-4 rounded border-white/20"
+                />
+                Lock aspect ratio when typing width or height
+              </label>
+              {sizeInputMessage ? (
+                <p className="text-sm text-white/50">{sizeInputMessage}</p>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       ) : null}
       <div className="w-full rounded-xl border border-white/10 bg-white">
         <CanvasDesigner
@@ -208,6 +317,7 @@ function StickPakCanvasSection() {
           showSelectionDimensions={showSelectionDimensions}
           dimensionUnit={dimensionUnit}
           onSelectedIdsChange={setSelectedIds}
+          onSelectionDimensionsChange={setSelectionDimensions}
           onAutoArrange={({ allPlaced }) => {
             setDuplicateMessage("");
             setOverlapMessage("");
