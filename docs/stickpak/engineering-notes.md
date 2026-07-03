@@ -17,7 +17,9 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Docs app:** `/stickpak` — `fitToContainer` on `CanvasDesigner`; wrapper `w-full` (no `overflow-auto` scroll hack).
 
-**Storefront follow-up:** Bump `@jeffgo10/react-canvas-designer@0.2.29`; pass `fitToContainer` on mobile layout; remove interim viewport CSS hacks.
+**Storefront follow-up:** Bump `@jeffgo10/react-canvas-designer@0.2.30`; pass `fitToContainer` on mobile layout; remove interim viewport CSS hacks.
+
+**v0.2.30 fix:** Sticker drag bounds used Konva `dragBoundFunc`, which receives absolute stage coordinates. With `fitToContainer` stage scale &lt; 1, margin clamp ran in the wrong coordinate space and blocked dragging to the left/top printable edge. Replaced with `onDragMove` clamping via layer-local `node.x()`/`node.y()`.
 
 **Code:** `containerFitScale.ts`, `useContainerFitScale.ts`, `stagePointer.ts`, `SelectionDimensionLabels.tsx`, `CanvasDesigner.tsx`, `apps/docs/src/components/StickPakCanvasSection.tsx`
 
