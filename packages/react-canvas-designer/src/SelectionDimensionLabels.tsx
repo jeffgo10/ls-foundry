@@ -33,6 +33,11 @@ type SelectionDimensionLabelsProps = {
   widthLabel: string;
   heightLabel: string;
   color?: string;
+  /**
+   * Stage display scale when `fitToContainer` is active (1 otherwise).
+   * Compensates font size and edge offset so labels stay screen-sized.
+   */
+  displayScale?: number;
   /** Re-read scale from the node on pinchlive + transform events. */
   liveDimensionFormatting?: {
     unit: DimensionUnit;
@@ -69,19 +74,20 @@ function offsetFromCenter(
 }
 
 /** Map width/height labels to the rotated sticker edges (matches Konva Transformer). */
-function getOrientedLabelPlacements(
+export function getOrientedLabelPlacements(
   node: Konva.Group,
   localWidth: number,
   localHeight: number,
   offset: number,
 ): OrientedPlacements {
-  const transform = node.getAbsoluteTransform();
-  const toStage = (x: number, y: number) => transform.point({ x, y });
+  // Layer-local transform only — stage scale must not affect placement coords.
+  const transform = node.getTransform();
+  const toLayer = (x: number, y: number) => transform.point({ x, y });
 
-  const topRight = toStage(localWidth, 0);
-  const bottomRight = toStage(localWidth, localHeight);
-  const bottomLeft = toStage(0, localHeight);
-  const center = toStage(localWidth / 2, localHeight / 2);
+  const topRight = toLayer(localWidth, 0);
+  const bottomRight = toLayer(localWidth, localHeight);
+  const bottomLeft = toLayer(0, localHeight);
+  const center = toLayer(localWidth / 2, localHeight / 2);
 
   const bottomMid = midpoint(bottomLeft, bottomRight);
   const rightMid = midpoint(topRight, bottomRight);
@@ -107,12 +113,14 @@ function AxisLabel({
   text,
   rotation = 0,
   color,
+  fontSize,
 }: {
   x: number;
   y: number;
   text: string;
   rotation?: number;
   color: string;
+  fontSize: number;
 }) {
   const textRef = useRef<Konva.Text>(null);
 
@@ -123,7 +131,7 @@ function AxisLabel({
     label.offsetX(label.width() / 2);
     label.offsetY(label.height() / 2);
     label.getLayer()?.batchDraw();
-  }, [text, x, y, rotation]);
+  }, [text, x, y, rotation, fontSize]);
 
   return (
     <Text
@@ -131,7 +139,7 @@ function AxisLabel({
       x={x}
       y={y}
       text={text}
-      fontSize={LABEL_FONT_SIZE}
+      fontSize={fontSize}
       fill={color}
       fontFamily="system-ui, -apple-system, sans-serif"
       rotation={rotation}
@@ -148,8 +156,13 @@ export function SelectionDimensionLabels({
   widthLabel,
   heightLabel,
   color = "#2563eb",
+  displayScale = 1,
   liveDimensionFormatting,
 }: SelectionDimensionLabelsProps) {
+  const compensatedScale =
+    displayScale > 0 ? displayScale : 1;
+  const labelFontSize = LABEL_FONT_SIZE / compensatedScale;
+  const labelOffset = LABEL_OFFSET / compensatedScale;
   const [placements, setPlacements] = useState<OrientedPlacements>({
     width: { x: 0, y: 0, rotation: 0 },
     height: { x: 0, y: 0, rotation: 0 },
@@ -170,7 +183,7 @@ export function SelectionDimensionLabels({
 
     const update = () => {
       setPlacements(
-        getOrientedLabelPlacements(node, localWidth, localHeight, LABEL_OFFSET),
+        getOrientedLabelPlacements(node, localWidth, localHeight, labelOffset),
       );
 
       if (liveDimensionFormatting) {
@@ -216,7 +229,7 @@ export function SelectionDimensionLabels({
         node.off(event, update);
       }
     };
-  }, [node, localWidth, localHeight, liveDimensionFormatting]);
+  }, [node, localWidth, localHeight, labelOffset, liveDimensionFormatting]);
 
   if (!node) {
     return null;
@@ -230,6 +243,7 @@ export function SelectionDimensionLabels({
         text={axisLabels.width}
         rotation={placements.width.rotation}
         color={color}
+        fontSize={labelFontSize}
       />
       <AxisLabel
         x={placements.height.x}
@@ -237,6 +251,7 @@ export function SelectionDimensionLabels({
         text={axisLabels.height}
         rotation={placements.height.rotation}
         color={color}
+        fontSize={labelFontSize}
       />
     </>
   );

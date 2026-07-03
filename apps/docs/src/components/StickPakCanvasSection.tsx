@@ -197,9 +197,10 @@ function StickPakCanvasSection() {
           <span className="text-white/40">@ 72 DPI design canvas</span>
         </label>
       ) : null}
-      <div className="w-fit max-w-full overflow-auto rounded-xl border border-white/10 bg-white">
+      <div className="w-full rounded-xl border border-white/10 bg-white">
         <CanvasDesigner
           ref={designerRef}
+          fitToContainer
           showCutLine={showCutLine}
           autoArrangeGapMm={autoArrangeGapMm}
           canvasMarginMm={canvasMarginMm}

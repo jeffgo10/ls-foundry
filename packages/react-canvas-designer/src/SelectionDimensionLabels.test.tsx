@@ -13,8 +13,14 @@ function createMockNode(scaleX = 1, scaleY = 1) {
     off: (event: string, handler: () => void) => {
       listeners.get(event)?.delete(handler);
     },
-    getAbsoluteTransform: () => ({
+    getTransform: () => ({
       point: ({ x, y }: { x: number; y: number }) => ({ x: x + 10, y: y + 20 }),
+    }),
+    getAbsoluteTransform: () => ({
+      point: ({ x, y }: { x: number; y: number }) => ({
+        x: (x + 10) * 0.5,
+        y: (y + 20) * 0.5,
+      }),
     }),
     emit: (event: string) => {
       listeners.get(event)?.forEach((handler) => handler());

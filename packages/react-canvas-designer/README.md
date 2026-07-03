@@ -65,6 +65,18 @@ export function Designer() {
 
 Prefer `onReady={(api) => …}` instead of `ref` when the parent is behind `dynamic()`.
 
+### Responsive / mobile width
+
+The design canvas stays at 595 × 842 px internally (export/upscale unchanged). To fit a narrow viewport, wrap the designer in a full-width container and pass `fitToContainer`:
+
+```tsx
+<div style={{ width: "100%" }}>
+  <CanvasDesigner fitToContainer showCutLine canvasMarginMm={10} />
+</div>
+```
+
+The stage uses Konva’s native `scaleX`/`scaleY` (not CSS-only canvas shrinking), so the printable margin guide, stickers, and clamping all stay aligned in design coordinates. Pointer, marquee, and pinch coordinates are mapped into that same space.
+
 ## Basic usage
 
 ```tsx
@@ -97,6 +109,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `minResizeSizeMm` | `25.4` | Minimum shorter side when resizing (mm) |
 | `showSelectionDimensions` | `false` | On-canvas W × H captions |
 | `touchFriendly` | auto (coarse pointer) | Larger transformer anchors + hit areas on touch devices |
+| `fitToContainer` | `false` | Scale canvas down to fit parent width (never above 1); parent should be full width |
 | `backgroundImageUrl` | — | A4/page background inside Konva (`listening={false}`) — avoids mobile Save-image long-press on CSS backgrounds |
 | `onSelectedIdChange` | — | Primary selection id (last clicked); `null` when empty |
 | `onSelectedIdsChange` | — | Full selection set (Shift/Ctrl/Cmd multi-select) |
