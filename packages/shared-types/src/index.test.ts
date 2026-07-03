@@ -15,6 +15,7 @@ import {
   getPrintDpi,
   isCanvasLayout,
   mmToCanvasPixels,
+  unitToCanvasPixels,
 } from "./index";
 
 describe("@jeffgo10/shared-types", () => {
@@ -40,6 +41,20 @@ describe("@jeffgo10/shared-types", () => {
       expect(canvasPixelsToUnit(72, "mm")).toBeCloseTo(25.4);
       expect(canvasPixelsToUnit(72, "cm")).toBeCloseTo(2.54);
       expect(canvasPixelsToUnit(72, "in")).toBeCloseTo(1);
+    });
+  });
+
+  describe("unitToCanvasPixels", () => {
+    it("converts from mm, cm, and inches", () => {
+      expect(unitToCanvasPixels(25.4, "mm")).toBeCloseTo(72);
+      expect(unitToCanvasPixels(2.54, "cm")).toBeCloseTo(72);
+      expect(unitToCanvasPixels(1, "in")).toBeCloseTo(72);
+    });
+
+    it("round-trips with canvasPixelsToUnit", () => {
+      expect(
+        canvasPixelsToUnit(unitToCanvasPixels(42, "mm"), "mm"),
+      ).toBeCloseTo(42);
     });
   });
 

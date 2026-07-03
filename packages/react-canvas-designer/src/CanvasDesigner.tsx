@@ -77,6 +77,10 @@ import {
   type MarqueeRect,
 } from "./marqueeSelection";
 import {
+  computeScaleFromUnitDimensions,
+  type SetSelectedSizeOptions,
+} from "./manualResize";
+import {
   applyTransformerAnchorHitArea,
   CANVAS_INTERACTION_STYLE,
   getTransformerTouchProfile,
@@ -222,6 +226,8 @@ export type DuplicateFillHandleOptions = {
   gapMm?: number;
 };
 
+export type { SetSelectedSizeOptions } from "./manualResize";
+
 export type CanvasDesignerHandle = {
   exportLayout: () => Promise<CanvasLayoutExport>;
   /** Layout transforms + asset ids for S3-backed persistence (no base64). */
@@ -261,6 +267,11 @@ export type CanvasDesignerHandle = {
   verifyOverlaps: (options?: OverlapVerifyOptions) => Promise<OverlapVerifyResult>;
   /** Clear overlap violation highlights from the canvas. */
   clearOverlapHighlights: () => void;
+  /**
+   * Resize the single selected sticker to typed width and/or height.
+   * Returns false when nothing is selected, multiple stickers are selected, or input is invalid.
+   */
+  setSelectedSize: (options: SetSelectedSizeOptions) => boolean;
 };
 
 function DraggableImage({
@@ -1710,6 +1721,63 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       setOverlapHighlightIds([]);
     }, []);
 
+    const setSelectedSize = useCallback(
+      (options: SetSelectedSizeOptions): boolean => {
+        const selectedId = selectedIdsRef.current[0];
+        if (!selectedId || selectedIdsRef.current.length !== 1) {
+          return false;
+        }
+
+        const item = itemsRef.current.find(
+          (entry) => entry.instanceId === selectedId,
+        );
+        if (!item) {
+          return false;
+        }
+
+        const scales = computeScaleFromUnitDimensions({
+          localWidth: item.width,
+          localHeight: item.height,
+          currentScaleX: item.scaleX,
+          currentScaleY: item.scaleY,
+          width: options.width,
+          height: options.height,
+          unit: options.unit ?? dimensionUnit,
+          dpi: options.dpi ?? selectionDpi,
+          lockAspectRatio: options.lockAspectRatio,
+          minResizeSizeMm,
+        });
+        if (!scales) {
+          return false;
+        }
+
+        const next = clampPlacedTransform({
+          ...item,
+          scaleX: scales.scaleX,
+          scaleY: scales.scaleY,
+        });
+
+        const node = shapeRefs.current.get(selectedId);
+        if (node) {
+          node.scaleX(next.scaleX);
+          node.scaleY(next.scaleY);
+          node.x(next.x);
+          node.y(next.y);
+          node.getLayer()?.batchDraw();
+        }
+
+        updateItem(next);
+        return true;
+      },
+      [
+        clampPlacedTransform,
+        dimensionUnit,
+        minResizeSizeMm,
+        selectionDpi,
+        updateItem,
+      ],
+    );
+
     const verifyOverlaps = useCallback(
       async (options?: OverlapVerifyOptions): Promise<OverlapVerifyResult> => {
         const result = await verifyItemOverlaps(itemsRef.current, {
@@ -1735,6 +1803,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         duplicateSelectedVertically,
         verifyOverlaps,
         clearOverlapHighlights,
+        setSelectedSize,
       }),
       [
         exportLayout,
@@ -1747,6 +1816,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         duplicateSelectedVertically,
         verifyOverlaps,
         clearOverlapHighlights,
+        setSelectedSize,
       ],
     );
 

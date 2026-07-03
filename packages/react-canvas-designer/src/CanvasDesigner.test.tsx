@@ -85,6 +85,7 @@ describe("CanvasDesigner", () => {
     expect(handle.arrangeAll).toBeDefined();
     expect(handle.verifyOverlaps).toBeDefined();
     expect(handle.clearOverlapHighlights).toBeDefined();
+    expect(handle.setSelectedSize).toBeDefined();
   });
 
   it("exposes exportLayoutState via ref", async () => {
@@ -182,6 +183,45 @@ describe("CanvasDesigner", () => {
       overlappingIds: [],
       pairs: [],
     });
+  });
+
+  it("setSelectedSize returns false without a single selection", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+    expect(ref.current!.setSelectedSize({ unit: "mm", width: 50 })).toBe(false);
+  });
+
+  it("setSelectedSize updates scale for the selected sticker", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(
+      <CanvasDesigner ref={ref} dimensionUnit="mm" canvasMarginMm={0} />,
+    );
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    const initialScale =
+      ref.current!.exportLayoutState().layout.items[0]!.scaleX;
+
+    act(() => {
+      expect(
+        ref.current!.setSelectedSize({
+          unit: "mm",
+          width: 50.8,
+          lockAspectRatio: true,
+        }),
+      ).toBe(true);
+    });
+
+    const nextScale = ref.current!.exportLayoutState().layout.items[0]!.scaleX;
+    expect(nextScale).toBeGreaterThan(initialScale);
   });
 
   it("exportLayout returns payload when items exist", async () => {

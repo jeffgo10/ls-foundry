@@ -5,6 +5,7 @@ export {
   type DuplicateFillHandleOptions,
   type ImageSourceFromUrl,
   type LayoutLoadInput,
+  type SetSelectedSizeOptions,
 } from "./CanvasDesigner";
 export type { AutoArrangeOptions } from "./autoArrange";
 export {
@@ -38,6 +39,8 @@ export type {
   FormatSelectionDimensions,
   SelectionDimensionsResult,
 } from "./selectionDimensions";
+export type { SetSelectedSizeInput } from "./manualResize";
+export { computeScaleFromUnitDimensions } from "./manualResize";
 export {
   applyTransformerAnchorHitArea,
   CANVAS_INTERACTION_STYLE,
@@ -57,6 +60,7 @@ export {
   canvasPixelsToUnit,
   formatCanvasDimensions,
   mmToCanvasPixels,
+  unitToCanvasPixels,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   CANVAS_DPI,

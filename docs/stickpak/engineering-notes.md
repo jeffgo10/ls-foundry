@@ -2,6 +2,25 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Manual width/height input for selected sticker (SP-008)
+
+**When:** July 2026 (`shared-types` **v0.2.2**, `react-canvas-designer` **v0.2.31**).
+
+**Goal:** Let users set a selected sticker's size by typing exact width and/or height in mm/cm/in (same units as on-canvas dimension labels), not only by dragging transformer handles.
+
+**Engine:**
+- `unitToCanvasPixels()` in `@jeffgo10/shared-types` — inverse of `canvasPixelsToUnit`.
+- `computeScaleFromUnitDimensions()` + `CanvasDesignerHandle.setSelectedSize()` — single-select only; optional `lockAspectRatio` (default true); respects `minResizeSizeMm` and canvas margin clamping; syncs Konva node + transformer.
+- `onSelectionDimensionsChange` already fires current W×H for UI binding.
+
+**Docs app:** `/stickpak` — width/height number inputs when one sticker is selected (blur or Enter to apply); aspect-ratio lock checkbox.
+
+**Storefront follow-up:** Wire the same inputs in the designer toolbar/side panel via `setSelectedSize` + `onSelectionDimensionsChange`.
+
+**Code:** `manualResize.ts`, `CanvasDesigner.tsx`, `packages/shared-types/src/index.ts`, `apps/docs/src/components/StickPakCanvasSection.tsx`
+
+**Related:** [[Notes — Selection dimension labels]], [[Notes — Minimum resize size for stickers]]
+
 ## fitToContainer mobile viewport (v0.2.26–0.2.29)
 
 **When:** July 2026 (`react-canvas-designer` **v0.2.29**).
