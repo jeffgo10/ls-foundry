@@ -395,15 +395,23 @@ function DraggableImage({
     });
   };
 
-  const dragBoundFunc = (pos: { x: number; y: number }) => {
-    return clampItemPosition(
+  // Konva dragBoundFunc uses absolute stage coordinates, which diverge from
+  // design/layer-local coords when the stage is scaled (fitToContainer). Clamp
+  // via dragmove using node.x()/y() instead.
+  const handleDragMove = (event: KonvaEventObject<DragEvent>) => {
+    const node = event.target as Konva.Group;
+    const { x, y } = clampItemPosition(
       marginItem(),
       canvasWidth,
       canvasHeight,
       canvasMarginMm,
       designDpi,
-      pos,
+      { x: node.x(), y: node.y() },
     );
+    if (x !== node.x() || y !== node.y()) {
+      node.x(x);
+      node.y(y);
+    }
   };
 
   return (
@@ -415,9 +423,9 @@ function DraggableImage({
       scaleY={item.scaleY}
       rotation={item.rotation}
       draggable={draggable}
-      dragBoundFunc={dragBoundFunc}
       onMouseDown={selectOnPress}
       onTouchStart={selectOnPress}
+      onDragMove={handleDragMove}
       onDragEnd={(event) => syncFromNode(event.target as Konva.Group)}
       onTransform={(event) => syncFromNode(event.target as Konva.Group)}
       onTransformEnd={(event) => syncFromNode(event.target as Konva.Group)}
