@@ -1,6 +1,7 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { createRef } from "react";
 import { installMockImageLoader } from "@ls-foundry/test-utils";
+import { getMockGroupApi } from "@ls-foundry/test-utils/mockKonva";
 import { CanvasDesigner, type CanvasDesignerHandle } from "./CanvasDesigner";
 import * as duplicateFillModule from "./duplicateFill";
 
@@ -133,6 +134,53 @@ describe("CanvasDesigner", () => {
       expect(screen.queryByText(/Drop sticker images here/)).not.toBeInTheDocument(),
     );
     expect(onHistoryChange).toHaveBeenCalled();
+  });
+
+  it("undoes and redoes sticker move in the same tick as dragend", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} canvasMarginMm={0} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    const before = ref.current!.exportLayoutState().layout.items[0]!;
+    const groupEl = document.querySelector('[data-konva="Group"]');
+    expect(groupEl).toBeTruthy();
+    const node = getMockGroupApi(groupEl!);
+    expect(node).toBeTruthy();
+
+    act(() => {
+      node!.fire("dragstart");
+      node!.x(before.x + 40);
+      node!.y(before.y + 30);
+      node!.fire("dragend");
+    });
+
+    const moved = ref.current!.exportLayoutState().layout.items[0]!;
+    expect(moved.x).toBe(before.x + 40);
+    expect(moved.y).toBe(before.y + 30);
+
+    act(() => {
+      expect(ref.current!.undo()).toBe(true);
+    });
+
+    const restored = ref.current!.exportLayoutState().layout.items[0]!;
+    expect(restored.x).toBe(before.x);
+    expect(restored.y).toBe(before.y);
+
+    act(() => {
+      expect(ref.current!.redo()).toBe(true);
+    });
+
+    const redone = ref.current!.exportLayoutState().layout.items[0]!;
+    expect(redone.x).toBe(before.x + 40);
+    expect(redone.y).toBe(before.y + 30);
   });
 
   it("adds images and clears canvas", async () => {

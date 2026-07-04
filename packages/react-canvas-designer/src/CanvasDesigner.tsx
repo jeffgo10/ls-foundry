@@ -637,6 +637,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
       isApplyingHistoryRef.current = true;
       historyStacksRef.current = result.stacks;
+      itemsRef.current = result.items;
       setItems(result.items);
       setOverlapHighlightIds([]);
       isApplyingHistoryRef.current = false;
@@ -652,6 +653,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
       isApplyingHistoryRef.current = true;
       historyStacksRef.current = result.stacks;
+      itemsRef.current = result.items;
       setItems(result.items);
       setOverlapHighlightIds([]);
       isApplyingHistoryRef.current = false;
@@ -1142,15 +1144,16 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         readProxyState(proxy, box.width, box.height),
       );
 
-      setItems((current) =>
-        current.map((entry) => {
-          const updated = next.find((item) => item.instanceId === entry.instanceId);
-          if (!updated) {
-            return entry;
-          }
-          return clampPlacedTransform({ ...entry, ...updated });
-        }),
-      );
+      // Keep itemsRef in sync before endHistoryGesture (same tick as setState).
+      const updated = itemsRef.current.map((entry) => {
+        const nextEntry = next.find((item) => item.instanceId === entry.instanceId);
+        if (!nextEntry) {
+          return entry;
+        }
+        return clampPlacedTransform({ ...entry, ...nextEntry });
+      });
+      itemsRef.current = updated;
+      setItems(updated);
     }, [clampPlacedTransform]);
 
     const beginGroupInteraction = useCallback(() => {
@@ -1250,11 +1253,13 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const updateItem = useCallback((next: PlacedImage) => {
       setOverlapHighlightIds([]);
-      setItems((current) =>
-        current.map((entry) =>
-          entry.instanceId === next.instanceId ? next : entry,
-        ),
+      // Keep itemsRef in sync before endHistoryGesture runs in the same tick
+      // (drag only commits on dragend, so React has not re-rendered yet).
+      const updated = itemsRef.current.map((entry) =>
+        entry.instanceId === next.instanceId ? next : entry,
       );
+      itemsRef.current = updated;
+      setItems(updated);
     }, []);
 
     const resizeBoundBoxFunc = useCallback(

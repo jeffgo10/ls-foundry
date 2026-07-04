@@ -4,7 +4,7 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 ## Canvas undo/redo (SP-010)
 
-**When:** July 2026 (`react-canvas-designer` **v0.2.33**, `@jeffgo10/history` **v0.1.0**).
+**When:** July 2026 (`react-canvas-designer` **v0.2.34**, `@jeffgo10/history` **v0.1.0**).
 
 **Goal:** Undo/redo for design mutations — add, delete, move, resize, rotate, duplicate, arrange, clear canvas, and typed size changes.
 
@@ -15,6 +15,8 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 - `CanvasDesignerHandle.undo()` / `redo()` / `canUndo()` / `canRedo()`; `onHistoryChange` prop.
 - Keyboard: **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z** (skipped when focus is in a form field).
 - `loadLayoutFromSources` resets history; delete no longer revokes blob URLs so undo can restore dropped images.
+
+**Move fix (v0.2.34):** Drag only writes item `x`/`y` on `dragend`, then commits history in the same tick. `endHistoryGesture` compared against `itemsRef`, which still held the pre-move snapshot because React had not re-rendered yet — so moves were dropped as “no change.” Resize/rotate worked because live `transform` events updated state between frames. Fix: keep `itemsRef` in sync inside `updateItem` / `applyLiveGroupTransform` (and undo/redo) before committing the gesture.
 
 **Docs app:** `/stickpak` — Undo/Redo toolbar buttons wired to imperative handle.
 
