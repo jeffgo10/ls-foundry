@@ -31,7 +31,10 @@ type KonvaStubProps = React.HTMLAttributes<HTMLDivElement> & {
   draggable?: boolean;
   onMouseDown?: unknown;
   onTouchStart?: unknown;
+  onDragStart?: unknown;
+  onDragMove?: unknown;
   onDragEnd?: unknown;
+  onTransformStart?: unknown;
   onTransform?: unknown;
   onTransformEnd?: unknown;
 };
@@ -63,6 +66,11 @@ export type MockGroupApi = {
   };
 };
 
+/** Test helper: read the mock Konva node attached to a `data-konva="Group"` element. */
+export function getMockGroupApi(element: Element): MockGroupApi | null {
+  return (element as HTMLElement & { __mockKonvaNode?: MockGroupApi }).__mockKonvaNode ?? null;
+}
+
 const StageContext = createContext<MockStageApi | null>(null);
 
 function stripKonvaProps(props: KonvaStubProps) {
@@ -91,7 +99,10 @@ function stripKonvaProps(props: KonvaStubProps) {
     draggable: _draggable,
     onMouseDown: _onMouseDown,
     onTouchStart: _onTouchStart,
+    onDragStart: _onDragStart,
+    onDragMove: _onDragMove,
     onDragEnd: _onDragEnd,
+    onTransformStart: _onTransformStart,
     onTransform: _onTransform,
     onTransformEnd: _onTransformEnd,
     ...rest
@@ -156,6 +167,12 @@ export const Group = forwardRef<MockGroupApi, KonvaStubProps>(function GroupStub
     scaleY: scaleYProp = 1,
     rotation: rotationProp = 0,
     draggable: draggableProp = false,
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+    onTransformStart,
+    onTransform,
+    onTransformEnd,
     ...props
   },
   ref,
@@ -169,6 +186,22 @@ export const Group = forwardRef<MockGroupApi, KonvaStubProps>(function GroupStub
     rotation: rotationProp,
     draggable: draggableProp,
   });
+  const handlersRef = useRef({
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+    onTransformStart,
+    onTransform,
+    onTransformEnd,
+  });
+  handlersRef.current = {
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+    onTransformStart,
+    onTransform,
+    onTransformEnd,
+  };
 
   stateRef.current.x = xProp;
   stateRef.current.y = yProp;
@@ -215,7 +248,23 @@ export const Group = forwardRef<MockGroupApi, KonvaStubProps>(function GroupStub
       return stateRef.current.draggable;
     },
     stopDrag: jest.fn(),
-    fire: jest.fn(),
+    fire(event: string) {
+      const target = apiRef.current;
+      const payload = { target, evt: new Event(event) };
+      const handlers = handlersRef.current;
+      const handlerMap: Record<string, unknown> = {
+        dragstart: handlers.onDragStart,
+        dragmove: handlers.onDragMove,
+        dragend: handlers.onDragEnd,
+        transformstart: handlers.onTransformStart,
+        transform: handlers.onTransform,
+        transformend: handlers.onTransformEnd,
+      };
+      const handler = handlerMap[event];
+      if (typeof handler === "function") {
+        handler(payload);
+      }
+    },
     getLayer: () => ({ batchDraw: jest.fn() }),
     getStage: () => stage,
     getAbsoluteTransform: () => ({
@@ -240,7 +289,19 @@ export const Group = forwardRef<MockGroupApi, KonvaStubProps>(function GroupStub
 
   useImperativeHandle(ref, () => apiRef.current);
 
-  return <div data-konva="Group" {...stripKonvaProps(props)} />;
+  return (
+    <div
+      data-konva="Group"
+      ref={(element) => {
+        if (element) {
+          (
+            element as HTMLElement & { __mockKonvaNode?: MockGroupApi }
+          ).__mockKonvaNode = apiRef.current;
+        }
+      }}
+      {...stripKonvaProps(props)}
+    />
+  );
 });
 
 export const Text = forwardRef<
