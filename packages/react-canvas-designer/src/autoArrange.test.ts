@@ -81,4 +81,40 @@ describe("autoArrangeItems", () => {
     });
     expect(result.allPlaced).toBe(false);
   });
+
+  it("tight-traces stickers that already have cut-line offset baked", async () => {
+    const result = await autoArrangeItems(
+      [
+        makeItem("baked", {
+          cutLineOffsetBakedMm: 5,
+          cutLinePoints: undefined,
+        }),
+      ],
+      {
+        canvasWidth: 400,
+        canvasHeight: 400,
+        cutLineOffsetMm: 5,
+      },
+    );
+    expect(result.allPlaced).toBe(true);
+    expect(result.items).toHaveLength(1);
+  });
+
+  it("re-traces short cached contours with cut-line offset when not baked", async () => {
+    const result = await autoArrangeItems(
+      [
+        makeItem("short", {
+          cutLinePoints: [0, 0],
+          cutLineOffsetBakedMm: 0,
+        }),
+      ],
+      {
+        canvasWidth: 400,
+        canvasHeight: 400,
+        cutLineOffsetMm: 5,
+      },
+    );
+    expect(result.allPlaced).toBe(true);
+    expect(result.items).toHaveLength(1);
+  });
 });
