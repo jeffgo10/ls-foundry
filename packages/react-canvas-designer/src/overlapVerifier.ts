@@ -1,10 +1,10 @@
-import { traceAlphaContour } from "@jeffgo10/helpers/image";
 import {
   CANVAS_DPI,
   mmToCanvasPixels,
   type OverlapVerifyOptions,
   type OverlapVerifyResult,
 } from "@jeffgo10/shared-types";
+import { buildCutLinePoints, cutLineOffsetLocalPx } from "./cutLine";
 import { cutLinesViolateGap } from "./cutLineGeometry";
 import type { MarginBoundsItem } from "./canvasMargin";
 
@@ -12,6 +12,16 @@ export type OverlapVerifyItem = MarginBoundsItem & {
   instanceId: string;
   /** Image source for tracing alpha cut lines when `cutLinePoints` are not cached yet. */
   src?: string;
+  scaleX?: number;
+  scaleY?: number;
+};
+
+export type OverlapVerifyRuntimeOptions = OverlapVerifyOptions & {
+  /**
+   * Outward cut-line pad in millimeters when re-tracing.
+   * Ignored when `cutLinePoints` are already cached. Default 5.
+   */
+  cutLineOffsetMm?: number;
 };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -27,6 +37,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 async function resolveCutLinePoints(
   item: OverlapVerifyItem,
+  cutLineOffsetMm: number,
+  designDpi: number,
 ): Promise<number[] | null> {
   if (item.cutLinePoints && item.cutLinePoints.length >= 4) {
     return item.cutLinePoints;
@@ -37,7 +49,18 @@ async function resolveCutLinePoints(
 
   try {
     const image = await loadImage(item.src);
-    const points = traceAlphaContour(image, item.width, item.height);
+    const offsetLocalPx = cutLineOffsetLocalPx(
+      cutLineOffsetMm,
+      designDpi,
+      item.scaleX ?? 1,
+      item.scaleY ?? 1,
+    );
+    const points = buildCutLinePoints(
+      image,
+      item.width,
+      item.height,
+      offsetLocalPx,
+    );
     return points.length >= 4 ? points : null;
   } catch {
     return null;
@@ -51,7 +74,7 @@ async function resolveCutLinePoints(
  */
 export async function verifyItemOverlaps(
   items: OverlapVerifyItem[],
-  options: OverlapVerifyOptions = {},
+  options: OverlapVerifyRuntimeOptions = {},
 ): Promise<OverlapVerifyResult> {
   if (items.length < 2) {
     return { valid: true, overlappingIds: [], pairs: [] };
@@ -59,13 +82,18 @@ export async function verifyItemOverlaps(
 
   const minGapMm = options.minGapMm ?? 0;
   const designDpi = options.designDpi ?? CANVAS_DPI;
+  const cutLineOffsetMm = options.cutLineOffsetMm ?? 5;
   const gapPx = mmToCanvasPixels(minGapMm, designDpi);
 
   const resolved = await Promise.all(
     items.map(async (item) => ({
       instanceId: item.instanceId,
       item,
-      cutLinePoints: await resolveCutLinePoints(item),
+      cutLinePoints: await resolveCutLinePoints(
+        item,
+        cutLineOffsetMm,
+        designDpi,
+      ),
     })),
   );
 

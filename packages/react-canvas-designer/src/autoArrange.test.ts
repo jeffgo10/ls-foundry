@@ -2,7 +2,17 @@ import { installMockImageLoader } from "@ls-foundry/test-utils";
 import { autoArrangeItems, type AutoArrangeItem } from "./autoArrange";
 
 jest.mock("@jeffgo10/helpers/image", () => ({
+  bakeCutLineOffset: jest.fn((image: HTMLImageElement, offsetPx: number) => ({
+    dataUrl: "data:image/png;base64,baked",
+    width: (image.width || 100) + Math.ceil(offsetPx) * 2,
+    height: (image.height || 100) + Math.ceil(offsetPx) * 2,
+    cutLinePoints: [0, 0, 100, 0, 100, 100, 0, 100],
+    pad: Math.ceil(offsetPx),
+    contentScale: 1,
+  })),
   traceAlphaContour: jest.fn(() => [0, 0, 100, 0, 100, 100, 0, 100]),
+  offsetClosedPolygon: jest.fn((points: number[]) => points),
+  dilateBinaryMaskFast: jest.fn((mask: Uint8Array) => mask.slice()),
 }));
 
 function makeItem(id: string, overrides: Partial<AutoArrangeItem> = {}): AutoArrangeItem {
@@ -70,5 +80,41 @@ describe("autoArrangeItems", () => {
       gapMm: 5,
     });
     expect(result.allPlaced).toBe(false);
+  });
+
+  it("tight-traces stickers that already have cut-line offset baked", async () => {
+    const result = await autoArrangeItems(
+      [
+        makeItem("baked", {
+          cutLineOffsetBakedMm: 5,
+          cutLinePoints: undefined,
+        }),
+      ],
+      {
+        canvasWidth: 400,
+        canvasHeight: 400,
+        cutLineOffsetMm: 5,
+      },
+    );
+    expect(result.allPlaced).toBe(true);
+    expect(result.items).toHaveLength(1);
+  });
+
+  it("re-traces short cached contours with cut-line offset when not baked", async () => {
+    const result = await autoArrangeItems(
+      [
+        makeItem("short", {
+          cutLinePoints: [0, 0],
+          cutLineOffsetBakedMm: 0,
+        }),
+      ],
+      {
+        canvasWidth: 400,
+        canvasHeight: 400,
+        cutLineOffsetMm: 5,
+      },
+    );
+    expect(result.allPlaced).toBe(true);
+    expect(result.items).toHaveLength(1);
   });
 });

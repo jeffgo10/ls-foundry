@@ -12,7 +12,7 @@ import {
   type OverlapVerifyOptions,
   type OverlapVerifyResult,
 } from "@jeffgo10/shared-types";
-import { blobUrlToDataUrl, traceAlphaContour } from "@jeffgo10/helpers/image";
+import { blobUrlToDataUrl } from "@jeffgo10/helpers/image";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import {
@@ -39,6 +39,7 @@ import {
   autoArrangeItems,
   type AutoArrangeOptions,
 } from "./autoArrange";
+import { buildCutLinePoints, prepareCutLineMedia, applyPreparedCutLineMedia, yieldToBrowser } from "./cutLine";
 import { verifyItemOverlaps } from "./overlapVerifier";
 import {
   formatDimensionAxisValue,
@@ -141,6 +142,19 @@ type PlacedImage = CanvasItem & {
   height: number;
   /** Runtime alpha contour for margin clamping (not exported in layout JSON). */
   cutLinePoints?: number[];
+  /** Pre-bake library/blob URL so offset mm changes can re-bake. */
+  sourceSrc?: string;
+  /**
+   * Configured white pad amount for this sticker (mm). Kept when offset is off
+   * so re-enabling (or editing the amount) uses the per-image value.
+   */
+  cutLineOffsetMm?: number;
+  /** Offset mm currently baked into `src` (`0` / omitted = none). */
+  cutLineOffsetBakedMm?: number;
+  /** Bake resolution scale vs natural source (`1` = full res). */
+  cutLineBakeContentScale?: number;
+  /** White pad on each side in bake-resolution pixels. */
+  cutLineBakePad?: number;
 };
 
 export type CanvasDesignerProps = {
@@ -156,6 +170,17 @@ export type CanvasDesignerProps = {
    * Default 5. Requires alpha contours; falls back to image bounds when opaque.
    */
   autoArrangeGapMm?: number;
+  /**
+   * Default outward cut-line pad (mm) for new stickers / when enabling without an
+   * explicit amount. Each sticker stores its own `cutLineOffsetMm`. Default 5.
+   */
+  cutLineOffsetMm?: number;
+  /**
+   * When true, newly dropped/added images bake the white cut-line pad immediately
+   * using that sticker's amount (designer default). Default false — opt in per
+   * sticker via `setSelectedCutLineOffset`.
+   */
+  cutLineOffsetOnAdd?: boolean;
   /** Run auto-arrange after each dropped image. Default false. */
   autoArrangeOnAdd?: boolean;
   /** Called after auto-arrange; `allPlaced` is false if any sticker did not fit. */
@@ -250,6 +275,19 @@ export type DuplicateFillHandleOptions = {
   gapMm?: number;
 };
 
+export type SetSelectedCutLineOffsetOptions = {
+  /** Turn white pad on/off. Omit to keep current on/off and only change amount. */
+  enabled?: boolean;
+  /** Per-sticker pad amount in mm. Required (or already stored) when enabling. */
+  offsetMm?: number;
+};
+
+export type SelectedCutLineOffsetState = {
+  enabled: boolean;
+  /** Configured pad amount for this sticker (mm), even when currently off. */
+  offsetMm: number;
+};
+
 export type { SetSelectedSizeOptions } from "./manualResize";
 
 export type CanvasDesignerHandle = {
@@ -296,6 +334,18 @@ export type CanvasDesignerHandle = {
    * Returns false when nothing is selected, multiple stickers are selected, or input is invalid.
    */
   setSelectedSize: (options: SetSelectedSizeOptions) => boolean;
+  /**
+   * Enable/disable or change white cut-line offset on the single selected sticker.
+   * Amount is per sticker; changing `offsetMm` while enabled re-bakes in place.
+   */
+  setSelectedCutLineOffset: (
+    options: SetSelectedCutLineOffsetOptions,
+  ) => Promise<boolean>;
+  /**
+   * Cut-line offset state for the single selected sticker.
+   * `null` when nothing is selected or multi-select is active.
+   */
+  getSelectedCutLineOffset: () => SelectedCutLineOffsetState | null;
   /** Undo the last design mutation. Returns false when the stack is empty. */
   undo: () => boolean;
   /** Redo the last undone mutation. Returns false when the stack is empty. */
@@ -367,16 +417,21 @@ function DraggableImage({
       setCutLinePoints([]);
       return;
     }
-    const points = traceAlphaContour(image, item.width, item.height);
-    setCutLinePoints(points);
+
+    // Offset is baked into the bitmap when enabled. Keep a tight contour cache
+    // and never re-dilate on scale — that was the resize jitter source.
     const existing = itemRef.current.cutLinePoints;
-    const unchanged =
-      existing &&
-      existing.length === points.length &&
-      existing.every((value, index) => value === points[index]);
-    if (!unchanged) {
-      onChange({ ...itemRef.current, cutLinePoints: points });
+    if (existing && existing.length >= 4) {
+      setCutLinePoints(existing);
+      return;
     }
+
+    const points = buildCutLinePoints(image, item.width, item.height, 0);
+    setCutLinePoints(points);
+    if (points.length < 4) {
+      return;
+    }
+    onChange({ ...itemRef.current, cutLinePoints: points });
   }, [image, item.width, item.height, onChange]);
 
   const selectOnPress = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -519,6 +574,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       showCutLine = false,
       cutLineColor = "#ef4444",
       autoArrangeGapMm = 5,
+      cutLineOffsetMm = 5,
+      cutLineOffsetOnAdd = false,
       autoArrangeOnAdd = false,
       onAutoArrange,
       showSelectionDimensions = false,
@@ -896,7 +953,6 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             image.crossOrigin = "anonymous";
             image.src = source.url;
             image.onload = () => {
-              const cutLinePoints = traceAlphaContour(image, image.width, image.height);
               placed.push({
                 instanceId: item.instanceId ?? createInstanceId(),
                 assetId: item.assetId,
@@ -909,7 +965,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 mimeType: source.mimeType ?? "image/png",
                 width: image.width,
                 height: image.height,
-                cutLinePoints,
+                sourceSrc: source.url,
+                cutLineOffsetMm: cutLineOffsetMm,
+                cutLineOffsetBakedMm: 0,
+                cutLineBakeContentScale: 1,
+                cutLineBakePad: 0,
               });
               resolve();
             };
@@ -1057,6 +1117,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           canvasWidth: options?.canvasWidth ?? canvasConfig.canvasWidth,
           canvasHeight: options?.canvasHeight ?? canvasConfig.canvasHeight,
           designDpi: options?.designDpi ?? canvasConfig.designDpi,
+          cutLineOffsetMm: options?.cutLineOffsetMm ?? cutLineOffsetMm,
         });
 
         pushHistoryBeforeMutation();
@@ -1064,7 +1125,15 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         onAutoArrange?.({ allPlaced });
         return allPlaced;
       },
-      [autoArrangeGapMm, canvasConfig, canvasMarginMm, clearSelection, onAutoArrange, pushHistoryBeforeMutation],
+      [
+        autoArrangeGapMm,
+        canvasConfig,
+        canvasMarginMm,
+        clearSelection,
+        cutLineOffsetMm,
+        onAutoArrange,
+        pushHistoryBeforeMutation,
+      ],
     );
 
     useEffect(() => {
@@ -1827,7 +1896,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         image.onload = () => {
           const instanceId = createInstanceId();
           const resolvedAssetId = assetId ?? instanceId;
-          const cutLinePoints = traceAlphaContour(image, image.width, image.height);
+
+          // Place immediately with the raw image so the drop does not hang.
           const draft: PlacedImage = {
             instanceId,
             assetId: resolvedAssetId,
@@ -1840,7 +1910,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             scaleX: 1,
             scaleY: 1,
             rotation: 0,
-            cutLinePoints,
+            sourceSrc: src,
+            cutLineOffsetMm: cutLineOffsetMm,
+            cutLineOffsetBakedMm: 0,
+            cutLineBakeContentScale: 1,
+            cutLineBakePad: 0,
           };
           const placed = prepareItemForCanvasPlacement(
             draft,
@@ -1855,12 +1929,58 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           if (autoArrangeOnAdd) {
             pendingAutoArrangeRef.current = true;
           }
+
+          if (!(cutLineOffsetOnAdd && cutLineOffsetMm > 0)) {
+            return;
+          }
+
+          // Optional bake on add — otherwise user enables per sticker via handle API.
+          void (async () => {
+            await yieldToBrowser();
+            const media = prepareCutLineMedia(
+              image,
+              src,
+              mimeType,
+              cutLineOffsetMm,
+              canvasConfig.designDpi,
+              placed.scaleX,
+              placed.scaleY,
+            );
+            setItems((current) =>
+              current.map((entry) => {
+                if (entry.instanceId !== instanceId) {
+                  return entry;
+                }
+                const artScaleX =
+                  entry.scaleX * Math.max(entry.cutLineBakeContentScale ?? 1, 1e-8);
+                const artScaleY =
+                  entry.scaleY * Math.max(entry.cutLineBakeContentScale ?? 1, 1e-8);
+                return clampPlacedTransform(
+                  applyPreparedCutLineMedia(
+                    entry,
+                    media,
+                    artScaleX,
+                    artScaleY,
+                    cutLineOffsetMm,
+                  ),
+                );
+              }),
+            );
+          })();
         };
         image.onerror = () => {
           console.error("Failed to load image:", src);
         };
       },
-      [autoArrangeOnAdd, canvasConfig, canvasMarginMm, pushHistoryBeforeMutation],
+      [
+        autoArrangeOnAdd,
+        canvasConfig,
+        canvasMarginMm,
+        clampPlacedTransform,
+        cutLineOffsetMm,
+        cutLineOffsetOnAdd,
+        pushHistoryBeforeMutation,
+      ],
     );
 
     const onDrop = useCallback(
@@ -2007,16 +2127,171 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       ],
     );
 
+    const getSelectedCutLineOffset = useCallback((): SelectedCutLineOffsetState | null => {
+      const selectedId = selectedIdsRef.current[0];
+      if (!selectedId || selectedIdsRef.current.length !== 1) {
+        return null;
+      }
+      const item = itemsRef.current.find(
+        (entry) => entry.instanceId === selectedId,
+      );
+      if (!item) {
+        return null;
+      }
+      return {
+        enabled: (item.cutLineOffsetBakedMm ?? 0) > 0,
+        offsetMm: item.cutLineOffsetMm ?? cutLineOffsetMm,
+      };
+    }, [cutLineOffsetMm]);
+
+    const setSelectedCutLineOffset = useCallback(
+      async (options: SetSelectedCutLineOffsetOptions): Promise<boolean> => {
+        const selectedId = selectedIdsRef.current[0];
+        if (!selectedId || selectedIdsRef.current.length !== 1) {
+          return false;
+        }
+
+        const item = itemsRef.current.find(
+          (entry) => entry.instanceId === selectedId,
+        );
+        if (!item) {
+          return false;
+        }
+
+        const currentlyOn = (item.cutLineOffsetBakedMm ?? 0) > 0;
+        const nextEnabled = options.enabled ?? currentlyOn;
+        const nextOffsetMm = Math.max(
+          0,
+          options.offsetMm ?? item.cutLineOffsetMm ?? cutLineOffsetMm,
+        );
+
+        // Amount-only update while still off: remember per-sticker preference.
+        if (!nextEnabled) {
+          if (!currentlyOn) {
+            if (
+              options.offsetMm === undefined ||
+              nextOffsetMm === (item.cutLineOffsetMm ?? cutLineOffsetMm)
+            ) {
+              return true;
+            }
+            pushHistoryBeforeMutation();
+            setItems((current) =>
+              current.map((entry) =>
+                entry.instanceId === selectedId
+                  ? { ...entry, cutLineOffsetMm: nextOffsetMm }
+                  : entry,
+              ),
+            );
+            return true;
+          }
+        } else if (!(nextOffsetMm > 0)) {
+          return false;
+        }
+
+        const alreadyMatches =
+          currentlyOn === nextEnabled &&
+          currentlyOn &&
+          (item.cutLineOffsetBakedMm ?? 0) === nextOffsetMm &&
+          (item.cutLineOffsetMm ?? cutLineOffsetMm) === nextOffsetMm;
+        if (alreadyMatches) {
+          return true;
+        }
+
+        const source = item.sourceSrc ?? item.src;
+        const priorContentScale = Math.max(
+          item.cutLineBakeContentScale ?? 1,
+          1e-8,
+        );
+        const artScaleX = item.scaleX * priorContentScale;
+        const artScaleY = item.scaleY * priorContentScale;
+
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const element = new window.Image();
+          element.crossOrigin = "anonymous";
+          element.onload = () => resolve(element);
+          element.onerror = () =>
+            reject(new Error("Failed to load image for cut-line offset"));
+          element.src = source;
+        }).catch(() => null);
+
+        if (!image) {
+          return false;
+        }
+
+        pushHistoryBeforeMutation();
+        await yieldToBrowser();
+
+        if (!nextEnabled) {
+          const media = prepareCutLineMedia(
+            image,
+            source,
+            item.mimeType,
+            0,
+            canvasConfig.designDpi,
+            artScaleX,
+            artScaleY,
+          );
+          const restored = clampPlacedTransform(
+            applyPreparedCutLineMedia(
+              item,
+              media,
+              artScaleX,
+              artScaleY,
+              nextOffsetMm,
+            ),
+          );
+          setItems((current) =>
+            current.map((entry) =>
+              entry.instanceId === selectedId ? restored : entry,
+            ),
+          );
+          return true;
+        }
+
+        const media = prepareCutLineMedia(
+          image,
+          source,
+          item.mimeType,
+          nextOffsetMm,
+          canvasConfig.designDpi,
+          artScaleX,
+          artScaleY,
+        );
+        const baked = clampPlacedTransform(
+          applyPreparedCutLineMedia(
+            item,
+            media,
+            artScaleX,
+            artScaleY,
+            nextOffsetMm,
+          ),
+        );
+        setItems((current) =>
+          current.map((entry) =>
+            entry.instanceId === selectedId ? baked : entry,
+          ),
+        );
+        return true;
+      },
+      [
+        canvasConfig.designDpi,
+        clampPlacedTransform,
+        cutLineOffsetMm,
+        pushHistoryBeforeMutation,
+      ],
+    );
+
     const verifyOverlaps = useCallback(
       async (options?: OverlapVerifyOptions): Promise<OverlapVerifyResult> => {
         const result = await verifyItemOverlaps(itemsRef.current, {
           minGapMm: options?.minGapMm ?? autoArrangeGapMm,
           designDpi: options?.designDpi ?? canvasConfig.designDpi,
+          cutLineOffsetMm,
         });
         setOverlapHighlightIds(result.overlappingIds);
         return result;
       },
-      [autoArrangeGapMm, canvasConfig.designDpi],
+      [autoArrangeGapMm, canvasConfig.designDpi, cutLineOffsetMm],
     );
 
     const handle = useMemo(
@@ -2033,6 +2308,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         verifyOverlaps,
         clearOverlapHighlights,
         setSelectedSize,
+        setSelectedCutLineOffset,
+        getSelectedCutLineOffset,
         undo,
         redo,
         canUndo,
@@ -2050,6 +2327,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         verifyOverlaps,
         clearOverlapHighlights,
         setSelectedSize,
+        setSelectedCutLineOffset,
+        getSelectedCutLineOffset,
         undo,
         redo,
         canUndo,

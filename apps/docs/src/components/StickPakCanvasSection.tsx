@@ -32,6 +32,7 @@ function StickPakCanvasSection() {
   const [exportedJson, setExportedJson] = useState("");
   const [showCutLine, setShowCutLine] = useState(true);
   const [autoArrangeGapMm, setAutoArrangeGapMm] = useState(5);
+  const [defaultCutLineOffsetMm] = useState(5);
   const [canvasMarginMm, setCanvasMarginMm] = useState(10);
   const [autoArrangeOnAdd, setAutoArrangeOnAdd] = useState(false);
   const [showSelectionDimensions, setShowSelectionDimensions] = useState(true);
@@ -52,9 +53,18 @@ function StickPakCanvasSection() {
   const [isArranging, setIsArranging] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [selectedCutLineOffset, setSelectedCutLineOffset] = useState(false);
+  const [selectedCutLineOffsetMm, setSelectedCutLineOffsetMm] = useState(5);
+  const [isOffsetToggling, setIsOffsetToggling] = useState(false);
   const hasSelection = selectedIds.length > 0;
   const hasSingleSelection = selectedIds.length === 1;
   const isInspectMode = interactionMode === "inspect";
+
+  useEffect(() => {
+    const state = designerRef.current?.getSelectedCutLineOffset?.() ?? null;
+    setSelectedCutLineOffset(state?.enabled === true);
+    setSelectedCutLineOffsetMm(state?.offsetMm ?? defaultCutLineOffsetMm);
+  }, [selectedIds, defaultCutLineOffsetMm]);
 
   useEffect(() => {
     if (!selectionDimensions) {
@@ -218,6 +228,79 @@ function StickPakCanvasSection() {
           className="w-20 rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
         />
       </label>
+      {hasSingleSelection ? (
+        <>
+          <label className="flex items-center gap-2 text-sm text-white/70">
+            Cut-line offset (mm)
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={selectedCutLineOffsetMm}
+              disabled={isOffsetToggling}
+              aria-label="Cut-line offset (mm)"
+              onChange={(event) => {
+                const offsetMm = Number(event.target.value);
+                setSelectedCutLineOffsetMm(offsetMm);
+                setIsOffsetToggling(true);
+                void designerRef.current
+                  ?.setSelectedCutLineOffset?.({ offsetMm })
+                  ?.then((ok) => {
+                    if (!ok) {
+                      const state =
+                        designerRef.current?.getSelectedCutLineOffset?.() ??
+                        null;
+                      setSelectedCutLineOffset(state?.enabled === true);
+                      setSelectedCutLineOffsetMm(
+                        state?.offsetMm ?? defaultCutLineOffsetMm,
+                      );
+                    } else {
+                      const state =
+                        designerRef.current?.getSelectedCutLineOffset?.() ??
+                        null;
+                      setSelectedCutLineOffset(state?.enabled === true);
+                    }
+                  })
+                  .finally(() => setIsOffsetToggling(false));
+              }}
+              className="w-20 rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
+            />
+            <span className="text-white/40">For the selected sticker</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
+            <input
+              type="checkbox"
+              checked={selectedCutLineOffset}
+              disabled={isOffsetToggling || selectedCutLineOffsetMm <= 0}
+              aria-label="Apply cut-line offset to selected sticker"
+              onChange={(event) => {
+                const enabled = event.target.checked;
+                setSelectedCutLineOffset(enabled);
+                setIsOffsetToggling(true);
+                void designerRef.current
+                  ?.setSelectedCutLineOffset?.({
+                    enabled,
+                    offsetMm: selectedCutLineOffsetMm,
+                  })
+                  ?.then((ok) => {
+                    if (!ok) {
+                      const state =
+                        designerRef.current?.getSelectedCutLineOffset?.() ??
+                        null;
+                      setSelectedCutLineOffset(state?.enabled === true);
+                      setSelectedCutLineOffsetMm(
+                        state?.offsetMm ?? defaultCutLineOffsetMm,
+                      );
+                    }
+                  })
+                  .finally(() => setIsOffsetToggling(false));
+              }}
+              className="size-4 rounded border-white/20"
+            />
+            Apply white cut-line offset to selected sticker
+          </label>
+        </>
+      ) : null}
       <label className="flex items-center gap-2 text-sm text-white/70">
         Cut-line gap (mm)
         <input
@@ -336,6 +419,7 @@ function StickPakCanvasSection() {
           fitToContainer
           interactionMode={interactionMode}
           showCutLine={showCutLine}
+          cutLineOffsetMm={defaultCutLineOffsetMm}
           autoArrangeGapMm={autoArrangeGapMm}
           canvasMarginMm={canvasMarginMm}
           autoArrangeOnAdd={autoArrangeOnAdd}

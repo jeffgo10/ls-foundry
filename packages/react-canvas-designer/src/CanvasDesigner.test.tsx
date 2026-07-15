@@ -22,7 +22,17 @@ jest.mock("@jeffgo10/helpers/image", () => ({
     mimeType: "image/png",
     dataUrl: "data:image/png;base64,abc",
   })),
+  bakeCutLineOffset: jest.fn((image: HTMLImageElement, offsetPx: number) => ({
+    dataUrl: "data:image/png;base64,baked",
+    width: (image.width || 100) + Math.ceil(offsetPx) * 2,
+    height: (image.height || 80) + Math.ceil(offsetPx) * 2,
+    cutLinePoints: [0, 0, 10, 0, 10, 10, 0, 10],
+    pad: Math.ceil(offsetPx),
+    contentScale: 1,
+  })),
   traceAlphaContour: jest.fn(() => []),
+  offsetClosedPolygon: jest.fn((points: number[]) => points),
+  dilateBinaryMaskFast: jest.fn((mask: Uint8Array) => mask.slice()),
 }));
 
 describe("CanvasDesigner", () => {
@@ -91,6 +101,8 @@ describe("CanvasDesigner", () => {
     expect(handle.verifyOverlaps).toBeDefined();
     expect(handle.clearOverlapHighlights).toBeDefined();
     expect(handle.setSelectedSize).toBeDefined();
+    expect(handle.setSelectedCutLineOffset).toBeDefined();
+    expect(handle.getSelectedCutLineOffset).toBeDefined();
     expect(handle.undo).toBeDefined();
     expect(handle.redo).toBeDefined();
     expect(handle.canUndo).toBeDefined();
@@ -554,5 +566,86 @@ describe("CanvasDesigner", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (document as any).elementFromPoint;
+  });
+
+  it("toggles cut-line offset per selected sticker", async () => {
+    const { bakeCutLineOffset } = jest.requireMock("@jeffgo10/helpers/image") as {
+      bakeCutLineOffset: jest.Mock;
+    };
+    bakeCutLineOffset.mockClear();
+
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} cutLineOffsetMm={5} canvasMarginMm={0} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    const before = ref.current!.exportLayoutState().layout.items[0]!;
+    act(() => {
+      // Move away from default top-left so we can assert position is preserved.
+      const groupEl = document.querySelector('[data-konva="Group"]');
+      const node = getMockGroupApi(groupEl!);
+      node!.fire("dragstart");
+      node!.x(before.x + 80);
+      node!.y(before.y + 60);
+      node!.fire("dragend");
+    });
+
+    const moved = ref.current!.exportLayoutState().layout.items[0]!;
+    expect(ref.current!.getSelectedCutLineOffset()).toEqual({
+      enabled: false,
+      offsetMm: 5,
+    });
+    expect(bakeCutLineOffset).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await expect(
+        ref.current!.setSelectedCutLineOffset({ enabled: true, offsetMm: 5 }),
+      ).resolves.toBe(true);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.getSelectedCutLineOffset()?.enabled).toBe(true),
+    );
+    expect(bakeCutLineOffset).toHaveBeenCalled();
+    const withOffset = ref.current!.exportLayoutState().layout.items[0]!;
+    // Art should remain near the moved position (pad may shift x/y slightly).
+    expect(withOffset.x).toBeGreaterThan(40);
+    expect(withOffset.y).toBeGreaterThan(30);
+
+    await act(async () => {
+      await expect(
+        ref.current!.setSelectedCutLineOffset({ offsetMm: 8 }),
+      ).resolves.toBe(true);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.getSelectedCutLineOffset()).toEqual({
+        enabled: true,
+        offsetMm: 8,
+      }),
+    );
+
+    await act(async () => {
+      await expect(
+        ref.current!.setSelectedCutLineOffset({ enabled: false }),
+      ).resolves.toBe(true);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.getSelectedCutLineOffset()).toEqual({
+        enabled: false,
+        offsetMm: 8,
+      }),
+    );
+    const restored = ref.current!.exportLayoutState().layout.items[0]!;
+    expect(restored.x).toBeCloseTo(moved.x, 0);
+    expect(restored.y).toBeCloseTo(moved.y, 0);
   });
 });

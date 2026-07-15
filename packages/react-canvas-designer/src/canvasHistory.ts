@@ -25,6 +25,11 @@ export type HistoryPlacedImage = {
   scaleY: number;
   rotation: number;
   cutLinePoints?: number[];
+  sourceSrc?: string;
+  cutLineOffsetMm?: number;
+  cutLineOffsetBakedMm?: number;
+  cutLineBakeContentScale?: number;
+  cutLineBakePad?: number;
 };
 
 export type CanvasHistoryStacks = HistoryStacks<HistoryPlacedImage[]>;

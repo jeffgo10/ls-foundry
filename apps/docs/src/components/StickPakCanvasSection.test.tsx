@@ -8,6 +8,11 @@ const exportLayout = jest.fn(async () => ({
   layout: { version: 1, items: [{ instanceId: "sticker-1" }] },
   assets: [],
 }));
+const getSelectedCutLineOffset = jest.fn((): { enabled: boolean; offsetMm: number } | null => ({
+  enabled: false,
+  offsetMm: 5,
+}));
+const setSelectedCutLineOffset = jest.fn(async () => true);
 
 let mockSelectedIds: string[] = ["sticker-1"];
 
@@ -32,6 +37,8 @@ jest.mock("next/dynamic", () => () =>
       addImagesFromUrls: jest.fn(),
       duplicateSelectedHorizontally,
       duplicateSelectedVertically,
+      getSelectedCutLineOffset,
+      setSelectedCutLineOffset,
     }));
 
     useEffect(() => {
@@ -42,7 +49,7 @@ jest.mock("next/dynamic", () => () =>
   }),
 );
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import StickPakCanvasSection from "./StickPakCanvasSection";
 
@@ -57,6 +64,11 @@ describe("StickPakCanvasSection", () => {
       layout: { version: 1, items: [{ instanceId: "sticker-1" }] },
       assets: [],
     });
+    getSelectedCutLineOffset.mockReset().mockReturnValue({
+      enabled: false,
+      offsetMm: 5,
+    });
+    setSelectedCutLineOffset.mockReset().mockResolvedValue(true);
   });
 
   it("renders section controls and canvas designer", () => {
@@ -150,5 +162,45 @@ describe("StickPakCanvasSection", () => {
     expect(
       screen.getByText(/Inspect: sticker selected/i),
     ).toBeInTheDocument();
+  });
+
+  it("toggles cut-line offset on the selected sticker", async () => {
+    const user = userEvent.setup();
+    render(<StickPakCanvasSection />);
+
+    const checkbox = screen.getByLabelText(
+      /Apply cut-line offset to selected sticker/i,
+    );
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(checkbox);
+    expect(setSelectedCutLineOffset).toHaveBeenCalledWith({
+      enabled: true,
+      offsetMm: 5,
+    });
+  });
+
+  it("updates per-sticker cut-line offset amount", async () => {
+    render(<StickPakCanvasSection />);
+
+    fireEvent.change(screen.getByLabelText(/Cut-line offset \(mm\)/i), {
+      target: { value: "8" },
+    });
+
+    await waitFor(() =>
+      expect(setSelectedCutLineOffset).toHaveBeenCalledWith({ offsetMm: 8 }),
+    );
+  });
+
+  it("hides cut-line offset controls when selection is not a single sticker", () => {
+    mockSelectedIds = [];
+    render(<StickPakCanvasSection />);
+
+    expect(
+      screen.queryByLabelText(/Apply cut-line offset to selected sticker/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Cut-line offset \(mm\)/i),
+    ).not.toBeInTheDocument();
   });
 });
