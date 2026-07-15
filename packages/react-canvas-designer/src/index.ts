@@ -2,6 +2,7 @@ export {
   CanvasDesigner,
   type CanvasDesignerHandle,
   type CanvasDesignerProps,
+  type CanvasInteractionMode,
   type DuplicateFillHandleOptions,
   type ImageSourceFromUrl,
   type LayoutLoadInput,

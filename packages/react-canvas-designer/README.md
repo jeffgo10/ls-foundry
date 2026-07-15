@@ -77,6 +77,21 @@ The design canvas stays at 595 × 842 px internally (export/upscale unchanged). 
 
 The stage uses Konva’s native `scaleX`/`scaleY` (not CSS-only canvas shrinking), so the printable margin guide, stickers, and clamping all stay aligned in design coordinates. Pointer, marquee, and pinch coordinates are mapped into that same space.
 
+### Inspect / wizard preview
+
+For a read-mostly preview (e.g. Get Started sheet builder), pass `interactionMode="inspect"`:
+
+```tsx
+<CanvasDesigner
+  interactionMode="inspect"
+  showCutLine
+  showSelectionDimensions
+  canvasMarginMm={10.5}
+/>
+```
+
+Select a sticker to see the blue border and dimension labels; transform handles stay hidden. Click empty canvas to clear selection.
+
 ## Basic usage
 
 ```tsx
@@ -110,6 +125,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `showSelectionDimensions` | `false` | On-canvas W × H captions |
 | `touchFriendly` | auto (coarse pointer) | Larger transformer anchors + hit areas on touch devices |
 | `fitToContainer` | `false` | Scale canvas down to fit parent width (never above 1); parent should be full width |
+| `interactionMode` | `"edit"` | `"inspect"` = select + blue border + W×H labels only (no handles, move, pinch, marquee, or keyboard delete/undo). Empty-canvas click clears selection. |
 | `backgroundImageUrl` | — | A4/page background inside Konva (`listening={false}`) — avoids mobile Save-image long-press on CSS backgrounds |
 | `onSelectedIdChange` | — | Primary selection id (last clicked); `null` when empty |
 | `onSelectedIdsChange` | — | Full selection set (Shift/Ctrl/Cmd multi-select) |

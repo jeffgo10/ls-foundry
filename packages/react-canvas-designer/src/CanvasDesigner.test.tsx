@@ -1,7 +1,11 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { createRef } from "react";
 import { installMockImageLoader } from "@ls-foundry/test-utils";
-import { getMockGroupApi } from "@ls-foundry/test-utils/mockKonva";
+import {
+  getMockGroupApi,
+  getMockStageApi,
+  getMockTransformerApi,
+} from "@ls-foundry/test-utils/mockKonva";
 import { CanvasDesigner, type CanvasDesignerHandle } from "./CanvasDesigner";
 import * as duplicateFillModule from "./duplicateFill";
 
@@ -405,6 +409,71 @@ describe("CanvasDesigner", () => {
 
     expect(ref.current!.duplicateSelectedHorizontally()).toBe(0);
     buildGroupDuplicatesToFit.mockRestore();
+  });
+
+  it("inspect mode keeps items selectable with drag disabled", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    const onSelectedIdChange = jest.fn();
+    render(
+      <CanvasDesigner
+        ref={ref}
+        interactionMode="inspect"
+        onSelectedIdChange={onSelectedIdChange}
+      />,
+    );
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([
+        { url: "blob:inspect-a", mimeType: "image/png" },
+      ]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    const firstId = ref.current!.exportLayoutState().layout.items[0]!.instanceId;
+    const groupEl = document.querySelector('[data-konva="Group"]');
+    expect(groupEl).toBeTruthy();
+    const node = getMockGroupApi(groupEl!);
+    expect(node).toBeTruthy();
+    expect(node!.draggable()).toBe(false);
+
+    act(() => {
+      node!.fire("mousedown", {
+        evt: { shiftKey: false, ctrlKey: false, metaKey: false },
+        cancelBubble: false,
+      });
+    });
+
+    await waitFor(() => expect(onSelectedIdChange).toHaveBeenCalledWith(firstId));
+
+    // Border + W×H labels only — no resize/rotate handles.
+    const transformerEl = document.querySelector('[data-konva="Transformer"]');
+    expect(transformerEl).toBeTruthy();
+    const transformer = getMockTransformerApi(transformerEl!);
+    expect(transformer).toBeTruthy();
+    await waitFor(() => {
+      expect(transformer!.resizeEnabled()).toBe(false);
+      expect(transformer!.rotateEnabled()).toBe(false);
+      expect(transformer!.enabledAnchors()).toEqual([]);
+    });
+
+    const stageEl = document.querySelector('[data-konva="Stage"]');
+    expect(stageEl).toBeTruthy();
+    const stage = getMockStageApi(stageEl!);
+    expect(stage).toBeTruthy();
+
+    act(() => {
+      stage!.fire("mousedown", {
+        evt: new MouseEvent("mousedown", { button: 0 }),
+      });
+    });
+
+    await waitFor(() =>
+      expect(onSelectedIdChange).toHaveBeenCalledWith(null),
+    );
   });
 
   it("pinch-zooms the selected sticker when touchFriendly", async () => {

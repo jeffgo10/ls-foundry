@@ -42,7 +42,7 @@ Also update the pin table below, `docs/stickpak/phase-1.md` version table + inst
 | Package | Version |
 |---------|---------|
 | `@jeffgo10/shared-types` | 0.2.2 |
-| `@jeffgo10/react-canvas-designer` | 0.2.34 |
+| `@jeffgo10/react-canvas-designer` | 0.2.35 |
 | `@jeffgo10/canvas-upscaler` | 0.2.0 |
 
 Always bump `shared-types` first when changing layout/DPI APIs; keep dependent package pins in sync.

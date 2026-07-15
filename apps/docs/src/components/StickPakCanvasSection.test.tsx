@@ -11,28 +11,35 @@ const exportLayout = jest.fn(async () => ({
 
 let mockSelectedIds: string[] = ["sticker-1"];
 
+let lastInteractionMode: string | undefined;
+
 jest.mock("next/dynamic", () => () =>
-  forwardRef<CanvasDesignerHandle, { onSelectedIdsChange?: (ids: string[]) => void }>(
-    function MockCanvasDesigner({ onSelectedIdsChange }, ref) {
-      useImperativeHandle(ref, () => ({
-        exportLayout,
-        exportLayoutState: jest.fn(),
-        loadLayoutFromSources: jest.fn(),
-        clearCanvas: jest.fn(),
-        arrangeAll,
-        autoArrange: arrangeAll,
-        addImagesFromUrls: jest.fn(),
-        duplicateSelectedHorizontally,
-        duplicateSelectedVertically,
-      }));
+  forwardRef<
+    CanvasDesignerHandle,
+    {
+      onSelectedIdsChange?: (ids: string[]) => void;
+      interactionMode?: string;
+    }
+  >(function MockCanvasDesigner({ onSelectedIdsChange, interactionMode }, ref) {
+    lastInteractionMode = interactionMode;
+    useImperativeHandle(ref, () => ({
+      exportLayout,
+      exportLayoutState: jest.fn(),
+      loadLayoutFromSources: jest.fn(),
+      clearCanvas: jest.fn(),
+      arrangeAll,
+      autoArrange: arrangeAll,
+      addImagesFromUrls: jest.fn(),
+      duplicateSelectedHorizontally,
+      duplicateSelectedVertically,
+    }));
 
-      useEffect(() => {
-        onSelectedIdsChange?.(mockSelectedIds);
-      }, [onSelectedIdsChange]);
+    useEffect(() => {
+      onSelectedIdsChange?.(mockSelectedIds);
+    }, [onSelectedIdsChange]);
 
-      return <div data-testid="canvas-designer">CanvasDesigner</div>;
-    },
-  ),
+    return <div data-testid="canvas-designer">CanvasDesigner</div>;
+  }),
 );
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -42,6 +49,7 @@ import StickPakCanvasSection from "./StickPakCanvasSection";
 describe("StickPakCanvasSection", () => {
   beforeEach(() => {
     mockSelectedIds = ["sticker-1"];
+    lastInteractionMode = undefined;
     duplicateSelectedHorizontally.mockReset().mockReturnValue(2);
     duplicateSelectedVertically.mockReset().mockReturnValue(1);
     arrangeAll.mockReset().mockResolvedValue(true);
@@ -130,5 +138,17 @@ describe("StickPakCanvasSection", () => {
 
     await user.click(screen.getByRole("button", { name: /Duplicate horizontally/i }));
     expect(duplicateSelectedHorizontally).toHaveBeenCalledWith({ gapMm: 8 });
+  });
+
+  it("toggles interactionMode to inspect on the designer", async () => {
+    const user = userEvent.setup();
+    render(<StickPakCanvasSection />);
+
+    expect(lastInteractionMode).toBe("edit");
+    await user.click(screen.getByLabelText(/Inspect mode/i));
+    expect(lastInteractionMode).toBe("inspect");
+    expect(
+      screen.getByText(/Inspect: sticker selected/i),
+    ).toBeInTheDocument();
   });
 });
