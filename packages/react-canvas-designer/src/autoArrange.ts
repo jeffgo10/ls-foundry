@@ -5,13 +5,17 @@ import {
   mmToCanvasPixels,
   type CanvasItem,
 } from "@jeffgo10/shared-types";
-import { traceAlphaContour } from "@jeffgo10/helpers/image";
+import { buildCutLinePoints, cutLineOffsetLocalPx } from "./cutLine";
 
 export type AutoArrangeItem = CanvasItem & {
   src: string;
   mimeType: string;
   width: number;
   height: number;
+  /** Cached alpha contour (already offset / baked when present). */
+  cutLinePoints?: number[];
+  /** When set (>0), `src` already includes a white offset pad — do not re-expand. */
+  cutLineOffsetBakedMm?: number;
 };
 
 export type AutoArrangeOptions = {
@@ -25,6 +29,11 @@ export type AutoArrangeOptions = {
   canvasHeight?: number;
   /** Design DPI for mm→px gap conversion. Default 72. */
   designDpi?: number;
+  /**
+   * Outward cut-line pad in millimeters when re-tracing (Silhouette-style).
+   * Ignored when `cutLinePoints` are already cached on the item. Default 5.
+   */
+  cutLineOffsetMm?: number;
 };
 
 export type AutoArrangeResult = {
@@ -187,13 +196,32 @@ export async function autoArrangeItems(
   const canvasWidth = options.canvasWidth ?? CANVAS_WIDTH;
   const canvasHeight = options.canvasHeight ?? CANVAS_HEIGHT;
   const designDpi = options.designDpi ?? CANVAS_DPI;
+  const cutLineOffsetMm = options.cutLineOffsetMm ?? 5;
   const gapPx = mmToCanvasPixels(gapMm, designDpi);
   const canvasMarginPx = mmToCanvasPixels(canvasMarginMm, designDpi);
 
   const prepared = await Promise.all(
     items.map(async (item) => {
-      const image = await loadImage(item.src);
-      const contour = traceAlphaContour(image, item.width, item.height);
+      let contour = item.cutLinePoints;
+      if (!contour || contour.length < 4) {
+        const image = await loadImage(item.src);
+        // Baked stickers already include the white pad in `src` — tight-trace only.
+        const alreadyBaked = (item.cutLineOffsetBakedMm ?? 0) > 0;
+        const offsetLocalPx = alreadyBaked
+          ? 0
+          : cutLineOffsetLocalPx(
+              cutLineOffsetMm,
+              designDpi,
+              item.scaleX,
+              item.scaleY,
+            );
+        contour = buildCutLinePoints(
+          image,
+          item.width,
+          item.height,
+          offsetLocalPx,
+        );
+      }
       const box = contourBoundsAtOrigin(item, contour, gapPx);
       return { item, box };
     }),

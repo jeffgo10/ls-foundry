@@ -7,6 +7,12 @@ export type TraceAlphaContourOptions = {
   maxDimension?: number;
   /** RDP simplification tolerance in sample pixels. */
   simplifyTolerance?: number;
+  /**
+   * Morphological outward expand in **local image pixels** before tracing.
+   * Dilates the alpha mask then walks the outer boundary — yields a simple
+   * (non-self-intersecting) contour, unlike polyline offset on sharp letterforms.
+   */
+  expandPx?: number;
 };
 
 function perpendicularDistance(point: Point, lineStart: Point, lineEnd: Point) {
@@ -61,39 +67,58 @@ const NEIGHBORS: Point[] = [
   [1, -1],
 ];
 
+/** Circular disk offsets for morphological dilation. */
+function buildDiskOffsets(radius: number): Point[] {
+  const r = Math.max(0, radius);
+  const rCeil = Math.ceil(r);
+  const rSq = r * r;
+  const offsets: Point[] = [];
+  for (let dy = -rCeil; dy <= rCeil; dy += 1) {
+    for (let dx = -rCeil; dx <= rCeil; dx += 1) {
+      if (dx * dx + dy * dy <= rSq + 1e-8) {
+        offsets.push([dx, dy]);
+      }
+    }
+  }
+  return offsets;
+}
+
 /**
- * Trace the outer opaque boundary of a PNG alpha channel for cut-line preview.
- * Returns flat [x, y, ...] points in image-local coordinates.
+ * Dilate a binary mask (1 = opaque) with a circular kernel of the given radius.
  */
-export function traceAlphaContour(
-  image: HTMLImageElement,
-  imageWidth: number,
-  imageHeight: number,
-  options: TraceAlphaContourOptions = {},
-): number[] {
-  const alphaThreshold = options.alphaThreshold ?? 20;
-  const maxDimension = options.maxDimension ?? 400;
-  const simplifyTolerance = options.simplifyTolerance ?? 1.25;
+export function dilateBinaryMask(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+): Uint8Array {
+  if (radius <= 0 || mask.length === 0) {
+    return mask.slice();
+  }
 
-  const longest = Math.max(image.naturalWidth, image.naturalHeight, 1);
-  const sampleScale = longest > maxDimension ? maxDimension / longest : 1;
-  const sampleWidth = Math.max(1, Math.round(image.naturalWidth * sampleScale));
-  const sampleHeight = Math.max(1, Math.round(image.naturalHeight * sampleScale));
+  const out = new Uint8Array(width * height);
+  const disk = buildDiskOffsets(radius);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = sampleWidth;
-  canvas.height = sampleHeight;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) return [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (mask[y * width + x] !== 1) continue;
+      for (const [dx, dy] of disk) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        out[ny * width + nx] = 1;
+      }
+    }
+  }
 
-  context.drawImage(image, 0, 0, sampleWidth, sampleHeight);
-  const { data } = context.getImageData(0, 0, sampleWidth, sampleHeight);
+  return out;
+}
 
-  const isOpaque = (x: number, y: number) => {
-    if (x < 0 || y < 0 || x >= sampleWidth || y >= sampleHeight) return false;
-    return data[(y * sampleWidth + x) * 4 + 3]! > alphaThreshold;
-  };
-
+function walkOuterContour(
+  isOpaque: (x: number, y: number) => boolean,
+  width: number,
+  height: number,
+): Point[] {
   const isBoundary = (x: number, y: number) => {
     if (!isOpaque(x, y)) return false;
     return (
@@ -105,8 +130,8 @@ export function traceAlphaContour(
   };
 
   let start: Point | null = null;
-  outer: for (let y = 0; y < sampleHeight; y += 1) {
-    for (let x = 0; x < sampleWidth; x += 1) {
+  outer: for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
       if (isBoundary(x, y)) {
         start = [x, y];
         break outer;
@@ -118,7 +143,7 @@ export function traceAlphaContour(
   const contour: Point[] = [start];
   let [currentX, currentY] = start;
   let backtrack = 7;
-  const maxSteps = sampleWidth * sampleHeight * 4;
+  const maxSteps = width * height * 4;
 
   for (let step = 0; step < maxSteps; step += 1) {
     let moved = false;
@@ -152,9 +177,74 @@ export function traceAlphaContour(
     if (!moved) break;
   }
 
+  return contour;
+}
+
+/**
+ * Trace the outer opaque boundary of a PNG alpha channel for cut-line preview.
+ * Returns flat [x, y, ...] points in image-local coordinates.
+ *
+ * With `expandPx > 0`, morphologically dilates the alpha before tracing so the
+ * result is a simple outer path (no self-crossing valley loops).
+ */
+export function traceAlphaContour(
+  image: HTMLImageElement,
+  imageWidth: number,
+  imageHeight: number,
+  options: TraceAlphaContourOptions = {},
+): number[] {
+  const alphaThreshold = options.alphaThreshold ?? 20;
+  const maxDimension = options.maxDimension ?? 400;
+  const simplifyTolerance = options.simplifyTolerance ?? 1.25;
+  const expandPx = Math.max(0, options.expandPx ?? 0);
+
+  const longest = Math.max(image.naturalWidth, image.naturalHeight, 1);
+  const sampleScale = longest > maxDimension ? maxDimension / longest : 1;
+  const sampleWidth = Math.max(1, Math.round(image.naturalWidth * sampleScale));
+  const sampleHeight = Math.max(1, Math.round(image.naturalHeight * sampleScale));
+  const expandSamplePx = expandPx * sampleScale;
+  const pad = expandSamplePx > 0 ? Math.ceil(expandSamplePx) + 1 : 0;
+  const paddedWidth = sampleWidth + pad * 2;
+  const paddedHeight = sampleHeight + pad * 2;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = sampleWidth;
+  canvas.height = sampleHeight;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return [];
+
+  context.drawImage(image, 0, 0, sampleWidth, sampleHeight);
+  const { data } = context.getImageData(0, 0, sampleWidth, sampleHeight);
+
+  const mask = new Uint8Array(paddedWidth * paddedHeight);
+  for (let y = 0; y < sampleHeight; y += 1) {
+    for (let x = 0; x < sampleWidth; x += 1) {
+      if (data[(y * sampleWidth + x) * 4 + 3]! > alphaThreshold) {
+        mask[(y + pad) * paddedWidth + (x + pad)] = 1;
+      }
+    }
+  }
+
+  const opaqueMask =
+    expandSamplePx > 0
+      ? dilateBinaryMask(mask, paddedWidth, paddedHeight, expandSamplePx)
+      : mask;
+
+  const isOpaque = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= paddedWidth || y >= paddedHeight) return false;
+    return opaqueMask[y * paddedWidth + x] === 1;
+  };
+
+  const contour = walkOuterContour(isOpaque, paddedWidth, paddedHeight);
+  if (contour.length === 0) return [];
+
   const simplified = simplifyRdp(contour, simplifyTolerance);
   const scaleX = imageWidth / sampleWidth;
   const scaleY = imageHeight / sampleHeight;
 
-  return simplified.flatMap(([x, y]) => [x * scaleX, y * scaleY]);
+  // Remove pad so expanded contours can sit outside 0…imageWidth/Height.
+  return simplified.flatMap(([x, y]) => [
+    (x - pad) * scaleX,
+    (y - pad) * scaleY,
+  ]);
 }

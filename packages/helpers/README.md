@@ -33,6 +33,7 @@ import {
   downloadCanvasAsPng,
   exportCanvasToBlob,
   loadImage,
+  offsetClosedPolygon,
   traceAlphaContour,
 } from "@jeffgo10/helpers/image";
 ```
@@ -41,7 +42,15 @@ import {
 
 Traces the alpha boundary of an `HTMLImageElement` (or canvas image source) in **local image coordinates**. Returns a flat `[x0, y0, x1, y1, …]` array suitable for Konva `Line` points.
 
-Used for cut-line preview, auto-arrange packing, and canvas margin clamping in the designer.
+Optional `expandPx` morphologically dilates the alpha mask before tracing (legacy / verify paths). Prefer `bakeCutLineOffset` for designer placement so resize stays cheap.
+
+### `bakeCutLineOffset(image, offsetPx, options?)`
+
+Dilates the alpha mask (fast BFS), fills the expanded ring with white (default), draws the original art on top, and returns `{ dataUrl, width, height, cutLinePoints, pad, contentScale }`. Large sources are downsampled (default max edge **768**) so drop stays responsive. Used by the designer so cutline offset is baked once (async after place) instead of re-dilating every scale frame.
+
+### `offsetClosedPolygon(points, offset)`
+
+Expands (positive `offset`) or shrinks (negative) a closed flat `[x, y, …]` polygon with **bevel** corner joins. Prefer `bakeCutLineOffset` / `traceAlphaContour({ expandPx })` for cut-line padding on complex letterforms.
 
 ### `blobUrlToDataUrl(blobUrl)`
 

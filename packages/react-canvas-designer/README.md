@@ -117,6 +117,8 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `designDpi` | `72` | DPI for design canvas |
 | `printDpi` | `300` | Target print DPI (stored in layout JSON) |
 | `showCutLine` | `false` | Red alpha-contour preview |
+| `cutLineOffsetMm` | `5` | Default pad amount (mm) for new stickers; each sticker stores its own amount |
+| `cutLineOffsetOnAdd` | `false` | Bake white pad on newly added images automatically |
 | `autoArrangeGapMm` | `5` | Cut-line gap for packing (mm) |
 | `autoArrangeOnAdd` | `false` | Run arrange after each drop |
 | `canvasMarginMm` | `0` | Printable inset; clamp uses **alpha cut line** |
@@ -140,13 +142,15 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `exportLayoutState()` | Layout + `{ assetId, mimeType }[]` for S3 persistence |
 | `loadLayoutFromSources({ layout, sources })` | Restore from presigned URLs |
 | `clearCanvas()` | Remove all stickers |
-| `arrangeAll({ gapMm?, canvasMarginMm? })` | Pack stickers by cut-line spacing |
+| `arrangeAll({ gapMm?, canvasMarginMm?, cutLineOffsetMm? })` | Pack stickers by cut-line spacing |
 | `verifyOverlaps({ minGapMm?, designDpi? })` | Detect alpha cut-line overlap / minimum gap violations; highlights offenders along the cut line |
 | `clearOverlapHighlights()` | Remove overlap violation tint from the canvas |
 | `duplicateSelectedHorizontally({ gapMm? })` | Copies of the selection to the right until the printable area is full; multi-select duplicates the whole block together |
 | `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; multi-select duplicates the whole block together |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
 | `setSelectedSize({ width?, height?, unit?, lockAspectRatio? })` | Resize the single selected sticker from typed dimensions |
+| `setSelectedCutLineOffset({ enabled?, offsetMm? })` | Bake/remove/re-bake white pad on the single selected sticker (per-image amount; keeps position) |
+| `getSelectedCutLineOffset()` | `{ enabled, offsetMm }` when one sticker selected; `null` otherwise |
 | `undo()` / `redo()` | Step backward/forward through design mutations; returns `false` when unavailable |
 | `canUndo()` / `canRedo()` | Whether undo/redo is available |
 

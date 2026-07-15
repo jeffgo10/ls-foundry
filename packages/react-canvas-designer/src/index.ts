@@ -6,6 +6,8 @@ export {
   type DuplicateFillHandleOptions,
   type ImageSourceFromUrl,
   type LayoutLoadInput,
+  type SelectedCutLineOffsetState,
+  type SetSelectedCutLineOffsetOptions,
   type SetSelectedSizeOptions,
 } from "./CanvasDesigner";
 export type { AutoArrangeOptions } from "./autoArrange";
