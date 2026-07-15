@@ -2,6 +2,24 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Inspect-only canvas mode (SP-014 engine)
+
+**When:** July 2026 (`react-canvas-designer` **v0.2.35**, unpublished — last published was **0.2.34**).
+
+**Goal:** Wizard / preview can select a sticker and show cut lines + W×H labels without allowing layout edits.
+
+**API:** `interactionMode?: "edit" | "inspect"` (default `"edit"`).
+
+When `"inspect"`:
+- Select + blue transformer **border** + dimension labels (when enabled)
+- Resize/rotate **handles hidden** (`enabledAnchors=[]`, `resizeEnabled`/`rotateEnabled` false)
+- Click / tap empty canvas clears selection
+- Imperative transformer sync also clears `enabledAnchors` on mode flip so edit handles cannot linger after mount
+- No drag move, pinch, marquee, or keyboard delete/undo
+- Host may still call imperative edits (`setSelectedSize`, etc.); wizard UI simply does not expose them
+
+**Related:** Obsidian `StickPak/noteworthy/canvas-engine/Notes — Inspect-only canvas mode (wizard)`; storefront SP-014 Get Started wizard.
+
 ## Canvas undo/redo (SP-010)
 
 **When:** July 2026 (`react-canvas-designer` **v0.2.34**, `@jeffgo10/history` **v0.1.0**).

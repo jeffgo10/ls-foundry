@@ -12,6 +12,8 @@ function StickPakPage() {
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/50">
           Phase 1 browser test for <code className="text-white/70">@jeffgo10/react-canvas-designer</code>.
           Drop sticker images onto the 72 DPI A4 canvas, drag them into place, then export layout JSON.
+          Toggle <span className="text-white/70">Inspect mode</span> to try the SP-014 wizard preview
+          chrome (select + border + labels, no handles) before publishing.
         </p>
         <Link
           href="/"

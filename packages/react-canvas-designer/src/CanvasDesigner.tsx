@@ -132,6 +132,8 @@ export type {
   SelectionDimensionsResult,
 } from "./selectionDimensions";
 
+export type CanvasInteractionMode = "edit" | "inspect";
+
 type PlacedImage = CanvasItem & {
   src: string;
   mimeType: string;
@@ -218,6 +220,13 @@ export type CanvasDesignerProps = {
    * Parent should span the available width, e.g. `width: 100%`.
    */
   fitToContainer?: boolean;
+  /**
+   * `"edit"` (default): full move/resize/rotate.
+   * `"inspect"`: select + blue selection border + dimension labels only.
+   * Resize/rotate handles stay hidden; no move, pinch, marquee, or
+   * keyboard delete/undo.
+   */
+  interactionMode?: CanvasInteractionMode;
   /** Maximum undo snapshots kept in memory. Default 50. */
   historyLimit?: number;
   /** Fired when undo/redo availability changes. */
@@ -532,11 +541,13 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       onSelectedIdChange,
       onSelectedIdsChange,
       fitToContainer = false,
+      interactionMode = "edit",
       historyLimit = DEFAULT_HISTORY_LIMIT,
       onHistoryChange,
     },
     ref,
   ) {
+    const isInspectMode = interactionMode === "inspect";
     const [items, setItems] = useState<PlacedImage[]>([]);
     const [overlapHighlightIds, setOverlapHighlightIds] = useState<string[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -1003,6 +1014,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           return;
         }
 
+        if (isInspectMode) {
+          return;
+        }
+
         const mod = event.metaKey || event.ctrlKey;
         if (mod && event.key.toLowerCase() === "z") {
           event.preventDefault();
@@ -1023,7 +1038,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
-    }, [deleteSelectedItems, redo, undo]);
+    }, [deleteSelectedItems, isInspectMode, redo, undo]);
 
     const runAutoArrange = useCallback(
       async (options?: AutoArrangeOptions): Promise<boolean> => {
@@ -1059,7 +1074,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       const transformer = transformerRef.current;
       if (!transformer) return;
 
-      if (multiSelectActive) {
+      if (multiSelectActive && !isInspectMode) {
         const proxy = multiSelectProxyRef.current;
         transformer.nodes(proxy ? [proxy] : []);
       } else if (selectedIds.length === 1) {
@@ -1068,8 +1083,18 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       } else {
         transformer.nodes([]);
       }
+      // Inspect: border-only chrome (Konva hides anchors when resize/rotate
+      // are off and enabledAnchors is empty). Keep imperative sync so a mode
+      // flip after mount cannot leave edit handles visible.
+      transformer.resizeEnabled(!isInspectMode);
+      transformer.rotateEnabled(!isInspectMode);
+      transformer.enabledAnchors(
+        isInspectMode
+          ? []
+          : ["top-left", "top-right", "bottom-left", "bottom-right"],
+      );
       transformer.getLayer()?.batchDraw();
-    }, [multiSelectActive, selectedIds, items, activeProxyBox]);
+    }, [isInspectMode, multiSelectActive, selectedIds, items, activeProxyBox]);
 
     useEffect(() => {
       if (
@@ -1289,11 +1314,18 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       [selectedItems, minResizeSizeMm, canvasConfig.designDpi],
     );
 
-    const handleSelectItem = useCallback((instanceId: string, additive: boolean) => {
-      setSelectedIds((current) =>
-        toggleShiftSelection(current, instanceId, additive),
-      );
-    }, []);
+    const handleSelectItem = useCallback(
+      (instanceId: string, additive: boolean) => {
+        setSelectedIds((current) =>
+          toggleShiftSelection(
+            current,
+            instanceId,
+            isInspectMode ? false : additive,
+          ),
+        );
+      },
+      [isInspectMode],
+    );
 
     const detachPinchWindowListeners = useCallback(() => {
       pinchWindowCleanupRef.current?.();
@@ -1315,16 +1347,18 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       const selectedId = selectedIdsRef.current[0];
       const node = selectedId ? shapeRefs.current.get(selectedId) : null;
       if (node) {
-        node.draggable(selectedIdsRef.current.length === 1);
+        node.draggable(
+          !isInspectMode && selectedIdsRef.current.length === 1,
+        );
       }
 
       const transformer = transformerRef.current;
       if (transformer) {
-        transformer.resizeEnabled(true);
-        transformer.rotateEnabled(true);
+        transformer.resizeEnabled(!isInspectMode);
+        transformer.rotateEnabled(!isInspectMode);
         transformer.getLayer()?.batchDraw();
       }
-    }, []);
+    }, [isInspectMode]);
 
     const syncPinchNodeToItems = useCallback(() => {
       const selectedId = selectedIdsRef.current[0];
@@ -1580,6 +1614,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const maybeStartPinchFromShell = useCallback(
       (touches: TouchList): boolean => {
+        if (isInspectMode) {
+          return false;
+        }
         if (!isAnyTouchOnElement(touches, canvasShellRef.current)) {
           return false;
         }
@@ -1590,7 +1627,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         applyPinchResize(touches);
         return true;
       },
-      [tryBeginOrRebasePinchSession, attachPinchWindowListeners, applyPinchResize],
+      [
+        isInspectMode,
+        tryBeginOrRebasePinchSession,
+        attachPinchWindowListeners,
+        applyPinchResize,
+      ],
     );
 
     const maybeStartPinchFromShellRef = useRef(maybeStartPinchFromShell);
@@ -1649,6 +1691,19 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       setMarqueeRect(rect);
     }, []);
 
+    const isEmptyCanvasPointerTarget = useCallback(
+      (target: Konva.Node): boolean => {
+        if (resolveStickerInstanceId(target, shapeRefs.current)) {
+          return false;
+        }
+        if (isTransformerTarget(target)) {
+          return false;
+        }
+        return isCanvasBackgroundTarget(target);
+      },
+      [],
+    );
+
     const handleStageMouseDown = useCallback(
       (event: KonvaEventObject<MouseEvent>) => {
         const nativeEvent = event.evt;
@@ -1657,13 +1712,13 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
 
         const target = event.target as Konva.Node;
-        if (resolveStickerInstanceId(target, shapeRefs.current)) {
+        if (!isEmptyCanvasPointerTarget(target)) {
           return;
         }
-        if (isTransformerTarget(target)) {
-          return;
-        }
-        if (!isCanvasBackgroundTarget(target)) {
+
+        // Inspect / empty-canvas click: clear selection (no marquee).
+        if (isInspectMode) {
+          setSelectedIds([]);
           return;
         }
 
@@ -1677,7 +1732,21 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         marqueeStartRef.current = pos;
         updateMarqueeRect({ x: pos.x, y: pos.y, width: 0, height: 0 });
       },
-      [updateMarqueeRect],
+      [isEmptyCanvasPointerTarget, isInspectMode, updateMarqueeRect],
+    );
+
+    const handleStageTouchStart = useCallback(
+      (event: KonvaEventObject<TouchEvent>) => {
+        if (!isInspectMode) {
+          return;
+        }
+        const target = event.target as Konva.Node;
+        if (!isEmptyCanvasPointerTarget(target)) {
+          return;
+        }
+        setSelectedIds([]);
+      },
+      [isEmptyCanvasPointerTarget, isInspectMode],
     );
 
     const handleStageMouseMove = useCallback(
@@ -2013,6 +2082,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       onDrop,
       accept: { "image/*": [] },
       noClick: items.length > 0,
+      disabled: isInspectMode,
+      noDrag: isInspectMode,
     });
     const { ref: dropzoneRef, ...canvasShellProps } = getRootProps();
 
@@ -2082,6 +2153,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             scaleY={fitToContainer ? fit.displayScale : 1}
             style={{ display: "block", ...CANVAS_INTERACTION_STYLE }}
             onMouseDown={handleStageMouseDown}
+            onTouchStart={handleStageTouchStart}
             onMouseMove={handleStageMouseMove}
             onMouseUp={finishMarquee}
             onContextMenu={(event) => event.evt.preventDefault()}
@@ -2125,7 +2197,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   onChange={updateItem}
                   onInteractionStart={beginHistoryGesture}
                   onInteractionEnd={endHistoryGesture}
-                  draggable={!multiSelectActive}
+                  draggable={!isInspectMode && !multiSelectActive}
                   shapeRef={(node) => {
                     if (node) {
                       shapeRefs.current.set(item.instanceId, node);
@@ -2161,14 +2233,19 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               <Transformer
                 ref={transformerRef}
                 keepRatio
-                rotateEnabled
+                rotateEnabled={!isInspectMode}
+                resizeEnabled={!isInspectMode}
                 shouldOverdrawWholeArea
-                enabledAnchors={[
-                  "top-left",
-                  "top-right",
-                  "bottom-left",
-                  "bottom-right",
-                ]}
+                enabledAnchors={
+                  isInspectMode
+                    ? []
+                    : [
+                        "top-left",
+                        "top-right",
+                        "bottom-left",
+                        "bottom-right",
+                      ]
+                }
                 anchorSize={transformerTouchProfile?.anchorSize ?? 8}
                 anchorCornerRadius={2}
                 borderStroke={TRANSFORMER_COLOR}

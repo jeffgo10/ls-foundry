@@ -2,6 +2,7 @@
 
 import type {
   CanvasDesignerHandle,
+  CanvasInteractionMode,
   DimensionUnit,
   SelectionDimensionsResult,
 } from "@jeffgo10/react-canvas-designer";
@@ -34,6 +35,8 @@ function StickPakCanvasSection() {
   const [canvasMarginMm, setCanvasMarginMm] = useState(10);
   const [autoArrangeOnAdd, setAutoArrangeOnAdd] = useState(false);
   const [showSelectionDimensions, setShowSelectionDimensions] = useState(true);
+  const [interactionMode, setInteractionMode] =
+    useState<CanvasInteractionMode>("edit");
   const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>("mm");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionDimensions, setSelectionDimensions] =
@@ -51,6 +54,7 @@ function StickPakCanvasSection() {
   const [canRedo, setCanRedo] = useState(false);
   const hasSelection = selectedIds.length > 0;
   const hasSingleSelection = selectedIds.length === 1;
+  const isInspectMode = interactionMode === "inspect";
 
   useEffect(() => {
     if (!selectionDimensions) {
@@ -236,6 +240,24 @@ function StickPakCanvasSection() {
         />
         Show selected sticker size
       </label>
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
+        <input
+          type="checkbox"
+          checked={isInspectMode}
+          onChange={(event) =>
+            setInteractionMode(event.target.checked ? "inspect" : "edit")
+          }
+          className="size-4 rounded border-white/20"
+        />
+        Inspect mode (select + border + labels only — no move/resize/rotate)
+      </label>
+      {isInspectMode ? (
+        <p className="text-sm text-amber-200/70">
+          Wizard preview chrome: blue border and W×H labels when selected;
+          transform handles stay hidden. Toolbar edit actions stay available
+          below for demo plumbing only.
+        </p>
+      ) : null}
       {showSelectionDimensions ? (
         <>
           <label className="flex items-center gap-2 text-sm text-white/70">
@@ -312,6 +334,7 @@ function StickPakCanvasSection() {
         <CanvasDesigner
           ref={designerRef}
           fitToContainer
+          interactionMode={interactionMode}
           showCutLine={showCutLine}
           autoArrangeGapMm={autoArrangeGapMm}
           canvasMarginMm={canvasMarginMm}
@@ -337,11 +360,15 @@ function StickPakCanvasSection() {
       </div>
       <div className="space-y-3">
         <p className="text-sm text-white/50">
-          {hasSelection
-            ? selectedIds.length > 1
-              ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate.`
-              : "Selected sticker — duplicate to fill a row or column inside the printable margin."
-            : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select."}
+          {isInspectMode
+            ? hasSelection
+              ? "Inspect: sticker selected — blue border and size labels only (no drag, resize, or rotate). Click empty canvas to deselect."
+              : "Inspect: click a sticker to select it. Click empty canvas to clear selection. Move, resize, rotate, and marquee stay off."
+            : hasSelection
+              ? selectedIds.length > 1
+                ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate.`
+                : "Selected sticker — duplicate to fill a row or column inside the printable margin."
+              : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select."}
         </p>
         <div className="flex flex-wrap gap-3">
           <button
