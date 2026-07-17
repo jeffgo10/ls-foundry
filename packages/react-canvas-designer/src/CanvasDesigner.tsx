@@ -967,7 +967,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               const offsetMm =
                 typeof item.cutLineOffsetMm === "number" && item.cutLineOffsetMm > 0
                   ? item.cutLineOffsetMm
-                  : 0;
+                  : undefined;
               placed.push({
                 instanceId: item.instanceId ?? createInstanceId(),
                 assetId: item.assetId,
@@ -982,7 +982,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 height: image.height,
                 cutLinePoints,
                 sourceSrc: source.url,
-                cutLineOffsetMm: offsetMm > 0 ? offsetMm : cutLineOffsetMm,
+                // Only restore a configured amount when the layout says offset was on.
+                // Do not fall back to the designer default — that would re-bake every sticker.
+                cutLineOffsetMm: offsetMm,
                 cutLineOffsetBakedMm: 0,
                 cutLineBakeContentScale: 1,
                 cutLineBakePad: 0,
@@ -1094,7 +1096,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           );
         })();
       },
-      [canvasMarginMm, cutLineOffsetMm, resetHistory],
+      [canvasMarginMm, resetHistory],
     );
 
     const clearCanvas = useCallback(() => {
@@ -1998,7 +2000,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             scaleY: 1,
             rotation: 0,
             sourceSrc: src,
-            cutLineOffsetMm: cutLineOffsetMm,
+            // No preferred amount until the user enables offset (or cutLineOffsetOnAdd).
             cutLineOffsetBakedMm: 0,
             cutLineBakeContentScale: 1,
             cutLineBakePad: 0,
