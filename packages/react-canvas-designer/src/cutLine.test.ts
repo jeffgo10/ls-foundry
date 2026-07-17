@@ -124,10 +124,12 @@ describe("applyPreparedCutLineMedia", () => {
       },
       1,
       1,
-      5,
+      0,
     );
     expect(restored.x).toBeCloseTo(100);
     expect(restored.y).toBeCloseTo(80);
+    expect(restored.cutLineOffsetMm).toBeUndefined();
+    expect(restored.cutLineOffsetBakedMm).toBe(0);
   });
 });
 

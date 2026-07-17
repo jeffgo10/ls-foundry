@@ -30,8 +30,10 @@ export type AutoArrangeOptions = {
   /** Design DPI for mm→px gap conversion. Default 72. */
   designDpi?: number;
   /**
-   * Outward cut-line pad in millimeters when re-tracing (Silhouette-style).
-   * Ignored when `cutLinePoints` are already cached on the item. Default 5.
+   * Outward cut-line pad in millimeters when re-tracing non-baked stickers
+   * (Silhouette-style virtual contour). Ignored when `cutLinePoints` are
+   * cached or when the sticker already has a baked white pad. Default **0** —
+   * do not invent an offset when the user has not enabled cut-line offset.
    */
   cutLineOffsetMm?: number;
 };
@@ -196,7 +198,7 @@ export async function autoArrangeItems(
   const canvasWidth = options.canvasWidth ?? CANVAS_WIDTH;
   const canvasHeight = options.canvasHeight ?? CANVAS_HEIGHT;
   const designDpi = options.designDpi ?? CANVAS_DPI;
-  const cutLineOffsetMm = options.cutLineOffsetMm ?? 5;
+  const cutLineOffsetMm = options.cutLineOffsetMm ?? 0;
   const gapPx = mmToCanvasPixels(gapMm, designDpi);
   const canvasMarginPx = mmToCanvasPixels(canvasMarginMm, designDpi);
 
@@ -206,6 +208,7 @@ export async function autoArrangeItems(
       if (!contour || contour.length < 4) {
         const image = await loadImage(item.src);
         // Baked stickers already include the white pad in `src` — tight-trace only.
+        // Non-baked stickers only dilate when the caller opts in via options.
         const alreadyBaked = (item.cutLineOffsetBakedMm ?? 0) > 0;
         const offsetLocalPx = alreadyBaked
           ? 0

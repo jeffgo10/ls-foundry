@@ -117,4 +117,21 @@ describe("autoArrangeItems", () => {
     expect(result.allPlaced).toBe(true);
     expect(result.items).toHaveLength(1);
   });
+
+  it("defaults contour offset to 0 when cut-line offset is not opted in", async () => {
+    const result = await autoArrangeItems(
+      [
+        makeItem("plain", {
+          cutLinePoints: undefined,
+          cutLineOffsetBakedMm: 0,
+        }),
+      ],
+      {
+        canvasWidth: 400,
+        canvasHeight: 400,
+      },
+    );
+    expect(result.allPlaced).toBe(true);
+    expect(result.items).toHaveLength(1);
+  });
 });
