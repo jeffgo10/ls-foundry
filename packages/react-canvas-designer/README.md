@@ -138,9 +138,9 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 
 | Method | Description |
 |--------|-------------|
-| `exportLayout()` | Full export with base64 `dataUrl` assets |
-| `exportLayoutState()` | Layout + `{ assetId, mimeType }[]` for S3 persistence |
-| `loadLayoutFromSources({ layout, sources })` | Restore from presigned URLs |
+| `exportLayout()` | Print export: display bitmaps (baked pad when on) + matching display transforms |
+| `exportLayoutState()` | Source-space transforms + asset ids for S3; includes `cutLineOffsetMm` when offset is on |
+| `loadLayoutFromSources({ layout, sources })` | Restore from library URLs; re-bakes offset when layout item has `cutLineOffsetMm` |
 | `clearCanvas()` | Remove all stickers |
 | `arrangeAll({ gapMm?, canvasMarginMm?, cutLineOffsetMm? })` | Pack stickers by cut-line spacing |
 | `verifyOverlaps({ minGapMm?, designDpi? })` | Detect alpha cut-line overlap / minimum gap violations; highlights offenders along the cut line |

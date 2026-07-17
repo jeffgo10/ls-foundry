@@ -4,6 +4,8 @@ import {
   buildCutLinePoints,
   cutLineOffsetLocalPx,
   prepareCutLineMedia,
+  toPersistedCanvasItem,
+  toSourceSpaceTransform,
 } from "./cutLine";
 
 describe("cutLineOffsetLocalPx", () => {
@@ -126,5 +128,79 @@ describe("applyPreparedCutLineMedia", () => {
     );
     expect(restored.x).toBeCloseTo(100);
     expect(restored.y).toBeCloseTo(80);
+  });
+});
+
+describe("toSourceSpaceTransform / toPersistedCanvasItem", () => {
+  it("is identity when offset is not baked", () => {
+    const item = {
+      instanceId: "i1",
+      assetId: "a1",
+      x: 40,
+      y: 50,
+      scaleX: 0.5,
+      scaleY: 0.5,
+      rotation: 12,
+      width: 100,
+      height: 80,
+      src: "blob:raw",
+      mimeType: "image/png",
+      cutLineOffsetBakedMm: 0,
+      cutLineBakePad: 0,
+      cutLineBakeContentScale: 1,
+    };
+    expect(toSourceSpaceTransform(item)).toEqual({
+      x: 40,
+      y: 50,
+      scaleX: 0.5,
+      scaleY: 0.5,
+      rotation: 12,
+    });
+    expect(toPersistedCanvasItem(item)).toEqual({
+      instanceId: "i1",
+      assetId: "a1",
+      x: 40,
+      y: 50,
+      scaleX: 0.5,
+      scaleY: 0.5,
+      rotation: 12,
+    });
+  });
+
+  it("strips baked pad so persistence matches library assets", () => {
+    const item = {
+      instanceId: "i1",
+      assetId: "a1",
+      x: 90,
+      y: 70,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      width: 70,
+      height: 60,
+      src: "data:baked",
+      mimeType: "image/png",
+      cutLineOffsetBakedMm: 5,
+      cutLineOffsetMm: 5,
+      cutLineBakePad: 10,
+      cutLineBakeContentScale: 1,
+    };
+    expect(toSourceSpaceTransform(item)).toEqual({
+      x: 100,
+      y: 80,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    });
+    expect(toPersistedCanvasItem(item)).toEqual({
+      instanceId: "i1",
+      assetId: "a1",
+      x: 100,
+      y: 80,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      cutLineOffsetMm: 5,
+    });
   });
 });

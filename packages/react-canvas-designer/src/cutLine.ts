@@ -3,7 +3,10 @@ import {
   traceAlphaContour,
   type TraceAlphaContourOptions,
 } from "@jeffgo10/helpers/image";
-import { mmToCanvasPixels } from "@jeffgo10/shared-types";
+import {
+  mmToCanvasPixels,
+  type CanvasItem,
+} from "@jeffgo10/shared-types";
 
 /**
  * Convert a physical cut-line offset (mm) into local image pixels so that
@@ -148,6 +151,90 @@ export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>
     cutLineOffsetBakedMm: media.cutLineOffsetBakedMm,
     cutLineBakeContentScale: contentScale,
     cutLineBakePad: nextPad,
+  };
+}
+
+export type SourceSpaceTransform = {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+};
+
+/**
+ * Convert a placed sticker (possibly with a baked white pad) back to transforms
+ * relative to the library/source asset. Layout JSON always uses this space so
+ * save → reload with original S3 URLs keeps size and position.
+ */
+export function toSourceSpaceTransform(
+  item: CutLineMediaPlacementFields & { rotation: number },
+): SourceSpaceTransform {
+  const contentScale = Math.max(item.cutLineBakeContentScale ?? 1, 1e-8);
+  const pad = item.cutLineBakePad ?? 0;
+  const baked = (item.cutLineOffsetBakedMm ?? 0) > 0;
+  if (!baked) {
+    return {
+      x: item.x,
+      y: item.y,
+      scaleX: item.scaleX,
+      scaleY: item.scaleY,
+      rotation: item.rotation,
+    };
+  }
+  return {
+    x: item.x + pad * item.scaleX,
+    y: item.y + pad * item.scaleY,
+    scaleX: item.scaleX * contentScale,
+    scaleY: item.scaleY * contentScale,
+    rotation: item.rotation,
+  };
+}
+
+/**
+ * Layout row for persistence / S3 restore. Transforms are source-space; optional
+ * `cutLineOffsetMm` records that white pad should be re-baked on load.
+ */
+export function toPersistedCanvasItem(
+  item: CutLineMediaPlacementFields & {
+    instanceId: string;
+    assetId: string;
+    rotation: number;
+  },
+): CanvasItem {
+  const source = toSourceSpaceTransform(item);
+  const bakedMm = item.cutLineOffsetBakedMm ?? 0;
+  return {
+    instanceId: item.instanceId,
+    assetId: item.assetId,
+    x: source.x,
+    y: source.y,
+    scaleX: source.scaleX,
+    scaleY: source.scaleY,
+    rotation: source.rotation,
+    ...(bakedMm > 0 ? { cutLineOffsetMm: bakedMm } : {}),
+  };
+}
+
+/**
+ * Layout row for print export when assets are the current display bitmaps
+ * (including baked white pads). Uses on-canvas transforms as-is.
+ */
+export function toDisplayCanvasItem(
+  item: CutLineMediaPlacementFields & {
+    instanceId: string;
+    assetId: string;
+    rotation: number;
+  },
+): CanvasItem {
+  return {
+    instanceId: item.instanceId,
+    assetId: item.assetId,
+    x: item.x,
+    y: item.y,
+    scaleX: item.scaleX,
+    scaleY: item.scaleY,
+    rotation: item.rotation,
   };
 }
 

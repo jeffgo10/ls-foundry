@@ -137,6 +137,23 @@ describe("@jeffgo10/shared-types", () => {
           ],
         }),
       ).toBe(true);
+      expect(
+        isCanvasLayout({
+          ...valid,
+          items: [
+            {
+              instanceId: "a",
+              assetId: "asset-1",
+              x: 0,
+              y: 0,
+              scaleX: 1,
+              scaleY: 1,
+              rotation: 0,
+              cutLineOffsetMm: 5,
+            },
+          ],
+        }),
+      ).toBe(true);
     });
 
     it("rejects invalid values", () => {
@@ -150,6 +167,23 @@ describe("@jeffgo10/shared-types", () => {
         isCanvasLayout({
           ...valid,
           items: [{ instanceId: 123, assetId: "x", x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 }],
+        }),
+      ).toBe(false);
+      expect(
+        isCanvasLayout({
+          ...valid,
+          items: [
+            {
+              instanceId: "a",
+              assetId: "asset-1",
+              x: 0,
+              y: 0,
+              scaleX: 1,
+              scaleY: 1,
+              rotation: 0,
+              cutLineOffsetMm: -1,
+            },
+          ],
         }),
       ).toBe(false);
     });
