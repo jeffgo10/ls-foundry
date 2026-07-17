@@ -697,4 +697,62 @@ describe("CanvasDesigner", () => {
     expect(loaded.scaleY).toBeCloseTo(savedItem.scaleY, 5);
     expect(loaded.rotation).toBeCloseTo(savedItem.rotation, 5);
   });
+
+  it("does not bake cut-line offset on drop or load unless opted in", async () => {
+    const { bakeCutLineOffset } = jest.requireMock("@jeffgo10/helpers/image") as {
+      bakeCutLineOffset: jest.Mock;
+    };
+    bakeCutLineOffset.mockClear();
+
+    const ref = createRef<CanvasDesignerHandle>();
+    render(
+      <CanvasDesigner
+        ref={ref}
+        cutLineOffsetMm={5}
+        cutLineOffsetOnAdd={false}
+        canvasMarginMm={0}
+      />,
+    );
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([
+        { url: "blob:no-offset", mimeType: "image/png", assetId: "asset-1" },
+      ]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+    expect(bakeCutLineOffset).not.toHaveBeenCalled();
+    expect(ref.current!.getSelectedCutLineOffset()).toEqual({
+      enabled: false,
+      offsetMm: 5,
+    });
+
+    const saved = ref.current!.exportLayoutState();
+    expect(saved.layout.items[0]!.cutLineOffsetMm).toBeUndefined();
+
+    bakeCutLineOffset.mockClear();
+    await act(async () => {
+      await ref.current!.loadLayoutFromSources({
+        layout: saved.layout,
+        sources: [
+          { url: "blob:no-offset", mimeType: "image/png", assetId: "asset-1" },
+        ],
+      });
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+    // Give the async re-bake path a turn; it must not bake when layout omits offset.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(bakeCutLineOffset).not.toHaveBeenCalled();
+    expect(
+      ref.current!.exportLayoutState().layout.items[0]!.cutLineOffsetMm,
+    ).toBeUndefined();
+  });
 });
