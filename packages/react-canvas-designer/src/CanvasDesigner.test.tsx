@@ -615,9 +615,10 @@ describe("CanvasDesigner", () => {
     );
     expect(bakeCutLineOffset).toHaveBeenCalled();
     const withOffset = ref.current!.exportLayoutState().layout.items[0]!;
-    // Art should remain near the moved position (pad may shift x/y slightly).
-    expect(withOffset.x).toBeGreaterThan(40);
-    expect(withOffset.y).toBeGreaterThan(30);
+    // Persistence layout stays in source space (moved art origin).
+    expect(withOffset.x).toBeCloseTo(moved.x, 0);
+    expect(withOffset.y).toBeCloseTo(moved.y, 0);
+    expect(withOffset.cutLineOffsetMm).toBe(5);
 
     await act(async () => {
       await expect(
@@ -647,5 +648,53 @@ describe("CanvasDesigner", () => {
     const restored = ref.current!.exportLayoutState().layout.items[0]!;
     expect(restored.x).toBeCloseTo(moved.x, 0);
     expect(restored.y).toBeCloseTo(moved.y, 0);
+    expect(restored.cutLineOffsetMm).toBeUndefined();
+  });
+
+  it("round-trips layout transforms through loadLayoutFromSources", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} canvasMarginMm={10} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([
+        { url: "blob:roundtrip", mimeType: "image/png", assetId: "asset-1" },
+      ]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    act(() => {
+      const groupEl = document.querySelector('[data-konva="Group"]');
+      const node = getMockGroupApi(groupEl!);
+      node!.fire("dragstart");
+      node!.x(120);
+      node!.y(180);
+      node!.fire("dragend");
+    });
+
+    const saved = ref.current!.exportLayoutState();
+    const savedItem = saved.layout.items[0]!;
+    expect(savedItem.x).toBe(120);
+    expect(savedItem.y).toBe(180);
+
+    await act(async () => {
+      await ref.current!.loadLayoutFromSources({
+        layout: saved.layout,
+        sources: [{ url: "blob:roundtrip", mimeType: "image/png", assetId: "asset-1" }],
+      });
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+    const loaded = ref.current!.exportLayoutState().layout.items[0]!;
+    expect(loaded.x).toBeCloseTo(120, 0);
+    expect(loaded.y).toBeCloseTo(180, 0);
+    expect(loaded.scaleX).toBeCloseTo(savedItem.scaleX, 5);
+    expect(loaded.scaleY).toBeCloseTo(savedItem.scaleY, 5);
+    expect(loaded.rotation).toBeCloseTo(savedItem.rotation, 5);
   });
 });

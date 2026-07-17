@@ -39,7 +39,14 @@ import {
   autoArrangeItems,
   type AutoArrangeOptions,
 } from "./autoArrange";
-import { buildCutLinePoints, prepareCutLineMedia, applyPreparedCutLineMedia, yieldToBrowser } from "./cutLine";
+import {
+  applyPreparedCutLineMedia,
+  buildCutLinePoints,
+  prepareCutLineMedia,
+  toDisplayCanvasItem,
+  toPersistedCanvasItem,
+  yieldToBrowser,
+} from "./cutLine";
 import { verifyItemOverlaps } from "./overlapVerifier";
 import {
   formatDimensionAxisValue,
@@ -882,19 +889,15 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       onSelectionDimensionsChangeRef.current?.(selectionDimensions);
     }, [showSelectionDimensions, selectionDimensions]);
 
-    const layout = useMemo<CanvasLayout>(() => {
+    const persistenceLayout = useMemo<CanvasLayout>(() => {
       const base = createEmptyLayout(canvasConfig);
-      base.items = items.map(
-        ({ instanceId, assetId, x, y, scaleX, scaleY, rotation }) => ({
-          instanceId,
-          assetId,
-          x,
-          y,
-          scaleX,
-          scaleY,
-          rotation,
-        }),
-      );
+      base.items = items.map((item) => toPersistedCanvasItem(item));
+      return base;
+    }, [items, canvasConfig]);
+
+    const printLayout = useMemo<CanvasLayout>(() => {
+      const base = createEmptyLayout(canvasConfig);
+      base.items = items.map((item) => toDisplayCanvasItem(item));
       return base;
     }, [items, canvasConfig]);
 
@@ -908,6 +911,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         if (assetById.has(item.assetId)) {
           continue;
         }
+        // Print export embeds the current display bitmap (baked pad when on).
         const { mimeType, dataUrl } = await blobUrlToDataUrl(item.src);
         assetById.set(item.assetId, {
           assetId: item.assetId,
@@ -916,8 +920,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         });
       }
 
-      return { layout, assets: [...assetById.values()] };
-    }, [items, layout]);
+      return { layout: printLayout, assets: [...assetById.values()] };
+    }, [items, printLayout]);
 
     const exportLayoutState = useCallback(() => {
       const assetById = new Map<string, { assetId: string; mimeType: string }>();
@@ -927,10 +931,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
       }
       return {
-        layout,
+        layout: persistenceLayout,
         assets: [...assetById.values()],
       };
-    }, [items, layout]);
+    }, [items, persistenceLayout]);
 
     const loadLayoutFromSources = useCallback(
       async (input: LayoutLoadInput) => {
@@ -940,6 +944,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             .map((source) => [source.assetId as string, source]),
         );
 
+        const designDpi = getDesignDpi(input.layout);
         const placed: PlacedImage[] = [];
 
         for (const item of input.layout.items) {
@@ -953,6 +958,16 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             image.crossOrigin = "anonymous";
             image.src = source.url;
             image.onload = () => {
+              const cutLinePoints = buildCutLinePoints(
+                image,
+                image.width,
+                image.height,
+                0,
+              );
+              const offsetMm =
+                typeof item.cutLineOffsetMm === "number" && item.cutLineOffsetMm > 0
+                  ? item.cutLineOffsetMm
+                  : 0;
               placed.push({
                 instanceId: item.instanceId ?? createInstanceId(),
                 assetId: item.assetId,
@@ -965,8 +980,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 mimeType: source.mimeType ?? "image/png",
                 width: image.width,
                 height: image.height,
+                cutLinePoints,
                 sourceSrc: source.url,
-                cutLineOffsetMm: cutLineOffsetMm,
+                cutLineOffsetMm: offsetMm > 0 ? offsetMm : cutLineOffsetMm,
                 cutLineOffsetBakedMm: 0,
                 cutLineBakeContentScale: 1,
                 cutLineBakePad: 0,
@@ -979,35 +995,106 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           });
         }
 
-        setItems(
-          placed.map((item) => {
-            const fitted = fitItemToCanvasArea(
-              item,
-              input.layout.canvasWidth,
-              input.layout.canvasHeight,
-              canvasMarginMm,
-              getDesignDpi(input.layout),
-            );
-            return clampItemToCanvasMargin(
-              fitted,
-              input.layout.canvasWidth,
-              input.layout.canvasHeight,
-              canvasMarginMm,
-              getDesignDpi(input.layout),
-            );
-          }),
-        );
+        const fittedPlaced = placed.map((entry) => {
+          const fitted = fitItemToCanvasArea(
+            entry,
+            input.layout.canvasWidth,
+            input.layout.canvasHeight,
+            canvasMarginMm,
+            designDpi,
+          );
+          return clampItemToCanvasMargin(
+            fitted,
+            input.layout.canvasWidth,
+            input.layout.canvasHeight,
+            canvasMarginMm,
+            designDpi,
+          );
+        });
+
+        setItems(fittedPlaced);
         resetHistory();
         setSelectedIds([]);
         shapeRefs.current.clear();
         setCanvasConfig({
           canvasWidth: input.layout.canvasWidth,
           canvasHeight: input.layout.canvasHeight,
-          designDpi: getDesignDpi(input.layout),
+          designDpi,
           printDpi: getPrintDpi(input.layout),
         });
+
+        // Re-bake per-sticker cut-line offset after source placement so size/position
+        // stay correct against library assets.
+        const needsBake = fittedPlaced.filter(
+          (entry) => (entry.cutLineOffsetMm ?? 0) > 0,
+        );
+        if (needsBake.length === 0) {
+          return;
+        }
+
+        void (async () => {
+          await yieldToBrowser();
+          const bakedById = new Map<string, PlacedImage>();
+
+          for (const entry of needsBake) {
+            const offsetMm = entry.cutLineOffsetMm ?? 0;
+            if (!(offsetMm > 0)) {
+              continue;
+            }
+            const image = await new Promise<HTMLImageElement | null>((resolve) => {
+              const element = new window.Image();
+              element.crossOrigin = "anonymous";
+              element.onload = () => resolve(element);
+              element.onerror = () => resolve(null);
+              element.src = entry.sourceSrc ?? entry.src;
+            });
+            if (!image) {
+              continue;
+            }
+            const media = prepareCutLineMedia(
+              image,
+              entry.sourceSrc ?? entry.src,
+              entry.mimeType,
+              offsetMm,
+              designDpi,
+              entry.scaleX,
+              entry.scaleY,
+            );
+            const baked = applyPreparedCutLineMedia(
+              entry,
+              media,
+              entry.scaleX,
+              entry.scaleY,
+              offsetMm,
+            );
+            bakedById.set(
+              entry.instanceId,
+              clampItemToCanvasMargin(
+                fitItemToCanvasArea(
+                  baked,
+                  input.layout.canvasWidth,
+                  input.layout.canvasHeight,
+                  canvasMarginMm,
+                  designDpi,
+                ),
+                input.layout.canvasWidth,
+                input.layout.canvasHeight,
+                canvasMarginMm,
+                designDpi,
+              ),
+            );
+          }
+
+          if (bakedById.size === 0) {
+            return;
+          }
+
+          setItems((current) =>
+            current.map((entry) => bakedById.get(entry.instanceId) ?? entry),
+          );
+        })();
       },
-      [canvasMarginMm, resetHistory],
+      [canvasMarginMm, cutLineOffsetMm, resetHistory],
     );
 
     const clearCanvas = useCallback(() => {

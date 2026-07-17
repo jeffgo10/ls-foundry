@@ -4,20 +4,23 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 ## Cutline offset — alpha border expand (SP-015)
 
-**When:** July 2026 (`helpers` **v0.4.0**, `react-canvas-designer` **v0.5.0**).
+**When:** July 2026 (`helpers` **v0.4.0**, `shared-types` **v0.2.3**, `react-canvas-designer` **v0.5.1**).
 
 **Goal:** Offset the alpha-detected cut line outward from the graphic (Silhouette Studio–style) so cutting does not clip the artwork.
 
 **Engine:**
 - `@jeffgo10/helpers/image` — `bakeCutLineOffset(image, offsetPx)` dilates alpha (fast BFS), fills the ring **white**, composites art; **downsamples** large sources (max edge 768) then returns PNG + tight contour + `contentScale`.
 - `@jeffgo10/react-canvas-designer` — offset is **per sticker** (on/off + mm). `setSelectedCutLineOffset({ enabled?, offsetMm? })` / `getSelectedCutLineOffset()` → `{ enabled, offsetMm }`. Designer prop `cutLineOffsetMm` is only the default for new stickers. Changing mm while enabled re-bakes **in place** (pad-compensated `x`/`y`). Optional `cutLineOffsetOnAdd` (default **false**) auto-bakes on drop.
+- **Persistence:** layout JSON transforms are always **source-asset space** (`toPersistedCanvasItem`). Optional `cutLineOffsetMm` on the item re-bakes on `loadLayoutFromSources`. Print `exportLayout` still embeds display bitmaps + display transforms for upscale.
 - Distinct from `autoArrangeGapMm` (gap **between** cut lines) and `canvasMarginMm` (page edge inset).
+
+**Regression (v0.5.0 → v0.5.1):** load had dropped `cutLinePoints` (margin clamp used full image rect and shifted stickers) and saved baked-display transforms against library assets.
 
 **Not in layout JSON:** cut-line paths remain runtime-only; upscaler unchanged.
 
 **Docs showcase:** `/stickpak` — with one sticker selected: per-image offset mm + checkbox.
 
-**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.0` + `@jeffgo10/react-canvas-designer@0.5.0`; wire per-sticker offset controls when one image is selected.
+**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.0` + `@jeffgo10/shared-types@0.2.3` + `@jeffgo10/react-canvas-designer@0.5.1`; wire per-sticker offset controls when one image is selected.
 
 **Related:** Obsidian `StickPak/noteworthy/Notes — Cutline offset (SP-015)`.
 

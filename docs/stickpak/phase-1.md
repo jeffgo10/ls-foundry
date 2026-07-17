@@ -19,16 +19,16 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| `@jeffgo10/shared-types` | **0.2.2** | `unitToCanvasPixels`; overlap verify types |
-| `@jeffgo10/react-canvas-designer` | **0.5.0** | Per-sticker offset on/off + mm; `setSelectedCutLineOffset({ enabled?, offsetMm? })` |
+| `@jeffgo10/shared-types` | **0.2.3** | Optional `cutLineOffsetMm` on layout items (source-space transforms) |
+| `@jeffgo10/react-canvas-designer` | **0.5.1** | Fix save/load coords; persist source-space transforms + re-bake offset |
 | `@jeffgo10/helpers` | **0.4.0** | `./image` (`offsetClosedPolygon`), `./gestures`, `./browser`, `./clipboard` |
 | `@jeffgo10/canvas-upscaler` | **0.2.0** | Output size from layout dimensions; 1 mm corner markers |
 
 Install both designer packages together:
 
 ```json
-"@jeffgo10/shared-types": "0.2.2",
-"@jeffgo10/react-canvas-designer": "0.5.0",
+"@jeffgo10/shared-types": "0.2.3",
+"@jeffgo10/react-canvas-designer": "0.5.1",
 "@jeffgo10/canvas-upscaler": "0.2.0"
 ```
 

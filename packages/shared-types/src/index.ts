@@ -68,11 +68,20 @@ export type CanvasItem = {
   instanceId: string;
   /** Library / S3 asset reference shared by duplicate placements. */
   assetId: string;
+  /**
+   * Transform is always relative to the **library/source** asset (not a
+   * display bitmap with a baked white cut-line pad).
+   */
   x: number;
   y: number;
   scaleX: number;
   scaleY: number;
   rotation: number;
+  /**
+   * When > 0, the sticker should show a white cut-line pad of this size (mm).
+   * Omitted or 0 = offset off. Runtime-only bake; assets stay the source image.
+   */
+  cutLineOffsetMm?: number;
 };
 
 export type CanvasLayout = {
@@ -182,15 +191,27 @@ export function isCanvasLayout(value: unknown): value is CanvasLayout {
   return layout.items.every((item) => {
     if (!item || typeof item !== "object") return false;
     const candidate = item as Partial<CanvasItem>;
+    if (
+      !(
+        typeof candidate.assetId === "string" &&
+        (candidate.instanceId === undefined ||
+          typeof candidate.instanceId === "string") &&
+        typeof candidate.x === "number" &&
+        typeof candidate.y === "number" &&
+        typeof candidate.scaleX === "number" &&
+        typeof candidate.scaleY === "number" &&
+        typeof candidate.rotation === "number"
+      )
+    ) {
+      return false;
+    }
+    if (candidate.cutLineOffsetMm === undefined) {
+      return true;
+    }
     return (
-      typeof candidate.assetId === "string" &&
-      (candidate.instanceId === undefined ||
-        typeof candidate.instanceId === "string") &&
-      typeof candidate.x === "number" &&
-      typeof candidate.y === "number" &&
-      typeof candidate.scaleX === "number" &&
-      typeof candidate.scaleY === "number" &&
-      typeof candidate.rotation === "number"
+      typeof candidate.cutLineOffsetMm === "number" &&
+      Number.isFinite(candidate.cutLineOffsetMm) &&
+      candidate.cutLineOffsetMm >= 0
     );
   });
 }
