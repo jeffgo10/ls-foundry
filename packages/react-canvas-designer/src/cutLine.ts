@@ -147,7 +147,7 @@ export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>
     y: artTop - nextPad * scaleY,
     cutLinePoints: media.cutLinePoints,
     sourceSrc: media.sourceSrc,
-    cutLineOffsetMm: configuredOffsetMm,
+    cutLineOffsetMm: configuredOffsetMm > 0 ? configuredOffsetMm : undefined,
     cutLineOffsetBakedMm: media.cutLineOffsetBakedMm,
     cutLineBakeContentScale: contentScale,
     cutLineBakePad: nextPad,

@@ -117,7 +117,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `designDpi` | `72` | DPI for design canvas |
 | `printDpi` | `300` | Target print DPI (stored in layout JSON) |
 | `showCutLine` | `false` | Red alpha-contour preview |
-| `cutLineOffsetMm` | `5` | Default pad amount (mm) for new stickers; each sticker stores its own amount |
+| `cutLineOffsetMm` | `5` | Default pad amount (mm) when enabling offset; not applied until toggled on |
 | `cutLineOffsetOnAdd` | `false` | Bake white pad on newly added images automatically |
 | `autoArrangeGapMm` | `5` | Cut-line gap for packing (mm) |
 | `autoArrangeOnAdd` | `false` | Run arrange after each drop |
@@ -142,7 +142,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `exportLayoutState()` | Source-space transforms + asset ids for S3; includes `cutLineOffsetMm` when offset is on |
 | `loadLayoutFromSources({ layout, sources })` | Restore from library URLs; re-bakes offset when layout item has `cutLineOffsetMm` |
 | `clearCanvas()` | Remove all stickers |
-| `arrangeAll({ gapMm?, canvasMarginMm?, cutLineOffsetMm? })` | Pack stickers by cut-line spacing |
+| `arrangeAll({ gapMm?, canvasMarginMm?, cutLineOffsetMm? })` | Pack stickers by cut-line spacing (`cutLineOffsetMm` defaults to 0 — does not invent a pad) |
 | `verifyOverlaps({ minGapMm?, designDpi? })` | Detect alpha cut-line overlap / minimum gap violations; highlights offenders along the cut line |
 | `clearOverlapHighlights()` | Remove overlap violation tint from the canvas |
 | `duplicateSelectedHorizontally({ gapMm? })` | Copies of the selection to the right until the printable area is full; multi-select duplicates the whole block together |

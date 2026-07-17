@@ -152,12 +152,16 @@ type PlacedImage = CanvasItem & {
   /** Pre-bake library/blob URL so offset mm changes can re-bake. */
   sourceSrc?: string;
   /**
-   * Configured white pad amount for this sticker (mm). Kept when offset is off
-   * so re-enabling (or editing the amount) uses the per-image value.
+   * Configured white pad amount while offset is **on** (mm). Omitted when off so
+   * load does not re-bake. While off, prefer `cutLineOffsetPreferredMm`.
    */
   cutLineOffsetMm?: number;
   /** Offset mm currently baked into `src` (`0` / omitted = none). */
   cutLineOffsetBakedMm?: number;
+  /**
+   * Preferred pad amount while offset is off (runtime only — never persisted).
+   */
+  cutLineOffsetPreferredMm?: number;
   /** Bake resolution scale vs natural source (`1` = full res). */
   cutLineBakeContentScale?: number;
   /** White pad on each side in bake-resolution pixels. */
@@ -1206,7 +1210,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           canvasWidth: options?.canvasWidth ?? canvasConfig.canvasWidth,
           canvasHeight: options?.canvasHeight ?? canvasConfig.canvasHeight,
           designDpi: options?.designDpi ?? canvasConfig.designDpi,
-          cutLineOffsetMm: options?.cutLineOffsetMm ?? cutLineOffsetMm,
+          // Only dilate packing contours when the caller opts in. Do not use the
+          // designer default cutLineOffsetMm — that made every sticker pack as if
+          // offset were on.
+          cutLineOffsetMm: options?.cutLineOffsetMm ?? 0,
         });
 
         pushHistoryBeforeMutation();
@@ -1219,7 +1226,6 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         canvasConfig,
         canvasMarginMm,
         clearSelection,
-        cutLineOffsetMm,
         onAutoArrange,
         pushHistoryBeforeMutation,
       ],
@@ -2227,9 +2233,15 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       if (!item) {
         return null;
       }
+      const enabled = (item.cutLineOffsetBakedMm ?? 0) > 0;
       return {
-        enabled: (item.cutLineOffsetBakedMm ?? 0) > 0,
-        offsetMm: item.cutLineOffsetMm ?? cutLineOffsetMm,
+        enabled,
+        // Amount for the mm control — prefer live bake, then preferred-while-off,
+        // then designer default. `enabled` is the source of truth for on/off.
+        offsetMm:
+          item.cutLineOffsetMm ??
+          item.cutLineOffsetPreferredMm ??
+          cutLineOffsetMm,
       };
     }, [cutLineOffsetMm]);
 
@@ -2251,15 +2263,22 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         const nextEnabled = options.enabled ?? currentlyOn;
         const nextOffsetMm = Math.max(
           0,
-          options.offsetMm ?? item.cutLineOffsetMm ?? cutLineOffsetMm,
+          options.offsetMm ??
+            item.cutLineOffsetMm ??
+            item.cutLineOffsetPreferredMm ??
+            cutLineOffsetMm,
         );
 
-        // Amount-only update while still off: remember per-sticker preference.
+        // Amount-only update while still off: remember preference without writing
+        // cutLineOffsetMm (that field means "bake on load" in persisted layouts).
         if (!nextEnabled) {
           if (!currentlyOn) {
             if (
               options.offsetMm === undefined ||
-              nextOffsetMm === (item.cutLineOffsetMm ?? cutLineOffsetMm)
+              nextOffsetMm ===
+                (item.cutLineOffsetPreferredMm ??
+                  item.cutLineOffsetMm ??
+                  cutLineOffsetMm)
             ) {
               return true;
             }
@@ -2267,7 +2286,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             setItems((current) =>
               current.map((entry) =>
                 entry.instanceId === selectedId
-                  ? { ...entry, cutLineOffsetMm: nextOffsetMm }
+                  ? {
+                      ...entry,
+                      cutLineOffsetPreferredMm: nextOffsetMm,
+                      cutLineOffsetMm: undefined,
+                    }
                   : entry,
               ),
             );
@@ -2326,12 +2349,18 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               media,
               artScaleX,
               artScaleY,
-              nextOffsetMm,
+              0,
             ),
           );
           setItems((current) =>
             current.map((entry) =>
-              entry.instanceId === selectedId ? restored : entry,
+              entry.instanceId === selectedId
+                ? {
+                    ...restored,
+                    cutLineOffsetMm: undefined,
+                    cutLineOffsetPreferredMm: nextOffsetMm,
+                  }
+                : entry,
             ),
           );
           return true;
@@ -2357,7 +2386,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         );
         setItems((current) =>
           current.map((entry) =>
-            entry.instanceId === selectedId ? baked : entry,
+            entry.instanceId === selectedId
+              ? { ...baked, cutLineOffsetPreferredMm: nextOffsetMm }
+              : entry,
           ),
         );
         return true;
@@ -2375,12 +2406,14 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         const result = await verifyItemOverlaps(itemsRef.current, {
           minGapMm: options?.minGapMm ?? autoArrangeGapMm,
           designDpi: options?.designDpi ?? canvasConfig.designDpi,
-          cutLineOffsetMm,
+          // Do not pass the designer default (5) — that dilated every contour
+          // as if cut-line offset were on.
+          cutLineOffsetMm: 0,
         });
         setOverlapHighlightIds(result.overlappingIds);
         return result;
       },
-      [autoArrangeGapMm, canvasConfig.designDpi, cutLineOffsetMm],
+      [autoArrangeGapMm, canvasConfig.designDpi],
     );
 
     const handle = useMemo(

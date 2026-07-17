@@ -755,4 +755,68 @@ describe("CanvasDesigner", () => {
       ref.current!.exportLayoutState().layout.items[0]!.cutLineOffsetMm,
     ).toBeUndefined();
   });
+
+  it("keeps offset off after disable and does not persist cutLineOffsetMm", async () => {
+    const { bakeCutLineOffset } = jest.requireMock("@jeffgo10/helpers/image") as {
+      bakeCutLineOffset: jest.Mock;
+    };
+    bakeCutLineOffset.mockClear();
+
+    const ref = createRef<CanvasDesignerHandle>();
+    render(
+      <CanvasDesigner
+        ref={ref}
+        cutLineOffsetMm={5}
+        cutLineOffsetOnAdd={false}
+        canvasMarginMm={0}
+      />,
+    );
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([
+        { url: "blob:toggle", mimeType: "image/png", assetId: "asset-1" },
+      ]);
+    });
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    await act(async () => {
+      await ref.current!.setSelectedCutLineOffset({ enabled: true, offsetMm: 5 });
+    });
+    await waitFor(() =>
+      expect(ref.current!.getSelectedCutLineOffset()?.enabled).toBe(true),
+    );
+    expect(
+      ref.current!.exportLayoutState().layout.items[0]!.cutLineOffsetMm,
+    ).toBe(5);
+
+    bakeCutLineOffset.mockClear();
+    await act(async () => {
+      await ref.current!.setSelectedCutLineOffset({ enabled: false });
+    });
+    await waitFor(() =>
+      expect(ref.current!.getSelectedCutLineOffset()).toEqual({
+        enabled: false,
+        offsetMm: 5,
+      }),
+    );
+    expect(
+      ref.current!.exportLayoutState().layout.items[0]!.cutLineOffsetMm,
+    ).toBeUndefined();
+
+    // Amount-while-off must not write layout cutLineOffsetMm.
+    await act(async () => {
+      await ref.current!.setSelectedCutLineOffset({ offsetMm: 8 });
+    });
+    expect(ref.current!.getSelectedCutLineOffset()).toEqual({
+      enabled: false,
+      offsetMm: 8,
+    });
+    expect(
+      ref.current!.exportLayoutState().layout.items[0]!.cutLineOffsetMm,
+    ).toBeUndefined();
+    expect(bakeCutLineOffset).not.toHaveBeenCalled();
+  });
 });

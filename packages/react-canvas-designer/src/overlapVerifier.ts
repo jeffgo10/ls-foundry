@@ -14,12 +14,15 @@ export type OverlapVerifyItem = MarginBoundsItem & {
   src?: string;
   scaleX?: number;
   scaleY?: number;
+  /** When set (>0), `src` already includes a white offset pad — do not re-expand. */
+  cutLineOffsetBakedMm?: number;
 };
 
 export type OverlapVerifyRuntimeOptions = OverlapVerifyOptions & {
   /**
-   * Outward cut-line pad in millimeters when re-tracing.
-   * Ignored when `cutLinePoints` are already cached. Default 5.
+   * Outward cut-line pad in millimeters when re-tracing non-baked stickers.
+   * Ignored when `cutLinePoints` are already cached or the sticker is baked.
+   * Default **0** — do not invent an offset when cut-line offset is off.
    */
   cutLineOffsetMm?: number;
 };
@@ -49,12 +52,15 @@ async function resolveCutLinePoints(
 
   try {
     const image = await loadImage(item.src);
-    const offsetLocalPx = cutLineOffsetLocalPx(
-      cutLineOffsetMm,
-      designDpi,
-      item.scaleX ?? 1,
-      item.scaleY ?? 1,
-    );
+    const alreadyBaked = (item.cutLineOffsetBakedMm ?? 0) > 0;
+    const offsetLocalPx = alreadyBaked
+      ? 0
+      : cutLineOffsetLocalPx(
+          cutLineOffsetMm,
+          designDpi,
+          item.scaleX ?? 1,
+          item.scaleY ?? 1,
+        );
     const points = buildCutLinePoints(
       image,
       item.width,
@@ -82,7 +88,7 @@ export async function verifyItemOverlaps(
 
   const minGapMm = options.minGapMm ?? 0;
   const designDpi = options.designDpi ?? CANVAS_DPI;
-  const cutLineOffsetMm = options.cutLineOffsetMm ?? 5;
+  const cutLineOffsetMm = options.cutLineOffsetMm ?? 0;
   const gapPx = mmToCanvasPixels(minGapMm, designDpi);
 
   const resolved = await Promise.all(

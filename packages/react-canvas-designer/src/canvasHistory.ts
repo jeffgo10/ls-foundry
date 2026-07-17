@@ -28,6 +28,7 @@ export type HistoryPlacedImage = {
   sourceSrc?: string;
   cutLineOffsetMm?: number;
   cutLineOffsetBakedMm?: number;
+  cutLineOffsetPreferredMm?: number;
   cutLineBakeContentScale?: number;
   cutLineBakePad?: number;
 };

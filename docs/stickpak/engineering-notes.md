@@ -14,13 +14,13 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 - **Persistence:** layout JSON transforms are always **source-asset space** (`toPersistedCanvasItem`). Optional `cutLineOffsetMm` on the item re-bakes on `loadLayoutFromSources`. Print `exportLayout` still embeds display bitmaps + display transforms for upscale.
 - Distinct from `autoArrangeGapMm` (gap **between** cut lines) and `canvasMarginMm` (page edge inset).
 
-**Regression (v0.5.0 → v0.5.2):** load had dropped `cutLinePoints` (margin clamp used full image rect and shifted stickers) and saved baked-display transforms against library assets. Also, load fell back to designer `cutLineOffsetMm` (default 5) when the layout omitted offset, which **re-baked every sticker** — fixed so offset only applies when layout has `cutLineOffsetMm` or the user toggles it (`cutLineOffsetOnAdd` still optional for drop).
+**Regression (v0.5.0 → v0.5.3):** load had dropped `cutLinePoints` (margin clamp used full image rect and shifted stickers) and saved baked-display transforms against library assets. Also, load fell back to designer `cutLineOffsetMm` (default 5) when the layout omitted offset, which **re-baked every sticker** — fixed so offset only applies when layout has `cutLineOffsetMm` or the user toggles it (`cutLineOffsetOnAdd` still optional for drop). Separately, `autoArrange` / `verifyOverlaps` still defaulted contour dilation to **5 mm** even when offset was off (packing/verify as if offset were on); and disabling offset could leave `cutLineOffsetMm` set, which re-baked on the next load if that field was round-tripped. Fixed in **v0.5.3**: arrange/verify default contour offset **0**; while off, amount preference is runtime-only (`cutLineOffsetPreferredMm`) and never written as layout `cutLineOffsetMm`.
 
 **Not in layout JSON:** cut-line paths remain runtime-only; upscaler unchanged.
 
 **Docs showcase:** `/stickpak` — with one sticker selected: per-image offset mm + checkbox.
 
-**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.0` + `@jeffgo10/shared-types@0.2.3` + `@jeffgo10/react-canvas-designer@0.5.1`; wire per-sticker offset controls when one image is selected.
+**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.0` + `@jeffgo10/shared-types@0.2.3` + `@jeffgo10/react-canvas-designer@0.5.3`; treat `getSelectedCutLineOffset().enabled` as the on/off source of truth (not `offsetMm > 0`). Old designs that already stored `cutLineOffsetMm` will still re-bake on load by design.
 
 **Related:** Obsidian `StickPak/noteworthy/Notes — Cutline offset (SP-015)`.
 
