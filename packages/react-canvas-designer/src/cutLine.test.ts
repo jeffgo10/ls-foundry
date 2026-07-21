@@ -131,6 +131,65 @@ describe("applyPreparedCutLineMedia", () => {
     expect(restored.cutLineOffsetMm).toBeUndefined();
     expect(restored.cutLineOffsetBakedMm).toBe(0);
   });
+
+  it("preserves art stage position when applying pad on a rotated sticker", () => {
+    const base = {
+      x: 100,
+      y: 80,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 90,
+      width: 50,
+      height: 40,
+      src: "blob:raw",
+      mimeType: "image/png",
+      cutLineBakePad: 0,
+      cutLineBakeContentScale: 1,
+      cutLineOffsetBakedMm: 0,
+      cutLineOffsetMm: 5,
+    };
+    const withPad = applyPreparedCutLineMedia(
+      base,
+      {
+        src: "data:baked",
+        mimeType: "image/png",
+        width: 70,
+        height: 60,
+        cutLinePoints: [0, 0, 10, 0, 10, 10, 0, 10],
+        sourceSrc: "blob:raw",
+        cutLineOffsetBakedMm: 5,
+        contentScale: 1,
+        pad: 10,
+      },
+      1,
+      1,
+      5,
+    );
+    // Local (pad,pad)=(10,10) at 90° → stage offset (-10, 10) from group origin.
+    // Art at (100,80) ⇒ group at (110, 70).
+    expect(withPad.x).toBeCloseTo(110);
+    expect(withPad.y).toBeCloseTo(70);
+
+    const restored = applyPreparedCutLineMedia(
+      withPad,
+      {
+        src: "blob:raw",
+        mimeType: "image/png",
+        width: 50,
+        height: 40,
+        cutLinePoints: [],
+        sourceSrc: "blob:raw",
+        cutLineOffsetBakedMm: 0,
+        contentScale: 1,
+        pad: 0,
+      },
+      1,
+      1,
+      0,
+    );
+    expect(restored.x).toBeCloseTo(100);
+    expect(restored.y).toBeCloseTo(80);
+  });
 });
 
 describe("toSourceSpaceTransform / toPersistedCanvasItem", () => {
@@ -203,6 +262,33 @@ describe("toSourceSpaceTransform / toPersistedCanvasItem", () => {
       scaleY: 1,
       rotation: 0,
       cutLineOffsetMm: 5,
+    });
+  });
+
+  it("strips baked pad in stage space when the sticker is rotated", () => {
+    const item = {
+      instanceId: "i1",
+      assetId: "a1",
+      x: 110,
+      y: 70,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 90,
+      width: 70,
+      height: 60,
+      src: "data:baked",
+      mimeType: "image/png",
+      cutLineOffsetBakedMm: 5,
+      cutLineOffsetMm: 5,
+      cutLineBakePad: 10,
+      cutLineBakeContentScale: 1,
+    };
+    expect(toSourceSpaceTransform(item)).toEqual({
+      x: 100,
+      y: 80,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 90,
     });
   });
 });

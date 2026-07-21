@@ -90,6 +90,35 @@ export function localPointToParentOffset(
   };
 }
 
+/**
+ * Inverse of {@link localPointToParentOffset} plus node translation.
+ * Use parent/layer (design) coords — not Konva absolute/stage-buffer coords —
+ * so pinch anchors stay correct when `fitToContainer` scales the Stage.
+ */
+export function parentPointToLocal(
+  parent: StagePoint,
+  nodeX: number,
+  nodeY: number,
+  scaleX: number,
+  scaleY: number,
+  rotationDeg: number,
+): StagePoint {
+  const dx = parent.x - nodeX;
+  const dy = parent.y - nodeY;
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  // Konva: scale then rotate → inverse is unrotate then unscale.
+  const unrotatedX = dx * cos + dy * sin;
+  const unrotatedY = -dx * sin + dy * cos;
+  const safeScaleX = Math.abs(scaleX) < 1e-8 ? 1e-8 : scaleX;
+  const safeScaleY = Math.abs(scaleY) < 1e-8 ? 1e-8 : scaleY;
+  return {
+    x: unrotatedX / safeScaleX,
+    y: unrotatedY / safeScaleY,
+  };
+}
+
 export function beginPinchTransformSession(
   startDistance: number,
   startAngleRad: number,
