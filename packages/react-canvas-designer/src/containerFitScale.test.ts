@@ -2,6 +2,7 @@ import {
   CANVAS_SHELL_BORDER_PX,
   computeContainerFitScale,
   getContainerFitDimensions,
+  getFullSizeContainerDimensions,
 } from "./containerFitScale";
 
 describe("computeContainerFitScale", () => {
@@ -21,9 +22,24 @@ describe("computeContainerFitScale", () => {
     expect(computeContainerFitScale(2000, 595)).toBe(1);
   });
 
-  it("returns 1 for invalid measurements", () => {
-    expect(computeContainerFitScale(0, 595)).toBe(1);
+  it("returns 0 for unknown container width so callers can avoid a full-size flash", () => {
+    expect(computeContainerFitScale(0, 595)).toBe(0);
+    expect(computeContainerFitScale(Number.NaN, 595)).toBe(0);
+  });
+
+  it("returns 1 for invalid canvas width", () => {
     expect(computeContainerFitScale(300, 0)).toBe(1);
+  });
+});
+
+describe("getFullSizeContainerDimensions", () => {
+  it("returns design size at scale 1", () => {
+    const fit = getFullSizeContainerDimensions(595, 842);
+    expect(fit.displayScale).toBe(1);
+    expect(fit.stageDisplayWidth).toBe(595);
+    expect(fit.stageDisplayHeight).toBe(842);
+    expect(fit.shellWidth).toBe(595 + CANVAS_SHELL_BORDER_PX);
+    expect(fit.shellHeight).toBe(842 + CANVAS_SHELL_BORDER_PX);
   });
 });
 
@@ -35,5 +51,12 @@ describe("getContainerFitDimensions", () => {
     expect(fit.stageDisplayHeight).toBeCloseTo(842 * fit.displayScale);
     expect(fit.shellWidth).toBeCloseTo(fit.stageDisplayWidth + CANVAS_SHELL_BORDER_PX);
     expect(fit.shellHeight).toBeCloseTo(fit.stageDisplayHeight + CANVAS_SHELL_BORDER_PX);
+  });
+
+  it("returns zero stage size when container width is unknown", () => {
+    const fit = getContainerFitDimensions(0, 595, 842);
+    expect(fit.displayScale).toBe(0);
+    expect(fit.stageDisplayWidth).toBe(0);
+    expect(fit.stageDisplayHeight).toBe(0);
   });
 });

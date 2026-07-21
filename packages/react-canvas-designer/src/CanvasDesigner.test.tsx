@@ -87,6 +87,29 @@ describe("CanvasDesigner", () => {
       expect(Number.parseFloat(shell.style.width)).toBeCloseTo(298, 0);
     });
 
+    const wrap = document.querySelector("[data-canvas-designer]")
+      ?.parentElement as HTMLElement;
+    expect(wrap.style.visibility).not.toBe("hidden");
+
+    global.ResizeObserver = previous;
+  });
+
+  it("defers onReady until fitToContainer has measured", async () => {
+    const onReady = jest.fn();
+    class MockResizeObserver {
+      observe = () => undefined;
+      disconnect = () => undefined;
+      unobserve = () => undefined;
+    }
+    const previous = global.ResizeObserver;
+    global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+    render(<CanvasDesigner fitToContainer onReady={onReady} />);
+
+    // No container width → stay unready; onReady must not fire yet.
+    await act(async () => {});
+    expect(onReady).not.toHaveBeenCalled();
+
     global.ResizeObserver = previous;
   });
 

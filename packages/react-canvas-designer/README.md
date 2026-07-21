@@ -75,7 +75,7 @@ The design canvas stays at 595 × 842 px internally (export/upscale unchanged). 
 </div>
 ```
 
-The stage uses Konva’s native `scaleX`/`scaleY` (not CSS-only canvas shrinking), so the printable margin guide, stickers, and clamping all stay aligned in design coordinates. Pointer, marquee, and pinch coordinates are mapped into that same space.
+The stage uses Konva’s native `scaleX`/`scaleY` (not CSS-only canvas shrinking), so the printable margin guide, stickers, and clamping all stay aligned in design coordinates. Pointer, marquee, and pinch coordinates are mapped into that same space. Fit is measured in `useLayoutEffect` before the first paint (unknown width does not default to full size), and `onReady` waits until that measure completes.
 
 ### Inspect / wizard preview
 
