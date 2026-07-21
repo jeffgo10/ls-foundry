@@ -49,6 +49,8 @@ export type CutLineMediaPlacementFields = {
   y: number;
   scaleX: number;
   scaleY: number;
+  /** Degrees; required so pad compensation stays under the art when rotated. */
+  rotation?: number;
   width: number;
   height: number;
   src: string;
@@ -60,6 +62,27 @@ export type CutLineMediaPlacementFields = {
   cutLineBakeContentScale?: number;
   cutLineBakePad?: number;
 };
+
+/** Stage-space offset of local `(pad, pad)` after Konva scale → rotate. */
+function padCornerStageOffset(
+  pad: number,
+  scaleX: number,
+  scaleY: number,
+  rotationDeg: number,
+): { x: number; y: number } {
+  if (!(pad > 0)) {
+    return { x: 0, y: 0 };
+  }
+  const scaledX = pad * scaleX;
+  const scaledY = pad * scaleY;
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    x: scaledX * cos - scaledY * sin,
+    y: scaledX * sin + scaledY * cos,
+  };
+}
 
 /**
  * Prepare display media for a sticker: when `cutLineOffsetMm > 0`, bake a white
@@ -131,9 +154,18 @@ export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>
   const scaleX = artScaleX / contentScale;
   const scaleY = artScaleY / contentScale;
   const previousPad = item.cutLineBakePad ?? 0;
-  const artLeft = item.x + previousPad * item.scaleX;
-  const artTop = item.y + previousPad * item.scaleY;
   const nextPad = media.pad || 0;
+  const rotation = item.rotation ?? 0;
+  // Keep the art's stage position stable across bake/unbake, including rotation.
+  const prevArt = padCornerStageOffset(
+    previousPad,
+    item.scaleX,
+    item.scaleY,
+    rotation,
+  );
+  const nextArt = padCornerStageOffset(nextPad, scaleX, scaleY, rotation);
+  const artStageX = item.x + prevArt.x;
+  const artStageY = item.y + prevArt.y;
 
   return {
     ...item,
@@ -143,8 +175,8 @@ export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>
     height: media.height,
     scaleX,
     scaleY,
-    x: artLeft - nextPad * scaleX,
-    y: artTop - nextPad * scaleY,
+    x: artStageX - nextArt.x,
+    y: artStageY - nextArt.y,
     cutLinePoints: media.cutLinePoints,
     sourceSrc: media.sourceSrc,
     cutLineOffsetMm: configuredOffsetMm > 0 ? configuredOffsetMm : undefined,
@@ -182,9 +214,10 @@ export function toSourceSpaceTransform(
       rotation: item.rotation,
     };
   }
+  const art = padCornerStageOffset(pad, item.scaleX, item.scaleY, item.rotation);
   return {
-    x: item.x + pad * item.scaleX,
-    y: item.y + pad * item.scaleY,
+    x: item.x + art.x,
+    y: item.y + art.y,
     scaleX: item.scaleX * contentScale,
     scaleY: item.scaleY * contentScale,
     rotation: item.rotation,

@@ -9,6 +9,7 @@ import {
   isAnyTouchOnElement,
   isPinchResizeTouchCount,
   localPointToParentOffset,
+  parentPointToLocal,
   scaleFromPinchSession,
   touchClientToStage,
   touchPairCentroidToStage,
@@ -98,6 +99,54 @@ describe("selectedStickerPinch", () => {
     const offset = localPointToParentOffset({ x: 10, y: 0 }, 2, 2, 90);
     expect(offset.x).toBeCloseTo(0);
     expect(offset.y).toBeCloseTo(20);
+  });
+
+  it("round-trips parent ↔ local through scale and rotation", () => {
+    const local = { x: 40, y: 10 };
+    const nodeX = 100;
+    const nodeY = 50;
+    const scaleX = 2;
+    const scaleY = 1.5;
+    const rotation = 35;
+    const offset = localPointToParentOffset(local, scaleX, scaleY, rotation);
+    const parent = { x: nodeX + offset.x, y: nodeY + offset.y };
+    const back = parentPointToLocal(parent, nodeX, nodeY, scaleX, scaleY, rotation);
+    expect(back.x).toBeCloseTo(local.x);
+    expect(back.y).toBeCloseTo(local.y);
+  });
+
+  it("keeps pinch pivot fixed when mapping via parent-space anchor", () => {
+    // Simulates fitToContainer: touch → design coords, anchor via parentPointToLocal
+    // (not absolute/buffer coords which include stage scale).
+    const node = { x: 20, y: 30, scaleX: 1, scaleY: 1, rotation: 0 };
+    const pivot = { x: 70, y: 80 };
+    const anchorLocal = parentPointToLocal(
+      pivot,
+      node.x,
+      node.y,
+      node.scaleX,
+      node.scaleY,
+      node.rotation,
+    );
+    const session = beginPinchTransformSession(
+      100,
+      0,
+      pivot,
+      anchorLocal,
+      node.scaleX,
+      node.scaleY,
+      node.rotation,
+    );
+    const scaled = transformFromPinchSession(session!, 200, 0, pivot);
+    // Pivot local point must stay under the same design-space centroid.
+    const offset = localPointToParentOffset(
+      anchorLocal,
+      scaled.scaleX,
+      scaled.scaleY,
+      scaled.rotation,
+    );
+    expect(scaled.x + offset.x).toBeCloseTo(pivot.x);
+    expect(scaled.y + offset.y).toBeCloseTo(pivot.y);
   });
 
   it("requires at least two touches for pinch resize", () => {

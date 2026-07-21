@@ -103,6 +103,7 @@ import {
   getTouchPairFromList,
   isAnyTouchOnElement,
   isPinchResizeTouchCount,
+  parentPointToLocal,
   touchPairCentroidToStage,
   transformFromPinchSession,
   type PinchTransformSession,
@@ -1595,11 +1596,17 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         );
         const startDistance = getTouchPairDistance(touchPair[0], touchPair[1]);
         const startAngleRad = getTouchPairAngleRad(touchPair[0], touchPair[1]);
-        const anchorLocal = node
-          .getAbsoluteTransform()
-          .copy()
-          .invert()
-          .point(startPivotStage);
+        // Design-space pivot → local. Do not use getAbsoluteTransform(): with
+        // fitToContainer the Stage scale puts absolute coords in buffer pixels,
+        // which misaligns the pinch origin and makes zoom feel clunky.
+        const anchorLocal = parentPointToLocal(
+          startPivotStage,
+          node.x(),
+          node.y(),
+          node.scaleX(),
+          node.scaleY(),
+          node.rotation(),
+        );
         const session = beginPinchTransformSession(
           startDistance,
           startAngleRad,
