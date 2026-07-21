@@ -1,7 +1,13 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useState,
+  type RefCallback,
+} from "react";
 import {
   CANVAS_SHELL_BORDER_PX,
   getContainerFitDimensions,
+  getFullSizeContainerDimensions,
   type ContainerFitDimensions,
 } from "./containerFitScale";
 
@@ -10,41 +16,60 @@ export function useContainerFitScale(
   canvasWidth: number,
   canvasHeight: number,
 ): {
-  containerRef: RefObject<HTMLDivElement | null>;
+  containerRef: RefCallback<HTMLDivElement>;
   fit: ContainerFitDimensions;
+  /** False until the container has been measured when `enabled`. */
+  isReady: boolean;
 } {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
   const [fit, setFit] = useState<ContainerFitDimensions>(() =>
-    getContainerFitDimensions(0, canvasWidth, canvasHeight),
+    enabled
+      ? getContainerFitDimensions(0, canvasWidth, canvasHeight)
+      : getFullSizeContainerDimensions(canvasWidth, canvasHeight),
   );
+  const [isReady, setIsReady] = useState(!enabled);
 
-  useEffect(() => {
+  const containerRef = useCallback<RefCallback<HTMLDivElement>>((element) => {
+    setNode(element);
+  }, []);
+
+  useLayoutEffect(() => {
     if (!enabled) {
-      setFit(getContainerFitDimensions(0, canvasWidth, canvasHeight));
+      setFit(getFullSizeContainerDimensions(canvasWidth, canvasHeight));
+      setIsReady(true);
       return;
     }
 
-    const node = containerRef.current;
     if (!node) {
+      setIsReady(false);
+      setFit((prev) =>
+        prev.displayScale === 0
+          ? prev
+          : getContainerFitDimensions(0, canvasWidth, canvasHeight),
+      );
       return;
     }
 
     const update = () => {
+      const width = node.clientWidth;
       setFit(
         getContainerFitDimensions(
-          node.clientWidth,
+          width,
           canvasWidth,
           canvasHeight,
           CANVAS_SHELL_BORDER_PX,
         ),
       );
+      if (width > 0) {
+        setIsReady(true);
+      }
     };
 
     update();
     const observer = new ResizeObserver(update);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [enabled, canvasWidth, canvasHeight]);
+  }, [enabled, canvasWidth, canvasHeight, node]);
 
-  return { containerRef, fit };
+  return { containerRef, fit, isReady };
 }

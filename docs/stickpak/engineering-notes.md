@@ -2,6 +2,26 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## fitToContainer first-paint shrink flash (v0.5.5)
+
+**When:** July 2026 (`react-canvas-designer` **v0.5.5**).
+
+**Problem:** On narrow viewports with `fitToContainer`, the stage first painted at full design size (A4 ≈ 595×842), then jumped down after `ResizeObserver` measured the parent. Looked like a shrink animation; it was a JS stage resize. Storefronts that hid a preloader on `onReady` still flashed because measure ran in `useEffect` (after paint) and unknown width defaulted to scale **1**.
+
+**Fix:**
+- Unknown / ≤0 container width → scale **0** (not 1)
+- Measure in **`useLayoutEffect`** (before browser paint) via callback ref + `ResizeObserver`
+- Shell stays `visibility: hidden` until `clientWidth > 0`
+- `onReady` waits until fit has measured when `fitToContainer` is on
+
+Desktop parents ≥ canvas width still resolve to scale 1; never scale above 1.
+
+**Storefront follow-up:** Pin `@jeffgo10/react-canvas-designer@0.5.5`; mobile preloader overflow gate can be simplified once published.
+
+**Code:** `containerFitScale.ts`, `useContainerFitScale.ts`, `CanvasDesigner.tsx`
+
+**Related:** [[Notes — fitToContainer first-paint shrink flash]], [[Notes — fitToContainer mobile viewport (engine)]]
+
 ## Cutline offset — alpha border expand (SP-015)
 
 **When:** July 2026 (`helpers` **v0.4.0**, `shared-types` **v0.2.3**, `react-canvas-designer` **v0.5.1**).
@@ -22,7 +42,7 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Docs showcase:** `/stickpak` — with one sticker selected: per-image offset mm + checkbox.
 
-**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.0` + `@jeffgo10/shared-types@0.2.3` + `@jeffgo10/react-canvas-designer@0.5.4`; treat `getSelectedCutLineOffset().enabled` as the on/off source of truth (not `offsetMm > 0`). Old designs that already stored `cutLineOffsetMm` will still re-bake on load by design.
+**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.0` + `@jeffgo10/shared-types@0.2.3` + `@jeffgo10/react-canvas-designer@0.5.5`; treat `getSelectedCutLineOffset().enabled` as the on/off source of truth (not `offsetMm > 0`). Old designs that already stored `cutLineOffsetMm` will still re-bake on load by design.
 
 **Related:** Obsidian `StickPak/noteworthy/Notes — Cutline offset (SP-015)`.
 

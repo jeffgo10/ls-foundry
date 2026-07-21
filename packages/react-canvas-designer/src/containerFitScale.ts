@@ -1,14 +1,18 @@
 /** 1px dashed border on each side of the canvas shell. */
 export const CANVAS_SHELL_BORDER_PX = 2;
 
-/** Scale canvas display to fit a container width; never scales above 1. */
+/**
+ * Scale canvas display to fit a container width; never scales above 1.
+ * Unknown / non-positive container width returns 0 so callers can avoid
+ * painting a full-size stage before the first measure.
+ */
 export function computeContainerFitScale(
   containerWidth: number,
   canvasWidth: number,
   borderPx = CANVAS_SHELL_BORDER_PX,
 ): number {
   if (!Number.isFinite(containerWidth) || containerWidth <= 0) {
-    return 1;
+    return 0;
   }
   if (!Number.isFinite(canvasWidth) || canvasWidth <= 0) {
     return 1;
@@ -25,6 +29,21 @@ export type ContainerFitDimensions = {
   shellWidth: number;
   shellHeight: number;
 };
+
+/** Full design-size dimensions (fit disabled / parent wide enough after measure). */
+export function getFullSizeContainerDimensions(
+  canvasWidth: number,
+  canvasHeight: number,
+  borderPx = CANVAS_SHELL_BORDER_PX,
+): ContainerFitDimensions {
+  return {
+    displayScale: 1,
+    stageDisplayWidth: canvasWidth,
+    stageDisplayHeight: canvasHeight,
+    shellWidth: canvasWidth + borderPx,
+    shellHeight: canvasHeight + borderPx,
+  };
+}
 
 export function getContainerFitDimensions(
   containerWidth: number,

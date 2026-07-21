@@ -799,7 +799,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const selectionDpi = dimensionDpi ?? canvasConfig.designDpi;
     const marginPx = getCanvasMarginPx(canvasMarginMm, canvasConfig.designDpi);
     const showMarginGuide = showCanvasMargin ?? canvasMarginMm > 0;
-    const { containerRef, fit } = useContainerFitScale(
+    const { containerRef, fit, isReady: fitReady } = useContainerFitScale(
       fitToContainer,
       canvasConfig.canvasWidth,
       canvasConfig.canvasHeight,
@@ -2468,8 +2468,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     useImperativeHandle(ref, () => handle, [handle]);
 
     useEffect(() => {
+      if (fitToContainer && !fitReady) {
+        return;
+      }
       onReady?.(handle);
-    }, [handle, onReady]);
+    }, [handle, onReady, fitToContainer, fitReady]);
 
     useEffect(() => {
       if (!autoArrangeOnAdd || !pendingAutoArrangeRef.current) {
@@ -2499,7 +2502,15 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       <div
         ref={fitToContainer ? containerRef : undefined}
         className={className}
-        style={fitToContainer ? { width: "100%" } : undefined}
+        style={
+          fitToContainer
+            ? {
+                width: "100%",
+                // Hide until measured so the first paint is never full design size.
+                visibility: fitReady ? undefined : "hidden",
+              }
+            : undefined
+        }
       >
         <div
           {...canvasShellProps}
