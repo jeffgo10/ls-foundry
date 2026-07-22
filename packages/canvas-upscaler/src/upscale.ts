@@ -1,12 +1,20 @@
 import {
+  getDesignDpi,
   getLayoutDpiScale,
   getPrintDimensions,
   getPrintDpi,
   mmToCanvasPixels,
+  type CanvasItem,
   type CanvasLayout,
   type CanvasLayoutExport,
 } from "@jeffgo10/shared-types";
 import { createCanvas, loadImage, type CanvasRenderingContext2D } from "canvas";
+import {
+  bakeCutLineOffsetNode,
+  cutLineOffsetLocalPx,
+  normalizeCutLineOffsetFill,
+  padCornerStageOffset,
+} from "./bakeCutLineOffsetNode";
 
 export type AssetSource = {
   assetId: string;
@@ -42,18 +50,24 @@ function drawSilhouetteCornerMarkers(
   context.restore();
 }
 
+type DrawableImage = Awaited<ReturnType<typeof loadImage>> | ReturnType<
+  typeof createCanvas
+>;
+
 /**
  * Mirror Konva Group transform order (translate → rotate → scale) at print DPI.
  * Target = source × (printDpi / designDpi).
  */
 function drawItem(
   context: CanvasRenderingContext2D,
-  image: Awaited<ReturnType<typeof loadImage>>,
-  item: CanvasLayout["items"][number],
+  image: DrawableImage,
+  item: Pick<CanvasItem, "x" | "y" | "scaleX" | "scaleY" | "rotation">,
   scale: number,
+  imageWidth: number,
+  imageHeight: number,
 ) {
-  const baseWidth = image.width * scale;
-  const baseHeight = image.height * scale;
+  const baseWidth = imageWidth * scale;
+  const baseHeight = imageHeight * scale;
 
   context.save();
   context.translate(item.x * scale, item.y * scale);
@@ -61,6 +75,72 @@ function drawItem(
   context.scale(item.scaleX, item.scaleY);
   context.drawImage(image, 0, 0, baseWidth, baseHeight);
   context.restore();
+}
+
+/**
+ * When layout has `cutLineOffsetMm` (StickPak `exportLayoutState` + S3 sources),
+ * bake the pad to match canvas preview. Source-space transforms are compensated
+ * with the same pad/contentScale math as react-canvas-designer.
+ */
+function prepareItemForDraw(
+  image: Awaited<ReturnType<typeof loadImage>>,
+  item: CanvasItem,
+  designDpi: number,
+): {
+  image: DrawableImage;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+} {
+  const offsetMm = item.cutLineOffsetMm ?? 0;
+  if (!(offsetMm > 0)) {
+    return {
+      image,
+      width: image.width,
+      height: image.height,
+      x: item.x,
+      y: item.y,
+      scaleX: item.scaleX,
+      scaleY: item.scaleY,
+      rotation: item.rotation,
+    };
+  }
+
+  const offsetLocalPx = cutLineOffsetLocalPx(
+    offsetMm,
+    designDpi,
+    item.scaleX,
+    item.scaleY,
+  );
+  const fill = normalizeCutLineOffsetFill(item.cutLineOffsetFill);
+  const baked = bakeCutLineOffsetNode(image, offsetLocalPx, {
+    fill,
+  });
+  const contentScale = Math.max(baked.contentScale || 1, 1e-8);
+  const scaleX = item.scaleX / contentScale;
+  const scaleY = item.scaleY / contentScale;
+  const padOffset = padCornerStageOffset(
+    baked.pad,
+    scaleX,
+    scaleY,
+    item.rotation,
+  );
+
+  return {
+    image: baked.image,
+    width: baked.width,
+    height: baked.height,
+    // Source-space (x,y) is the art origin; shift group origin by pad corner.
+    x: item.x - padOffset.x,
+    y: item.y - padOffset.y,
+    scaleX,
+    scaleY,
+    rotation: item.rotation,
+  };
 }
 
 async function loadAssetSource(source: AssetSource) {
@@ -88,6 +168,7 @@ export async function upscaleLayoutToPng({
   assets,
 }: UpscaleOptions): Promise<Buffer> {
   const scale = getLayoutDpiScale(layout);
+  const designDpi = getDesignDpi(layout);
   const { width: printWidth, height: printHeight } = getPrintDimensions(layout);
   const canvas = createCanvas(printWidth, printHeight);
   const context = canvas.getContext("2d");
@@ -101,7 +182,15 @@ export async function upscaleLayoutToPng({
     }
 
     const image = await loadAssetSource(source);
-    drawItem(context, image, item, scale);
+    const prepared = prepareItemForDraw(image, item, designDpi);
+    drawItem(
+      context,
+      prepared.image,
+      prepared,
+      scale,
+      prepared.width,
+      prepared.height,
+    );
   }
 
   const markerPx = Math.round(

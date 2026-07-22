@@ -123,6 +123,9 @@ importers:
 
   packages/canvas-upscaler:
     dependencies:
+      '@jeffgo10/helpers':
+        specifier: workspace:*
+        version: link:../helpers
       '@jeffgo10/shared-types':
         specifier: workspace:*
         version: link:../shared-types

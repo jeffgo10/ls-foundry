@@ -34,7 +34,7 @@ Desktop parents ≥ canvas width still resolve to scale 1; never scale above 1.
 
 **Storefront follow-up:** Pin `shared-types@0.2.4` + `helpers@0.4.1` + `react-canvas-designer@0.5.6`. Wire fill dropdown UI. **Published (PR #32):** `npm view @jeffgo10/react-canvas-designer@0.5.6 dependencies` → helpers `0.4.1`, shared-types `0.2.4`.
 
-**Upscaler:** No change required for bake logic. Print path uses `exportLayout()` which embeds the **baked** display PNG (opaque pad already in pixels). Upscaler composites bitmaps only — `cutLineOffsetMm` / `cutLineOffsetFill` on layout items are ignored. Regression covered in `canvas-upscaler` tests. **Pin `@jeffgo10/canvas-upscaler@0.2.1`** (published deps → `shared-types@0.2.4`).
+**Upscaler (0.2.2):** StickPak admin print uses `exportLayoutState` + S3 sources. When `cutLineOffsetMm > 0`, `@jeffgo10/canvas-upscaler` bakes the pad (node-canvas port of helpers bake) and applies designer pad/`contentScale` placement. `exportLayout` display bitmaps without `cutLineOffsetMm` still draw as-is. Pin **`@jeffgo10/canvas-upscaler@0.2.2`**.
 
 ## Cutline offset ring fill — dominant edge color (SP-021)
 
