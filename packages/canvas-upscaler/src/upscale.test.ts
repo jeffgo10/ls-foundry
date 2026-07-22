@@ -55,6 +55,75 @@ describe("canvas-upscaler", () => {
     expect(center.data[3]).toBe(0);
   });
 
+  it("preserves opaque cut-line offset pad fill from baked display PNGs", async () => {
+    // Simulate designer `exportLayout` when offset is on: pad already baked into
+    // the display bitmap (custom fill #0000ff, art #ff0000). Upscaler must not
+    // invent transparent/white pads — it only composites the pixels it receives.
+    const pad = 4;
+    const art = 8;
+    const size = art + pad * 2;
+    const baked = createCanvas(size, size);
+    const bakedCtx = baked.getContext("2d");
+    bakedCtx.fillStyle = "#0000ff";
+    bakedCtx.fillRect(0, 0, size, size);
+    bakedCtx.fillStyle = "#ff0000";
+    bakedCtx.fillRect(pad, pad, art, art);
+    const bakedDataUrl = `data:image/png;base64,${baked
+      .toBuffer("image/png")
+      .toString("base64")}`;
+
+    const layout = createEmptyLayout({
+      canvasWidth: 40,
+      canvasHeight: 40,
+      designDpi: 72,
+      printDpi: 72,
+    });
+    // Place away from Silhouette corner markers so pad pixels are not overwritten.
+    const originX = 10;
+    const originY = 10;
+    layout.items = [
+      {
+        instanceId: "i1",
+        assetId: "baked-offset",
+        x: originX,
+        y: originY,
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0,
+        // Print payload may still carry these; upscaler ignores them (pixels win).
+        cutLineOffsetMm: 5,
+        cutLineOffsetFill: "#0000ff",
+      },
+    ];
+
+    const buffer = await upscaleLayoutToPng({
+      layout,
+      assets: [{ assetId: "baked-offset", dataUrl: bakedDataUrl }],
+    });
+
+    const image = await loadImage(buffer);
+    const canvas = createCanvas(image.width, image.height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0);
+
+    const padPixel = ctx.getImageData(originX + 1, originY + 1, 1, 1).data;
+    expect(padPixel[0]).toBe(0);
+    expect(padPixel[1]).toBe(0);
+    expect(padPixel[2]).toBe(255);
+    expect(padPixel[3]).toBe(255);
+
+    const artPixel = ctx.getImageData(
+      originX + pad + 2,
+      originY + pad + 2,
+      1,
+      1,
+    ).data;
+    expect(artPixel[0]).toBe(255);
+    expect(artPixel[1]).toBe(0);
+    expect(artPixel[2]).toBe(0);
+    expect(artPixel[3]).toBe(255);
+  });
+
   it("upscales a single-item layout to print dimensions", async () => {
     const layout = createEmptyLayout();
     layout.items = [
