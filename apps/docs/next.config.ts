@@ -29,6 +29,24 @@ const nextConfig: NextConfig = {
         packageSrc,
         "react-canvas-designer/src/index.ts",
       ),
+      // Subpath exports (`@jeffgo10/helpers/image`, etc.) — keep ahead of the
+      // package root alias so Next does not resolve them via stale `dist/`.
+      "@jeffgo10/helpers/image": path.join(
+        packageSrc,
+        "helpers/src/image/index.ts",
+      ),
+      "@jeffgo10/helpers/gestures": path.join(
+        packageSrc,
+        "helpers/src/gestures/index.ts",
+      ),
+      "@jeffgo10/helpers/browser": path.join(
+        packageSrc,
+        "helpers/src/browser/index.ts",
+      ),
+      "@jeffgo10/helpers/clipboard": path.join(
+        packageSrc,
+        "helpers/src/clipboard/index.ts",
+      ),
       "@jeffgo10/history": path.join(packageSrc, "history/src/index.ts"),
       "@jeffgo10/three-d-label-customizer": path.join(
         packageSrc,

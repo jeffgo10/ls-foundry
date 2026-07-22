@@ -118,7 +118,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `printDpi` | `300` | Target print DPI (stored in layout JSON) |
 | `showCutLine` | `false` | Red alpha-contour preview |
 | `cutLineOffsetMm` | `5` | Default pad amount (mm) when enabling offset; not applied until toggled on |
-| `cutLineOffsetOnAdd` | `false` | Bake white pad on newly added images automatically |
+| `cutLineOffsetOnAdd` | `false` | Bake offset pad on newly added images automatically |
 | `autoArrangeGapMm` | `5` | Cut-line gap for packing (mm) |
 | `autoArrangeOnAdd` | `false` | Run arrange after each drop |
 | `canvasMarginMm` | `0` | Printable inset; clamp uses **alpha cut line** |
@@ -149,7 +149,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; multi-select duplicates the whole block together |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
 | `setSelectedSize({ width?, height?, unit?, lockAspectRatio? })` | Resize the single selected sticker from typed dimensions |
-| `setSelectedCutLineOffset({ enabled?, offsetMm? })` | Bake/remove/re-bake white pad on the single selected sticker (per-image amount; keeps position) |
+| `setSelectedCutLineOffset({ enabled?, offsetMm? })` | Bake/remove/re-bake offset pad on the single selected sticker (per-image amount; keeps position). Pad fill is **dominant edge color** from helpers; optional CSS `fill` is helpers-only until this API grows a `fill?` arg |
 | `getSelectedCutLineOffset()` | `{ enabled, offsetMm }` when one sticker selected; `null` otherwise |
 | `undo()` / `redo()` | Step backward/forward through design mutations; returns `false` when unavailable |
 | `canUndo()` / `canRedo()` | Whether undo/redo is available |

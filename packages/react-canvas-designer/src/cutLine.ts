@@ -33,14 +33,14 @@ export type PreparedCutLineMedia = {
   cutLinePoints: number[];
   /** Pre-bake library / blob URL for re-baking when offset mm changes. */
   sourceSrc: string;
-  /** Millimeters that were baked into `src` (0 = no white pad). */
+  /** Millimeters that were baked into `src` (0 = no offset pad). */
   cutLineOffsetBakedMm: number;
   /**
    * Bake working-size scale vs natural image (`1` = full res).
    * Divide placement scale by this after bake so art stays the same size.
    */
   contentScale: number;
-  /** White pad on each side in bake-resolution pixels (`0` when off). */
+  /** Pad on each side in bake-resolution pixels (`0` when off). */
   pad: number;
 };
 
@@ -85,8 +85,8 @@ function padCornerStageOffset(
 }
 
 /**
- * Prepare display media for a sticker: when `cutLineOffsetMm > 0`, bake a white
- * morphological pad into the PNG once and tight-trace the red cut line.
+ * Prepare display media for a sticker: when `cutLineOffsetMm > 0`, bake a solid
+ * edge-colored morphological pad into the PNG once and tight-trace the red cut line.
  * `scaleX`/`scaleY` should be the **placement** scale so the pad is ~`cutLineOffsetMm`
  * in stage space (large PNGs need a thicker local-pixel pad after downscaling).
  */
@@ -141,7 +141,7 @@ export function prepareCutLineMedia(
 
 /**
  * Swap baked/raw cut-line media while keeping the art's stage position stable.
- * Compensates for white-pad growth by shifting `x`/`y` with the pad delta.
+ * Compensates for pad growth by shifting `x`/`y` with the pad delta.
  */
 export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>(
   item: T,
@@ -195,7 +195,7 @@ export type SourceSpaceTransform = {
 };
 
 /**
- * Convert a placed sticker (possibly with a baked white pad) back to transforms
+ * Convert a placed sticker (possibly with a baked offset pad) back to transforms
  * relative to the library/source asset. Layout JSON always uses this space so
  * save → reload with original S3 URLs keeps size and position.
  */
@@ -226,7 +226,7 @@ export function toSourceSpaceTransform(
 
 /**
  * Layout row for persistence / S3 restore. Transforms are source-space; optional
- * `cutLineOffsetMm` records that white pad should be re-baked on load.
+ * `cutLineOffsetMm` records that the offset pad should be re-baked on load.
  */
 export function toPersistedCanvasItem(
   item: CutLineMediaPlacementFields & {
@@ -251,7 +251,7 @@ export function toPersistedCanvasItem(
 
 /**
  * Layout row for print export when assets are the current display bitmaps
- * (including baked white pads). Uses on-canvas transforms as-is.
+ * (including baked offset pads). Uses on-canvas transforms as-is.
  */
 export function toDisplayCanvasItem(
   item: CutLineMediaPlacementFields & {

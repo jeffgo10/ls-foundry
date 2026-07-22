@@ -1,4 +1,39 @@
-import { bakeCutLineOffset, dilateBinaryMaskFast } from "./bakeCutLineOffset";
+import {
+  bakeCutLineOffset,
+  dilateBinaryMaskFast,
+  dominantEdgeColorFromAlphaData,
+} from "./bakeCutLineOffset";
+
+describe("dominantEdgeColorFromAlphaData", () => {
+  it("returns the mode color along the alpha boundary", () => {
+    const width = 6;
+    const height = 6;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 1; y <= 4; y += 1) {
+      for (let x = 1; x <= 4; x += 1) {
+        const i = (y * width + x) * 4;
+        data[i] = 200;
+        data[i + 1] = 10;
+        data[i + 2] = 10;
+        data[i + 3] = 255;
+      }
+    }
+    // Extra boundary pixel with a different color should not win.
+    const corner = (1 * width + 1) * 4;
+    data[corner] = 0;
+    data[corner + 1] = 0;
+    data[corner + 2] = 255;
+
+    expect(dominantEdgeColorFromAlphaData(data, width, height)).toEqual([
+      200, 10, 10,
+    ]);
+  });
+
+  it("falls back to white when no opaque pixels exist", () => {
+    const data = new Uint8ClampedArray(16);
+    expect(dominantEdgeColorFromAlphaData(data, 2, 2)).toEqual([255, 255, 255]);
+  });
+});
 
 describe("dilateBinaryMaskFast", () => {
   it("expands a single seed by Chebyshev radius", () => {
@@ -25,6 +60,7 @@ describe("bakeCutLineOffset", () => {
     }
 
     const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    let ringPixelCount = 0;
     HTMLCanvasElement.prototype.getContext = function getContext(
       this: HTMLCanvasElement,
       type: string,
@@ -40,7 +76,13 @@ describe("bakeCutLineOffset", () => {
           width: w,
           height: h,
         }),
-        putImageData: jest.fn(),
+        putImageData: jest.fn((imageData: ImageData) => {
+          for (let i = 3; i < imageData.data.length; i += 4) {
+            if (imageData.data[i] === 255) {
+              ringPixelCount += 1;
+            }
+          }
+        }),
         getImageData: jest.fn(() => {
           if (self.width === srcW && self.height === srcH) {
             return { data: alpha, width: srcW, height: srcH };
@@ -75,6 +117,7 @@ describe("bakeCutLineOffset", () => {
     expect(baked.contentScale).toBe(1);
     expect(baked.dataUrl).toBe("data:image/png;base64,test");
     expect(baked.cutLinePoints.length).toBeGreaterThanOrEqual(8);
+    expect(ringPixelCount).toBeGreaterThan(0);
   });
 
   it("downsamples large sources and reports contentScale < 1", () => {

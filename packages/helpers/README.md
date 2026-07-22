@@ -46,7 +46,9 @@ Optional `expandPx` morphologically dilates the alpha mask before tracing (legac
 
 ### `bakeCutLineOffset(image, offsetPx, options?)`
 
-Dilates the alpha mask (fast BFS), fills the expanded ring with white (default), draws the original art on top, and returns `{ dataUrl, width, height, cutLinePoints, pad, contentScale }`. Large sources are downsampled (default max edge **768**) so drop stays responsive. Used by the designer so cutline offset is baked once (async after place) instead of re-dilating every scale frame.
+Dilates the alpha mask (fast BFS), draws the art, then fills the expanded ring with a solid color. By default the fill is the **dominant edge color** sampled along the alpha boundary (`dominantEdgeColorFromAlphaData`); pass `options.fill` (CSS color) to override. Returns `{ dataUrl, width, height, cutLinePoints, pad, contentScale }`. Large sources are downsampled (default max edge **768**) so drop stays responsive. Used by the designer so cutline offset is baked once (async after place) instead of re-dilating every scale frame.
+
+> **Storefront / designer note:** the optional `fill` override exists here only. `@jeffgo10/react-canvas-designer` does not expose a fill argument yet — product UIs that want a user-chosen pad color must extend the designer bake path to forward `fill`.
 
 ### `offsetClosedPolygon(points, offset)`
 
