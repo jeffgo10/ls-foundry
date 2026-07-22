@@ -51,7 +51,7 @@ Always bump `shared-types` first when changing layout/DPI APIs; keep dependent p
 
 | Package | Version | Docs |
 |---------|---------|------|
-| `@jeffgo10/helpers` | 0.4.0 | `packages/helpers/` (`./image`, `./gestures`, `./browser`, `./clipboard`) |
+| `@jeffgo10/helpers` | 0.4.1 | `packages/helpers/` (`./image`, `./gestures`, `./browser`, `./clipboard`) |
 | `@jeffgo10/history` | 0.1.0 | `packages/history/` — generic undo/redo snapshot stacks |
 | `@jeffgo10/three-d-label-customizer` | 0.1.0 | `docs/three-d-label-customizer/` |
 | `@jeffgo10/gl-viewer` | 0.3.1 | `packages/gl-viewer/` (consumer: **LiteShadeMedia**) |

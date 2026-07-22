@@ -22,6 +22,23 @@ Desktop parents ≥ canvas width still resolve to scale 1; never scale above 1.
 
 **Related:** [[Notes — fitToContainer first-paint shrink flash]], [[Notes — fitToContainer mobile viewport (engine)]]
 
+## Cutline offset ring fill — dominant edge color (SP-021)
+
+**When:** July 2026 (`helpers` **v0.4.1**).
+
+**Problem:** Baked cut-line offset padding could render as **transparent** pixels in print/export samples. Root cause: `bakeCutLineOffset` filled the dilated mask, then `drawImage` overwrote ring pixels inside the image bbox with transparent source alpha. White fill was also a poor default for colored stickers.
+
+**Fix (`@jeffgo10/helpers/image`):**
+- Default ring fill is now the **dominant edge color** (`dominantEdgeColorFromAlphaData`) sampled along 4-connected alpha boundary pixels (mode after RGB quantization).
+- Compositing order: draw art first, then paint only ring pixels (`dilated && !originalOpaque`) opaque so holes inside the bbox no longer punch through.
+- Optional `fill` (CSS color) overrides for an explicit solid color.
+
+**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.1`; re-save or toggle offset on affected designs to re-bake.
+
+**Optional fill color (not product-wired yet):** Helpers accept `bakeCutLineOffset(..., { fill })`, but `react-canvas-designer` (`prepareCutLineMedia` / `setSelectedCutLineOffset`) always bakes with auto edge color — it does not forward `fill`. Storefront can add a color UI (auto vs picker) after a small designer API extension passes `fill` through; persist custom fill in layout JSON if reload must keep it.
+
+**Related:** SP-015, Obsidian `StickPak/noteworthy/canvas-engine/Notes — Cutline offset dominant edge fill (SP-021)`.
+
 ## Cutline offset — alpha border expand (SP-015)
 
 **When:** July 2026 (`helpers` **v0.4.0**, `shared-types` **v0.2.3**, `react-canvas-designer` **v0.5.1**).
@@ -29,7 +46,7 @@ Desktop parents ≥ canvas width still resolve to scale 1; never scale above 1.
 **Goal:** Offset the alpha-detected cut line outward from the graphic (Silhouette Studio–style) so cutting does not clip the artwork.
 
 **Engine:**
-- `@jeffgo10/helpers/image` — `bakeCutLineOffset(image, offsetPx)` dilates alpha (fast BFS), fills the ring **white**, composites art; **downsamples** large sources (max edge 768) then returns PNG + tight contour + `contentScale`.
+- `@jeffgo10/helpers/image` — `bakeCutLineOffset(image, offsetPx)` dilates alpha (fast BFS), draws art, fills the ring with **dominant edge color** (or optional `fill`); **downsamples** large sources (max edge 768) then returns PNG + tight contour + `contentScale`.
 - `@jeffgo10/react-canvas-designer` — offset is **per sticker** (on/off + mm). `setSelectedCutLineOffset({ enabled?, offsetMm? })` / `getSelectedCutLineOffset()` → `{ enabled, offsetMm }`. Designer prop `cutLineOffsetMm` is only the default for new stickers. Changing mm while enabled re-bakes **in place** (pad-compensated `x`/`y`). Optional `cutLineOffsetOnAdd` (default **false**) auto-bakes on drop.
 - **Persistence:** layout JSON transforms are always **source-asset space** (`toPersistedCanvasItem`). Optional `cutLineOffsetMm` on the item re-bakes on `loadLayoutFromSources`. Print `exportLayout` still embeds display bitmaps + display transforms for upscale.
 - Distinct from `autoArrangeGapMm` (gap **between** cut lines) and `canvasMarginMm` (page edge inset).
@@ -42,7 +59,7 @@ Desktop parents ≥ canvas width still resolve to scale 1; never scale above 1.
 
 **Docs showcase:** `/stickpak` — with one sticker selected: per-image offset mm + checkbox.
 
-**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.0` + `@jeffgo10/shared-types@0.2.3` + `@jeffgo10/react-canvas-designer@0.5.5`; treat `getSelectedCutLineOffset().enabled` as the on/off source of truth (not `offsetMm > 0`). Old designs that already stored `cutLineOffsetMm` will still re-bake on load by design.
+**Storefront follow-up:** Pin `@jeffgo10/helpers@0.4.1` + `@jeffgo10/shared-types@0.2.3` + `@jeffgo10/react-canvas-designer@0.5.5`; treat `getSelectedCutLineOffset().enabled` as the on/off source of truth (not `offsetMm > 0`). Old designs that already stored `cutLineOffsetMm` will still re-bake on load by design.
 
 **Related:** Obsidian `StickPak/noteworthy/Notes — Cutline offset (SP-015)`.
 

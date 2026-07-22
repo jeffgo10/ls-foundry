@@ -297,7 +297,7 @@ function StickPakCanvasSection() {
               }}
               className="size-4 rounded border-white/20"
             />
-            Apply white cut-line offset to selected sticker
+            Apply cut-line offset to selected sticker
           </label>
         </>
       ) : null}

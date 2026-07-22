@@ -1,6 +1,7 @@
 export {
   bakeCutLineOffset,
   dilateBinaryMaskFast,
+  dominantEdgeColorFromAlphaData,
   BAKE_CUTLINE_MAX_DIMENSION,
   type BakeCutLineOffsetOptions,
   type BakeCutLineOffsetResult,

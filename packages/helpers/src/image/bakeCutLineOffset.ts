@@ -15,7 +15,10 @@ const NEIGHBORS: Point[] = [
 export const BAKE_CUTLINE_MAX_DIMENSION = 768;
 
 export type BakeCutLineOffsetOptions = {
-  /** Opaque fill for the expanded ring. Default white. */
+  /**
+   * Opaque fill for the expanded ring. When omitted, samples the most common
+   * color along the art's alpha boundary (see `dominantEdgeColorFromAlphaData`).
+   */
   fill?: string;
   /** Alpha threshold matching `traceAlphaContour`. Default 20. */
   alphaThreshold?: number;
@@ -26,7 +29,7 @@ export type BakeCutLineOffsetOptions = {
 };
 
 export type BakeCutLineOffsetResult = {
-  /** PNG data URL of art + white offset pad. */
+  /** PNG data URL of art + solid-color offset pad. */
   dataUrl: string;
   width: number;
   height: number;
@@ -41,7 +44,80 @@ export type BakeCutLineOffsetResult = {
   contentScale: number;
 };
 
-function parseCssColor(fill: string): [number, number, number] {
+type Rgb = [number, number, number];
+
+/**
+ * Pick the mode RGB along opaque alpha edges (4-connected boundary pixels).
+ * Near-transparent pixels are excluded via `alphaThreshold`.
+ */
+export function dominantEdgeColorFromAlphaData(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  alphaThreshold = 20,
+  quantizeShift = 4,
+): Rgb {
+  const isOpaque = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return false;
+    return data[(y * width + x) * 4 + 3]! > alphaThreshold;
+  };
+
+  const buckets = new Map<
+    number,
+    { count: number; r: number; g: number; b: number }
+  >();
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isOpaque(x, y)) continue;
+      if (
+        isOpaque(x - 1, y) &&
+        isOpaque(x + 1, y) &&
+        isOpaque(x, y - 1) &&
+        isOpaque(x, y + 1)
+      ) {
+        continue;
+      }
+
+      const i = (y * width + x) * 4;
+      const r = data[i]!;
+      const g = data[i + 1]!;
+      const b = data[i + 2]!;
+      const key =
+        ((r >> quantizeShift) << 16) |
+        ((g >> quantizeShift) << 8) |
+        (b >> quantizeShift);
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.count += 1;
+        bucket.r += r;
+        bucket.g += g;
+        bucket.b += b;
+      } else {
+        buckets.set(key, { count: 1, r, g, b });
+      }
+    }
+  }
+
+  if (buckets.size === 0) {
+    return [255, 255, 255];
+  }
+
+  let best = buckets.values().next().value!;
+  for (const bucket of buckets.values()) {
+    if (bucket.count > best.count) {
+      best = bucket;
+    }
+  }
+
+  return [
+    Math.round(best.r / best.count),
+    Math.round(best.g / best.count),
+    Math.round(best.b / best.count),
+  ];
+}
+
+function parseCssColor(fill: string): Rgb {
   if (fill === "#fff" || fill === "#ffffff" || fill === "white") {
     return [255, 255, 255];
   }
@@ -208,9 +284,9 @@ export function dilateBinaryMaskFast(
 }
 
 /**
- * Bake a Silhouette-style cutline pad into the bitmap: dilate alpha, fill the
- * expanded ring with white, draw the art on top. Large sources are downsampled
- * first so drop/place stays responsive.
+ * Bake a Silhouette-style cutline pad into the bitmap: dilate alpha, draw the
+ * art, then fill the expanded ring with a solid color (dominant edge color by
+ * default). Large sources are downsampled first so drop/place stays responsive.
  */
 export function bakeCutLineOffset(
   image: HTMLImageElement,
@@ -220,7 +296,6 @@ export function bakeCutLineOffset(
   const alphaThreshold = options.alphaThreshold ?? 20;
   const simplifyTolerance = options.simplifyTolerance ?? 1.25;
   const maxDimension = options.maxDimension ?? BAKE_CUTLINE_MAX_DIMENSION;
-  const [fillR, fillG, fillB] = parseCssColor(options.fill ?? "#ffffff");
 
   const srcW = Math.max(1, image.naturalWidth || image.width);
   const srcH = Math.max(1, image.naturalHeight || image.height);
@@ -276,6 +351,9 @@ export function bakeCutLineOffset(
   }
   srcContext.drawImage(image, 0, 0, workW, workH);
   const { data } = srcContext.getImageData(0, 0, workW, workH);
+  const [fillR, fillG, fillB] = options.fill
+    ? parseCssColor(options.fill)
+    : dominantEdgeColorFromAlphaData(data, workW, workH, alphaThreshold);
 
   const mask = new Uint8Array(width * height);
   for (let y = 0; y < workH; y += 1) {
@@ -303,9 +381,10 @@ export function bakeCutLineOffset(
     };
   }
 
-  const pixels = outContext.createImageData(width, height);
+  outContext.drawImage(image, pad, pad, workW, workH);
+  const pixels = outContext.getImageData(0, 0, width, height);
   for (let i = 0; i < dilated.length; i += 1) {
-    if (dilated[i] !== 1) continue;
+    if (dilated[i] !== 1 || mask[i] === 1) continue;
     const p = i * 4;
     pixels.data[p] = fillR;
     pixels.data[p + 1] = fillG;
@@ -313,7 +392,6 @@ export function bakeCutLineOffset(
     pixels.data[p + 3] = 255;
   }
   outContext.putImageData(pixels, 0, 0);
-  outContext.drawImage(image, pad, pad, workW, workH);
 
   const isOpaque = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= width || y >= height) return false;

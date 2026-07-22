@@ -153,7 +153,7 @@ type PlacedImage = CanvasItem & {
   /** Pre-bake library/blob URL so offset mm changes can re-bake. */
   sourceSrc?: string;
   /**
-   * Configured white pad amount while offset is **on** (mm). Omitted when off so
+   * Configured offset pad amount while offset is **on** (mm). Omitted when off so
    * load does not re-bake. While off, prefer `cutLineOffsetPreferredMm`.
    */
   cutLineOffsetMm?: number;
@@ -188,7 +188,7 @@ export type CanvasDesignerProps = {
    */
   cutLineOffsetMm?: number;
   /**
-   * When true, newly dropped/added images bake the white cut-line pad immediately
+   * When true, newly dropped/added images bake the cut-line offset pad immediately
    * using that sticker's amount (designer default). Default false — opt in per
    * sticker via `setSelectedCutLineOffset`.
    */
@@ -288,7 +288,7 @@ export type DuplicateFillHandleOptions = {
 };
 
 export type SetSelectedCutLineOffsetOptions = {
-  /** Turn white pad on/off. Omit to keep current on/off and only change amount. */
+  /** Turn offset pad on/off. Omit to keep current on/off and only change amount. */
   enabled?: boolean;
   /** Per-sticker pad amount in mm. Required (or already stored) when enabling. */
   offsetMm?: number;
@@ -347,7 +347,7 @@ export type CanvasDesignerHandle = {
    */
   setSelectedSize: (options: SetSelectedSizeOptions) => boolean;
   /**
-   * Enable/disable or change white cut-line offset on the single selected sticker.
+   * Enable/disable or change cut-line offset on the single selected sticker.
    * Amount is per sticker; changing `offsetMm` while enabled re-bakes in place.
    */
   setSelectedCutLineOffset: (
