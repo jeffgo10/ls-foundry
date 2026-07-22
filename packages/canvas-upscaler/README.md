@@ -50,9 +50,16 @@ Output dimensions come from `getPrintDimensions(layout)` in `@jeffgo10/shared-ty
 
 Each export also includes **1 mm opaque white squares** at all four corners (sized at `printDpi`) for Silhouette Studio scale-and-fit alignment.
 
-### Cut-line offset pads
+### Cut-line offset pads (SP-021)
 
-The upscaler does **not** bake or recolor cut-line offset. Feed it the designer **`exportLayout()`** payload (display bitmaps already include the opaque pad — auto edge / white / custom fill). Do not upscale raw library assets from `exportLayoutState()` alone or the pad will be missing.
+Two print payloads are supported:
+
+| Payload | Behavior |
+|---------|----------|
+| Designer **`exportLayout()`** (display bitmaps) | No `cutLineOffsetMm` on items — upscaler draws baked PNGs as-is |
+| StickPak **`exportLayoutState()`** + S3 sources | When `cutLineOffsetMm > 0`, upscaler **bakes** the pad with node-canvas (same dilate/fill as helpers). `cutLineOffsetFill` omitted = dominant edge; `#ffffff`/`white` = white; other CSS = custom. Placement uses designer pad + `contentScale` compensation so size/position match the canvas |
+
+Do **not** expect pads if you pass raw sources without `cutLineOffsetMm`.
 
 ## CLI (monorepo dev)
 

@@ -20,5 +20,6 @@ module.exports = {
   },
   coverageThreshold: {
     "./src/upscale.ts": threshold90,
+    "./src/bakeCutLineOffsetNode.ts": threshold90,
   },
 };
