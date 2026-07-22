@@ -8,6 +8,7 @@ import {
   mmToCanvasPixels,
 } from "@jeffgo10/shared-types";
 import {
+  bakeCutLineOffsetNode,
   cutLineOffsetLocalPx,
   normalizeCutLineOffsetFill,
   padCornerStageOffset,
@@ -35,6 +36,7 @@ function sourceStickerDataUrl(size = 24, inset = 4): string {
 describe("normalizeCutLineOffsetFill / cutLineOffsetLocalPx", () => {
   it("treats empty fill as auto", () => {
     expect(normalizeCutLineOffsetFill(undefined)).toBeUndefined();
+    expect(normalizeCutLineOffsetFill(null)).toBeUndefined();
     expect(normalizeCutLineOffsetFill("")).toBeUndefined();
     expect(normalizeCutLineOffsetFill("  ")).toBeUndefined();
     expect(normalizeCutLineOffsetFill("#0000ff")).toBe("#0000ff");
@@ -42,6 +44,7 @@ describe("normalizeCutLineOffsetFill / cutLineOffsetLocalPx", () => {
 
   it("converts mm to local px by placement scale", () => {
     expect(cutLineOffsetLocalPx(0, 72)).toBe(0);
+    expect(cutLineOffsetLocalPx(Number.NaN, 72)).toBe(0);
     expect(cutLineOffsetLocalPx(5, 72, 1, 1)).toBeCloseTo(
       mmToCanvasPixels(5, 72),
       5,
@@ -50,6 +53,67 @@ describe("normalizeCutLineOffsetFill / cutLineOffsetLocalPx", () => {
       mmToCanvasPixels(5, 72) / 2,
       5,
     );
+  });
+});
+
+describe("padCornerStageOffset / bakeCutLineOffsetNode", () => {
+  it("returns zero stage offset when pad is not positive", () => {
+    expect(padCornerStageOffset(0, 1, 1, 45)).toEqual({ x: 0, y: 0 });
+    expect(padCornerStageOffset(-2, 1, 1, 0)).toEqual({ x: 0, y: 0 });
+  });
+
+  it("rotates pad corner into stage space", () => {
+    expect(padCornerStageOffset(10, 1, 1, 0)).toEqual({ x: 10, y: 10 });
+    const rotated = padCornerStageOffset(10, 1, 1, 90);
+    expect(rotated.x).toBeCloseTo(-10, 5);
+    expect(rotated.y).toBeCloseTo(10, 5);
+  });
+
+  it("returns passthrough canvas when offsetPx is not positive", async () => {
+    const image = await loadImage(Buffer.from(validPngDataUrl().split(",")[1]!, "base64"));
+    const baked = bakeCutLineOffsetNode(image, 0);
+    expect(baked.pad).toBe(0);
+    expect(baked.width).toBe(image.width);
+    expect(baked.height).toBe(image.height);
+    expect(baked.contentScale).toBe(1);
+  });
+
+  it("honors white and invalid CSS fill names as opaque white", async () => {
+    const size = 24;
+    const inset = 4;
+    const image = await loadImage(
+      Buffer.from(sourceStickerDataUrl(size, inset).split(",")[1]!, "base64"),
+    );
+    for (const fill of ["#fff", "#ffffff", "white", "not-a-color"] as const) {
+      const baked = bakeCutLineOffsetNode(image, 3, { fill });
+      expect(baked.pad).toBeGreaterThan(0);
+      const ctx = baked.image.getContext("2d");
+      // Sample just outside the art edge (inside the dilated ring).
+      const sampleX = baked.pad + inset - 1;
+      const sampleY = baked.pad + Math.floor(size / 2);
+      const padPixel = ctx.getImageData(sampleX, sampleY, 1, 1).data;
+      expect(padPixel[0]).toBe(255);
+      expect(padPixel[1]).toBe(255);
+      expect(padPixel[2]).toBe(255);
+      expect(padPixel[3]).toBe(255);
+    }
+  });
+
+  it("uses dominant edge color when fill is omitted", async () => {
+    const size = 24;
+    const inset = 4;
+    const image = await loadImage(
+      Buffer.from(sourceStickerDataUrl(size, inset).split(",")[1]!, "base64"),
+    );
+    const baked = bakeCutLineOffsetNode(image, 3);
+    expect(baked.pad).toBeGreaterThan(0);
+    const ctx = baked.image.getContext("2d");
+    const sampleX = baked.pad + inset - 1;
+    const sampleY = baked.pad + Math.floor(size / 2);
+    const padPixel = ctx.getImageData(sampleX, sampleY, 1, 1).data;
+    // Source art is red — dominant edge should be opaque red-ish, not transparent.
+    expect(padPixel[3]).toBe(255);
+    expect(padPixel[0]).toBeGreaterThan(200);
   });
 });
 
