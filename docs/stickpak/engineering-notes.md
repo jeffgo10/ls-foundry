@@ -32,7 +32,9 @@ Desktop parents ≥ canvas width still resolve to scale 1; never scale above 1.
 - Semantics: omit/`undefined`/`""` = auto edge; `"#ffffff"` = white; other CSS = custom.
 - Persist `cutLineOffsetFill` on layout items when offset is on + fill is explicit; re-bake on `loadLayoutFromSources`.
 
-**Storefront follow-up:** Pin `shared-types@0.2.4` + `helpers@0.4.1` + `react-canvas-designer@0.5.6`. Wire fill dropdown UI.
+**Storefront follow-up:** Pin `shared-types@0.2.4` + `helpers@0.4.1` + `react-canvas-designer@0.5.6`. Wire fill dropdown UI. **Published (PR #32):** `npm view @jeffgo10/react-canvas-designer@0.5.6 dependencies` → helpers `0.4.1`, shared-types `0.2.4`.
+
+**Upscaler:** No change required for bake logic. Print path uses `exportLayout()` which embeds the **baked** display PNG (opaque pad already in pixels). Upscaler composites bitmaps only — `cutLineOffsetMm` / `cutLineOffsetFill` on layout items are ignored. Regression covered in `canvas-upscaler` tests. **Pin `@jeffgo10/canvas-upscaler@0.2.1`** (published deps → `shared-types@0.2.4`).
 
 ## Cutline offset ring fill — dominant edge color (SP-021)
 

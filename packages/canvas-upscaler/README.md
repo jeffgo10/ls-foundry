@@ -50,6 +50,10 @@ Output dimensions come from `getPrintDimensions(layout)` in `@jeffgo10/shared-ty
 
 Each export also includes **1 mm opaque white squares** at all four corners (sized at `printDpi`) for Silhouette Studio scale-and-fit alignment.
 
+### Cut-line offset pads
+
+The upscaler does **not** bake or recolor cut-line offset. Feed it the designer **`exportLayout()`** payload (display bitmaps already include the opaque pad — auto edge / white / custom fill). Do not upscale raw library assets from `exportLayoutState()` alone or the pad will be missing.
+
 ## CLI (monorepo dev)
 
 From the repo root, after exporting JSON from `/stickpak`:
