@@ -25,6 +25,20 @@ export function cutLineOffsetLocalPx(
   return mmToCanvasPixels(offsetMm, designDpi) / scale;
 }
 
+/**
+ * Normalize an explicit cut-line pad fill. Empty / whitespace → `undefined`
+ * (auto dominant edge color). Non-empty CSS colors are trimmed and kept.
+ */
+export function normalizeCutLineOffsetFill(
+  fill: string | undefined | null,
+): string | undefined {
+  if (fill == null) {
+    return undefined;
+  }
+  const trimmed = fill.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export type PreparedCutLineMedia = {
   src: string;
   mimeType: string;
@@ -59,6 +73,8 @@ export type CutLineMediaPlacementFields = {
   sourceSrc?: string;
   cutLineOffsetMm?: number;
   cutLineOffsetBakedMm?: number;
+  /** Explicit pad fill while offset is on; omitted = auto edge. */
+  cutLineOffsetFill?: string;
   cutLineBakeContentScale?: number;
   cutLineBakePad?: number;
 };
@@ -86,7 +102,8 @@ function padCornerStageOffset(
 
 /**
  * Prepare display media for a sticker: when `cutLineOffsetMm > 0`, bake a solid
- * edge-colored morphological pad into the PNG once and tight-trace the red cut line.
+ * morphological pad into the PNG once and tight-trace the red cut line.
+ * `fill` omitted/`undefined` = dominant edge color; CSS color = that solid fill.
  * `scaleX`/`scaleY` should be the **placement** scale so the pad is ~`cutLineOffsetMm`
  * in stage space (large PNGs need a thicker local-pixel pad after downscaling).
  */
@@ -98,6 +115,7 @@ export function prepareCutLineMedia(
   designDpi: number,
   scaleX = 1,
   scaleY = 1,
+  fill?: string,
 ): PreparedCutLineMedia {
   const offsetLocalPx = cutLineOffsetLocalPx(
     cutLineOffsetMm,
@@ -125,7 +143,12 @@ export function prepareCutLineMedia(
     };
   }
 
-  const baked = bakeCutLineOffset(image, offsetLocalPx);
+  const normalizedFill = normalizeCutLineOffsetFill(fill);
+  const baked = bakeCutLineOffset(
+    image,
+    offsetLocalPx,
+    normalizedFill ? { fill: normalizedFill } : {},
+  );
   return {
     src: baked.dataUrl || sourceSrc,
     mimeType: "image/png",
@@ -149,6 +172,7 @@ export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>
   artScaleX: number,
   artScaleY: number,
   configuredOffsetMm: number,
+  configuredFill?: string,
 ): T {
   const contentScale = Math.max(media.contentScale || 1, 1e-8);
   const scaleX = artScaleX / contentScale;
@@ -166,6 +190,10 @@ export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>
   const nextArt = padCornerStageOffset(nextPad, scaleX, scaleY, rotation);
   const artStageX = item.x + prevArt.x;
   const artStageY = item.y + prevArt.y;
+  const nextFill =
+    configuredOffsetMm > 0
+      ? normalizeCutLineOffsetFill(configuredFill)
+      : undefined;
 
   return {
     ...item,
@@ -181,6 +209,7 @@ export function applyPreparedCutLineMedia<T extends CutLineMediaPlacementFields>
     sourceSrc: media.sourceSrc,
     cutLineOffsetMm: configuredOffsetMm > 0 ? configuredOffsetMm : undefined,
     cutLineOffsetBakedMm: media.cutLineOffsetBakedMm,
+    cutLineOffsetFill: nextFill,
     cutLineBakeContentScale: contentScale,
     cutLineBakePad: nextPad,
   };
@@ -227,6 +256,8 @@ export function toSourceSpaceTransform(
 /**
  * Layout row for persistence / S3 restore. Transforms are source-space; optional
  * `cutLineOffsetMm` records that the offset pad should be re-baked on load.
+ * Explicit `cutLineOffsetFill` is persisted when offset is on so White/Custom
+ * survive reload (auto edge = omit).
  */
 export function toPersistedCanvasItem(
   item: CutLineMediaPlacementFields & {
@@ -237,6 +268,8 @@ export function toPersistedCanvasItem(
 ): CanvasItem {
   const source = toSourceSpaceTransform(item);
   const bakedMm = item.cutLineOffsetBakedMm ?? 0;
+  const fill =
+    bakedMm > 0 ? normalizeCutLineOffsetFill(item.cutLineOffsetFill) : undefined;
   return {
     instanceId: item.instanceId,
     assetId: item.assetId,
@@ -246,6 +279,7 @@ export function toPersistedCanvasItem(
     scaleY: source.scaleY,
     rotation: source.rotation,
     ...(bakedMm > 0 ? { cutLineOffsetMm: bakedMm } : {}),
+    ...(fill ? { cutLineOffsetFill: fill } : {}),
   };
 }
 

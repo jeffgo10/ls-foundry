@@ -22,6 +22,18 @@ Desktop parents ≥ canvas width still resolve to scale 1; never scale above 1.
 
 **Related:** [[Notes — fitToContainer first-paint shrink flash]], [[Notes — fitToContainer mobile viewport (engine)]]
 
+## Cutline offset fill API (SP-021 / designer 0.5.6)
+
+**When:** July 2026 (`shared-types` **v0.2.4**, `helpers` **v0.4.1**, `react-canvas-designer` **v0.5.6**).
+
+**Must-ship for storefront:**
+- Published designer **0.5.6** resolves `@jeffgo10/helpers@0.4.1` (not 0.4.0).
+- End-to-end fill: `prepareCutLineMedia(..., fill?)` → `bakeCutLineOffset(..., { fill? })`; `setSelectedCutLineOffset({ enabled?, offsetMm?, fill? })`; `getSelectedCutLineOffset()` → `{ enabled, offsetMm, fill? }`.
+- Semantics: omit/`undefined`/`""` = auto edge; `"#ffffff"` = white; other CSS = custom.
+- Persist `cutLineOffsetFill` on layout items when offset is on + fill is explicit; re-bake on `loadLayoutFromSources`.
+
+**Storefront follow-up:** Pin `shared-types@0.2.4` + `helpers@0.4.1` + `react-canvas-designer@0.5.6`. Wire fill dropdown UI.
+
 ## Cutline offset ring fill — dominant edge color (SP-021)
 
 **When:** July 2026 (`helpers` **v0.4.1**).

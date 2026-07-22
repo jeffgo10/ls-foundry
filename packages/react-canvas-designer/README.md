@@ -149,8 +149,8 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; multi-select duplicates the whole block together |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
 | `setSelectedSize({ width?, height?, unit?, lockAspectRatio? })` | Resize the single selected sticker from typed dimensions |
-| `setSelectedCutLineOffset({ enabled?, offsetMm? })` | Bake/remove/re-bake offset pad on the single selected sticker (per-image amount; keeps position). Pad fill is **dominant edge color** from helpers; optional CSS `fill` is helpers-only until this API grows a `fill?` arg |
-| `getSelectedCutLineOffset()` | `{ enabled, offsetMm }` when one sticker selected; `null` otherwise |
+| `setSelectedCutLineOffset({ enabled?, offsetMm?, fill? })` | Bake/remove/re-bake offset pad on the single selected sticker. `fill` omitted keeps current; `undefined`/`""` = auto edge; CSS color = explicit. Persists `cutLineOffsetFill` when set |
+| `getSelectedCutLineOffset()` | `{ enabled, offsetMm, fill? }` when one sticker selected; `fill` undefined = auto |
 | `undo()` / `redo()` | Step backward/forward through design mutations; returns `false` when unavailable |
 | `canUndo()` / `canRedo()` | Whether undo/redo is available |
 
