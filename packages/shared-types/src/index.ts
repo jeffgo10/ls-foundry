@@ -78,10 +78,15 @@ export type CanvasItem = {
   scaleY: number;
   rotation: number;
   /**
-   * When > 0, the sticker should show a white cut-line pad of this size (mm).
-   * Omitted or 0 = offset off. Runtime-only bake; assets stay the source image.
+   * When > 0, the sticker should show a cut-line pad of this size (mm).
+   * Omitted or 0 = offset off. Runtime bake; assets stay the source image.
    */
   cutLineOffsetMm?: number;
+  /**
+   * Explicit CSS color for the cut-line pad fill when offset is on
+   * (e.g. `#ffffff`). Omitted = auto dominant edge color on bake.
+   */
+  cutLineOffsetFill?: string;
 };
 
 export type CanvasLayout = {
@@ -206,12 +211,22 @@ export function isCanvasLayout(value: unknown): value is CanvasLayout {
       return false;
     }
     if (candidate.cutLineOffsetMm === undefined) {
+      // fall through to fill check
+    } else if (
+      !(
+        typeof candidate.cutLineOffsetMm === "number" &&
+        Number.isFinite(candidate.cutLineOffsetMm) &&
+        candidate.cutLineOffsetMm >= 0
+      )
+    ) {
+      return false;
+    }
+    if (candidate.cutLineOffsetFill === undefined) {
       return true;
     }
     return (
-      typeof candidate.cutLineOffsetMm === "number" &&
-      Number.isFinite(candidate.cutLineOffsetMm) &&
-      candidate.cutLineOffsetMm >= 0
+      typeof candidate.cutLineOffsetFill === "string" &&
+      candidate.cutLineOffsetFill.trim().length > 0
     );
   });
 }

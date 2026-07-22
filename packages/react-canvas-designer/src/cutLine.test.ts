@@ -3,10 +3,42 @@ import {
   applyPreparedCutLineMedia,
   buildCutLinePoints,
   cutLineOffsetLocalPx,
+  normalizeCutLineOffsetFill,
   prepareCutLineMedia,
   toPersistedCanvasItem,
   toSourceSpaceTransform,
 } from "./cutLine";
+
+jest.mock("@jeffgo10/helpers/image", () => ({
+  bakeCutLineOffset: jest.fn(
+    (
+      image: HTMLImageElement,
+      offsetPx: number,
+      _options?: { fill?: string },
+    ) => ({
+      dataUrl: "data:image/png;base64,baked",
+      width: (image.width || 20) + Math.ceil(offsetPx) * 2,
+      height: (image.height || 20) + Math.ceil(offsetPx) * 2,
+      cutLinePoints: [0, 0, 10, 0, 10, 10, 0, 10],
+      pad: Math.ceil(offsetPx),
+      contentScale: 1,
+    }),
+  ),
+  traceAlphaContour: jest.fn(() => []),
+}));
+
+describe("normalizeCutLineOffsetFill", () => {
+  it("treats empty / whitespace as auto", () => {
+    expect(normalizeCutLineOffsetFill(undefined)).toBeUndefined();
+    expect(normalizeCutLineOffsetFill(null)).toBeUndefined();
+    expect(normalizeCutLineOffsetFill("")).toBeUndefined();
+    expect(normalizeCutLineOffsetFill("  ")).toBeUndefined();
+  });
+
+  it("trims explicit CSS colors", () => {
+    expect(normalizeCutLineOffsetFill(" #ffffff ")).toBe("#ffffff");
+  });
+});
 
 describe("cutLineOffsetLocalPx", () => {
   it("returns 0 when offset is 0", () => {
@@ -55,8 +87,6 @@ describe("prepareCutLineMedia", () => {
       width: 20,
       height: 20,
     } as HTMLImageElement;
-    const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = () => null;
     const media = prepareCutLineMedia(
       image,
       "blob:x",
@@ -64,12 +94,58 @@ describe("prepareCutLineMedia", () => {
       0,
       CANVAS_DPI,
     );
-    HTMLCanvasElement.prototype.getContext = original;
     expect(media.cutLineOffsetBakedMm).toBe(0);
     expect(media.src).toBe("blob:x");
     expect(media.sourceSrc).toBe("blob:x");
     expect(media.contentScale).toBe(1);
     expect(media.pad).toBe(0);
+  });
+
+  it("forwards explicit fill to bakeCutLineOffset", () => {
+    const { bakeCutLineOffset } = jest.requireMock(
+      "@jeffgo10/helpers/image",
+    ) as { bakeCutLineOffset: jest.Mock };
+    bakeCutLineOffset.mockClear();
+    const image = {
+      naturalWidth: 20,
+      naturalHeight: 20,
+      width: 20,
+      height: 20,
+    } as HTMLImageElement;
+    prepareCutLineMedia(
+      image,
+      "blob:x",
+      "image/png",
+      5,
+      CANVAS_DPI,
+      1,
+      1,
+      "#ffffff",
+    );
+    expect(bakeCutLineOffset).toHaveBeenCalledWith(
+      image,
+      expect.any(Number),
+      { fill: "#ffffff" },
+    );
+  });
+
+  it("omits fill options for auto edge color", () => {
+    const { bakeCutLineOffset } = jest.requireMock(
+      "@jeffgo10/helpers/image",
+    ) as { bakeCutLineOffset: jest.Mock };
+    bakeCutLineOffset.mockClear();
+    const image = {
+      naturalWidth: 20,
+      naturalHeight: 20,
+      width: 20,
+      height: 20,
+    } as HTMLImageElement;
+    prepareCutLineMedia(image, "blob:x", "image/png", 5, CANVAS_DPI, 1, 1);
+    expect(bakeCutLineOffset).toHaveBeenCalledWith(
+      image,
+      expect.any(Number),
+      {},
+    );
   });
 });
 
@@ -105,9 +181,11 @@ describe("applyPreparedCutLineMedia", () => {
       1,
       1,
       5,
+      "#ffffff",
     );
     expect(withPad.x).toBeCloseTo(90);
     expect(withPad.y).toBeCloseTo(70);
+    expect(withPad.cutLineOffsetFill).toBe("#ffffff");
 
     const restored = applyPreparedCutLineMedia(
       withPad,
@@ -130,6 +208,7 @@ describe("applyPreparedCutLineMedia", () => {
     expect(restored.y).toBeCloseTo(80);
     expect(restored.cutLineOffsetMm).toBeUndefined();
     expect(restored.cutLineOffsetBakedMm).toBe(0);
+    expect(restored.cutLineOffsetFill).toBeUndefined();
   });
 
   it("preserves art stage position when applying pad on a rotated sticker", () => {
@@ -243,6 +322,7 @@ describe("toSourceSpaceTransform / toPersistedCanvasItem", () => {
       mimeType: "image/png",
       cutLineOffsetBakedMm: 5,
       cutLineOffsetMm: 5,
+      cutLineOffsetFill: "#ffffff",
       cutLineBakePad: 10,
       cutLineBakeContentScale: 1,
     };
@@ -262,7 +342,29 @@ describe("toSourceSpaceTransform / toPersistedCanvasItem", () => {
       scaleY: 1,
       rotation: 0,
       cutLineOffsetMm: 5,
+      cutLineOffsetFill: "#ffffff",
     });
+  });
+
+  it("omits cutLineOffsetFill when auto edge (undefined)", () => {
+    const item = {
+      instanceId: "i1",
+      assetId: "a1",
+      x: 90,
+      y: 70,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      width: 70,
+      height: 60,
+      src: "data:baked",
+      mimeType: "image/png",
+      cutLineOffsetBakedMm: 5,
+      cutLineOffsetMm: 5,
+      cutLineBakePad: 10,
+      cutLineBakeContentScale: 1,
+    };
+    expect(toPersistedCanvasItem(item).cutLineOffsetFill).toBeUndefined();
   });
 
   it("strips baked pad in stage space when the sticker is rotated", () => {

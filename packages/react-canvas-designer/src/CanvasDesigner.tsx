@@ -42,6 +42,7 @@ import {
 import {
   applyPreparedCutLineMedia,
   buildCutLinePoints,
+  normalizeCutLineOffsetFill,
   prepareCutLineMedia,
   toDisplayCanvasItem,
   toPersistedCanvasItem,
@@ -163,9 +164,16 @@ type PlacedImage = CanvasItem & {
    * Preferred pad amount while offset is off (runtime only — never persisted).
    */
   cutLineOffsetPreferredMm?: number;
+  /** Explicit pad fill while offset is on (`undefined` = auto edge). */
+  cutLineOffsetFill?: string;
+  /**
+   * Preferred fill while offset is off (runtime only — never persisted).
+   * `undefined` = auto edge.
+   */
+  cutLineOffsetPreferredFill?: string;
   /** Bake resolution scale vs natural source (`1` = full res). */
   cutLineBakeContentScale?: number;
-  /** White pad on each side in bake-resolution pixels. */
+  /** Pad on each side in bake-resolution pixels. */
   cutLineBakePad?: number;
 };
 
@@ -292,12 +300,22 @@ export type SetSelectedCutLineOffsetOptions = {
   enabled?: boolean;
   /** Per-sticker pad amount in mm. Required (or already stored) when enabling. */
   offsetMm?: number;
+  /**
+   * Pad fill CSS color. Omit to keep the current preference.
+   * Pass `undefined` explicitly (own property) or `""` for auto edge color;
+   * `"#ffffff"` for white; any other CSS color for custom.
+   */
+  fill?: string;
 };
 
 export type SelectedCutLineOffsetState = {
   enabled: boolean;
   /** Configured pad amount for this sticker (mm), even when currently off. */
   offsetMm: number;
+  /**
+   * Explicit pad fill when set. `undefined` = auto dominant edge color.
+   */
+  fill?: string;
 };
 
 export type { SetSelectedSizeOptions } from "./manualResize";
@@ -973,6 +991,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 typeof item.cutLineOffsetMm === "number" && item.cutLineOffsetMm > 0
                   ? item.cutLineOffsetMm
                   : undefined;
+              const offsetFill = normalizeCutLineOffsetFill(item.cutLineOffsetFill);
               placed.push({
                 instanceId: item.instanceId ?? createInstanceId(),
                 assetId: item.assetId,
@@ -990,6 +1009,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 // Only restore a configured amount when the layout says offset was on.
                 // Do not fall back to the designer default — that would re-bake every sticker.
                 cutLineOffsetMm: offsetMm,
+                cutLineOffsetFill: offsetMm ? offsetFill : undefined,
                 cutLineOffsetBakedMm: 0,
                 cutLineBakeContentScale: 1,
                 cutLineBakePad: 0,
@@ -1066,6 +1086,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               designDpi,
               entry.scaleX,
               entry.scaleY,
+              entry.cutLineOffsetFill,
             );
             const baked = applyPreparedCutLineMedia(
               entry,
@@ -1073,6 +1094,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               entry.scaleX,
               entry.scaleY,
               offsetMm,
+              entry.cutLineOffsetFill,
             );
             bakedById.set(
               entry.instanceId,
@@ -2241,6 +2263,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         return null;
       }
       const enabled = (item.cutLineOffsetBakedMm ?? 0) > 0;
+      const fill = enabled
+        ? normalizeCutLineOffsetFill(item.cutLineOffsetFill)
+        : normalizeCutLineOffsetFill(item.cutLineOffsetPreferredFill);
       return {
         enabled,
         // Amount for the mm control — prefer live bake, then preferred-while-off,
@@ -2249,6 +2274,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           item.cutLineOffsetMm ??
           item.cutLineOffsetPreferredMm ??
           cutLineOffsetMm,
+        fill,
       };
     }, [cutLineOffsetMm]);
 
@@ -2275,18 +2301,30 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             item.cutLineOffsetPreferredMm ??
             cutLineOffsetMm,
         );
+        const fillProvided = Object.prototype.hasOwnProperty.call(
+          options,
+          "fill",
+        );
+        const currentFill = currentlyOn
+          ? normalizeCutLineOffsetFill(item.cutLineOffsetFill)
+          : normalizeCutLineOffsetFill(item.cutLineOffsetPreferredFill);
+        const nextFill = fillProvided
+          ? normalizeCutLineOffsetFill(options.fill)
+          : currentFill;
 
-        // Amount-only update while still off: remember preference without writing
+        // Amount/fill-only update while still off: remember preference without writing
         // cutLineOffsetMm (that field means "bake on load" in persisted layouts).
         if (!nextEnabled) {
           if (!currentlyOn) {
-            if (
+            const amountUnchanged =
               options.offsetMm === undefined ||
               nextOffsetMm ===
                 (item.cutLineOffsetPreferredMm ??
                   item.cutLineOffsetMm ??
-                  cutLineOffsetMm)
-            ) {
+                  cutLineOffsetMm);
+            const fillUnchanged =
+              !fillProvided || nextFill === currentFill;
+            if (amountUnchanged && fillUnchanged) {
               return true;
             }
             pushHistoryBeforeMutation();
@@ -2296,7 +2334,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   ? {
                       ...entry,
                       cutLineOffsetPreferredMm: nextOffsetMm,
+                      cutLineOffsetPreferredFill: nextFill,
                       cutLineOffsetMm: undefined,
+                      cutLineOffsetFill: undefined,
                     }
                   : entry,
               ),
@@ -2311,7 +2351,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           currentlyOn === nextEnabled &&
           currentlyOn &&
           (item.cutLineOffsetBakedMm ?? 0) === nextOffsetMm &&
-          (item.cutLineOffsetMm ?? cutLineOffsetMm) === nextOffsetMm;
+          (item.cutLineOffsetMm ?? cutLineOffsetMm) === nextOffsetMm &&
+          normalizeCutLineOffsetFill(item.cutLineOffsetFill) === nextFill;
         if (alreadyMatches) {
           return true;
         }
@@ -2365,7 +2406,9 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                 ? {
                     ...restored,
                     cutLineOffsetMm: undefined,
+                    cutLineOffsetFill: undefined,
                     cutLineOffsetPreferredMm: nextOffsetMm,
+                    cutLineOffsetPreferredFill: nextFill,
                   }
                 : entry,
             ),
@@ -2381,6 +2424,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           canvasConfig.designDpi,
           artScaleX,
           artScaleY,
+          nextFill,
         );
         const baked = clampPlacedTransform(
           applyPreparedCutLineMedia(
@@ -2389,12 +2433,17 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             artScaleX,
             artScaleY,
             nextOffsetMm,
+            nextFill,
           ),
         );
         setItems((current) =>
           current.map((entry) =>
             entry.instanceId === selectedId
-              ? { ...baked, cutLineOffsetPreferredMm: nextOffsetMm }
+              ? {
+                  ...baked,
+                  cutLineOffsetPreferredMm: nextOffsetMm,
+                  cutLineOffsetPreferredFill: nextFill,
+                }
               : entry,
           ),
         );

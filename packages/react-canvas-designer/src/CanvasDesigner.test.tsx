@@ -624,6 +624,7 @@ describe("CanvasDesigner", () => {
     expect(ref.current!.getSelectedCutLineOffset()).toEqual({
       enabled: false,
       offsetMm: 5,
+      fill: undefined,
     });
     expect(bakeCutLineOffset).not.toHaveBeenCalled();
 
@@ -642,6 +643,24 @@ describe("CanvasDesigner", () => {
     expect(withOffset.x).toBeCloseTo(moved.x, 0);
     expect(withOffset.y).toBeCloseTo(moved.y, 0);
     expect(withOffset.cutLineOffsetMm).toBe(5);
+    expect(withOffset.cutLineOffsetFill).toBeUndefined();
+
+    await act(async () => {
+      await expect(
+        ref.current!.setSelectedCutLineOffset({ fill: "#ffffff" }),
+      ).resolves.toBe(true);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.getSelectedCutLineOffset()).toEqual({
+        enabled: true,
+        offsetMm: 5,
+        fill: "#ffffff",
+      }),
+    );
+    expect(
+      ref.current!.exportLayoutState().layout.items[0]!.cutLineOffsetFill,
+    ).toBe("#ffffff");
 
     await act(async () => {
       await expect(
@@ -653,6 +672,7 @@ describe("CanvasDesigner", () => {
       expect(ref.current!.getSelectedCutLineOffset()).toEqual({
         enabled: true,
         offsetMm: 8,
+        fill: "#ffffff",
       }),
     );
 
@@ -666,12 +686,14 @@ describe("CanvasDesigner", () => {
       expect(ref.current!.getSelectedCutLineOffset()).toEqual({
         enabled: false,
         offsetMm: 8,
+        fill: "#ffffff",
       }),
     );
     const restored = ref.current!.exportLayoutState().layout.items[0]!;
     expect(restored.x).toBeCloseTo(moved.x, 0);
     expect(restored.y).toBeCloseTo(moved.y, 0);
     expect(restored.cutLineOffsetMm).toBeUndefined();
+    expect(restored.cutLineOffsetFill).toBeUndefined();
   });
 
   it("round-trips layout transforms through loadLayoutFromSources", async () => {
@@ -751,6 +773,7 @@ describe("CanvasDesigner", () => {
     expect(ref.current!.getSelectedCutLineOffset()).toEqual({
       enabled: false,
       offsetMm: 5,
+      fill: undefined,
     });
 
     const saved = ref.current!.exportLayoutState();
@@ -823,6 +846,7 @@ describe("CanvasDesigner", () => {
       expect(ref.current!.getSelectedCutLineOffset()).toEqual({
         enabled: false,
         offsetMm: 5,
+        fill: undefined,
       }),
     );
     expect(
@@ -836,6 +860,7 @@ describe("CanvasDesigner", () => {
     expect(ref.current!.getSelectedCutLineOffset()).toEqual({
       enabled: false,
       offsetMm: 8,
+      fill: undefined,
     });
     expect(
       ref.current!.exportLayoutState().layout.items[0]!.cutLineOffsetMm,

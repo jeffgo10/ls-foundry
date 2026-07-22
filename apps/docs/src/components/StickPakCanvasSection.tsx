@@ -55,6 +55,11 @@ function StickPakCanvasSection() {
   const [canRedo, setCanRedo] = useState(false);
   const [selectedCutLineOffset, setSelectedCutLineOffset] = useState(false);
   const [selectedCutLineOffsetMm, setSelectedCutLineOffsetMm] = useState(5);
+  const [selectedCutLineOffsetFill, setSelectedCutLineOffsetFill] = useState<
+    "auto" | "white" | "custom"
+  >("auto");
+  const [customCutLineOffsetFill, setCustomCutLineOffsetFill] =
+    useState("#ff0000");
   const [isOffsetToggling, setIsOffsetToggling] = useState(false);
   const hasSelection = selectedIds.length > 0;
   const hasSingleSelection = selectedIds.length === 1;
@@ -64,7 +69,29 @@ function StickPakCanvasSection() {
     const state = designerRef.current?.getSelectedCutLineOffset?.() ?? null;
     setSelectedCutLineOffset(state?.enabled === true);
     setSelectedCutLineOffsetMm(state?.offsetMm ?? defaultCutLineOffsetMm);
+    if (!state?.fill) {
+      setSelectedCutLineOffsetFill("auto");
+    } else if (
+      state.fill === "#ffffff" ||
+      state.fill === "#fff" ||
+      state.fill === "white"
+    ) {
+      setSelectedCutLineOffsetFill("white");
+    } else {
+      setSelectedCutLineOffsetFill("custom");
+      setCustomCutLineOffsetFill(state.fill);
+    }
   }, [selectedIds, defaultCutLineOffsetMm]);
+
+  const resolveOffsetFill = (): string | undefined => {
+    if (selectedCutLineOffsetFill === "white") {
+      return "#ffffff";
+    }
+    if (selectedCutLineOffsetFill === "custom") {
+      return customCutLineOffsetFill;
+    }
+    return undefined;
+  };
 
   useEffect(() => {
     if (!selectionDimensions) {
@@ -281,6 +308,7 @@ function StickPakCanvasSection() {
                   ?.setSelectedCutLineOffset?.({
                     enabled,
                     offsetMm: selectedCutLineOffsetMm,
+                    fill: resolveOffsetFill(),
                   })
                   ?.then((ok) => {
                     if (!ok) {
@@ -298,6 +326,50 @@ function StickPakCanvasSection() {
               className="size-4 rounded border-white/20"
             />
             Apply cut-line offset to selected sticker
+          </label>
+          <label className="flex items-center gap-2 text-sm text-white/70">
+            Offset fill
+            <select
+              value={selectedCutLineOffsetFill}
+              disabled={isOffsetToggling || !selectedCutLineOffset}
+              aria-label="Cut-line offset fill"
+              onChange={(event) => {
+                const mode = event.target.value as "auto" | "white" | "custom";
+                setSelectedCutLineOffsetFill(mode);
+                const fill =
+                  mode === "white"
+                    ? "#ffffff"
+                    : mode === "custom"
+                      ? customCutLineOffsetFill
+                      : undefined;
+                setIsOffsetToggling(true);
+                void designerRef.current
+                  ?.setSelectedCutLineOffset?.({ fill })
+                  ?.finally(() => setIsOffsetToggling(false));
+              }}
+              className="rounded border border-white/15 bg-[#070708] px-2 py-1 text-sm text-white/80"
+            >
+              <option value="auto">Auto (edge)</option>
+              <option value="white">White</option>
+              <option value="custom">Custom</option>
+            </select>
+            {selectedCutLineOffsetFill === "custom" ? (
+              <input
+                type="color"
+                value={customCutLineOffsetFill}
+                disabled={isOffsetToggling || !selectedCutLineOffset}
+                aria-label="Custom cut-line offset fill"
+                onChange={(event) => {
+                  const fill = event.target.value;
+                  setCustomCutLineOffsetFill(fill);
+                  setIsOffsetToggling(true);
+                  void designerRef.current
+                    ?.setSelectedCutLineOffset?.({ fill })
+                    ?.finally(() => setIsOffsetToggling(false));
+                }}
+                className="h-8 w-10 cursor-pointer rounded border border-white/15 bg-transparent"
+              />
+            ) : null}
           </label>
         </>
       ) : null}
