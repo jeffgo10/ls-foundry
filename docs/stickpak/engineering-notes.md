@@ -2,6 +2,25 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Stable 1.0.0 release wrap-up (July 2026)
+
+**When:** July 2026 — StickPak / shared `@jeffgo10/*` packages bumped to **1.0.0** to mark API stability after Phase 1. Left on pre-1.0: `three-d-label-customizer` and `panorama-viewer`.
+
+| Package | Previous | **1.0.0** |
+|---------|----------|-----------|
+| `@jeffgo10/shared-types` | 0.2.4 | Layout JSON schema, DPI helpers, `cutLineOffsetMm` / `cutLineOffsetFill` |
+| `@jeffgo10/react-canvas-designer` | 0.5.6 | Full Konva designer: dropzone, multi-select, marquee, pinch, cut-line offset, undo/redo, `fitToContainer`, inspect mode |
+| `@jeffgo10/canvas-upscaler` | 0.2.2 | Node 300 DPI PNG; Silhouette corner markers; bakes cut-line pads for admin print |
+| `@jeffgo10/helpers` | 0.4.1 | `./image` (contour, bake offset), `./gestures`, `./browser`, `./clipboard` |
+| `@jeffgo10/history` | 0.1.0 | Generic undo/redo snapshot stacks |
+| `@jeffgo10/gl-viewer` | 0.3.1 | GLB orbit / walk / WebXR AR (LiteShadeMedia) |
+| `@jeffgo10/three-d-label-customizer` | — | **Unchanged at 0.1.0** |
+| `@jeffgo10/panorama-viewer` | — | **Unchanged at 0.1.2** (Vantage) |
+
+**Storefront follow-up:** Pin all StickPak deps to `1.0.0` together (`shared-types`, `helpers`, `history`, `react-canvas-designer`, `canvas-upscaler`). No intentional breaking layout changes in this bump — semver major marks “stable Phase 1” rather than a schema break.
+
+**Related:** [phase-1.md](./phase-1.md) published versions table.
+
 ## fitToContainer first-paint shrink flash (v0.5.5)
 
 **When:** July 2026 (`react-canvas-designer` **v0.5.5**).
@@ -352,7 +371,7 @@ Select a sticker, press **Delete** or **Backspace**. Skipped when typing in form
 
 **Cause:** `react-canvas-designer@0.1.1` was published with a dependency pin on `shared-types@0.1.0`, but dimension/auto-arrange APIs live in `shared-types@0.1.1`. The published `0.1.0` tarball did not export those symbols.
 
-**Fix (June 2026):** Published `shared-types@0.1.1` and `react-canvas-designer@0.1.2`. **Current recommended pins** (custom canvas + delete keyboard):
+**Fix (June 2026):** Published `shared-types@0.1.1` and `react-canvas-designer@0.1.2`. Historical pins from that era (custom canvas + delete keyboard):
 
 ```json
 "@jeffgo10/shared-types": "0.1.2",
@@ -360,7 +379,7 @@ Select a sticker, press **Delete** or **Backspace**. Skipped when typing in form
 "@jeffgo10/canvas-upscaler": "0.1.1"
 ```
 
-Avoid `react-canvas-designer@0.1.1` from the registry.
+Avoid `react-canvas-designer@0.1.1` from the registry. **Current stable pins:** all StickPak packages at **1.0.0** — see [phase-1.md](./phase-1.md).
 
 ## S3-backed persistence (`exportLayoutState`)
 
@@ -614,7 +633,7 @@ On push to `master` when `packages/**` or `pnpm-lock.yaml` changes, workflow `.g
 
 ## `@jeffgo10/gl-viewer` (LiteShadeMedia consumer)
 
-**Source:** `packages/gl-viewer/` in this repo (v0.3.1).
+**Source:** `packages/gl-viewer/` in this repo (v1.0.0).
 
 **Primary consumer:** LiteShadeMedia portfolio site — Obsidian `LiteShadeMedia/08 gl-viewer Package.md`, `07 LiDAR AR 3D Viewer.md`. Do not put consumer integration docs under `StickPak/` or `LS Foundry/`.
 

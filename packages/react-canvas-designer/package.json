@@ -1,6 +1,6 @@
 {
   "name": "@jeffgo10/react-canvas-designer",
-  "version": "0.5.6",
+  "version": "1.0.0",
   "description": "72 DPI A4 Konva canvas for StickPak sticker layout design",
   "license": "MIT",
   "repository": {
@@ -20,7 +20,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

@@ -1,6 +1,6 @@
 {
   "name": "@jeffgo10/gl-viewer",
-  "version": "0.3.1",
+  "version": "1.0.0",
   "description": "React GLB / LiDAR viewer (Three.js): orbit, walk, WebXR AR",
   "license": "MIT",
   "repository": {
@@ -20,7 +20,10 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

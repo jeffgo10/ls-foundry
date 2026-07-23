@@ -48,7 +48,7 @@ Optional `expandPx` morphologically dilates the alpha mask before tracing (legac
 
 Dilates the alpha mask (fast BFS), draws the art, then fills the expanded ring with a solid color. By default the fill is the **dominant edge color** sampled along the alpha boundary (`dominantEdgeColorFromAlphaData`); pass `options.fill` (CSS color) to override. Returns `{ dataUrl, width, height, cutLinePoints, pad, contentScale }`. Large sources are downsampled (default max edge **768**) so drop stays responsive. Used by the designer so cutline offset is baked once (async after place) instead of re-dilating every scale frame.
 
-> **Designer (`react-canvas-designer` ≥ 0.5.6):** `setSelectedCutLineOffset({ fill? })` / `prepareCutLineMedia(..., fill?)` forward this option. Omit/`undefined` = auto edge; CSS color = explicit fill (persisted as `cutLineOffsetFill`).
+> **Designer (`react-canvas-designer` ≥ 1.0.0):** `setSelectedCutLineOffset({ fill? })` / `prepareCutLineMedia(..., fill?)` forward this option. Omit/`undefined` = auto edge; CSS color = explicit fill (persisted as `cutLineOffsetFill`).
 
 ### `offsetClosedPolygon(points, offset)`
 
