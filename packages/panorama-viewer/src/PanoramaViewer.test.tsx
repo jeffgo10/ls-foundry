@@ -1,4 +1,4 @@
-import { act, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 import { PanoramaViewer } from "./PanoramaViewer";
 import type { PanoramaViewerHandle } from "./types";
@@ -76,31 +76,17 @@ describe("PanoramaViewer", () => {
     const canvas = container.querySelector(".ls-pv-canvas") as HTMLElement;
 
     act(() => {
-      canvas.dispatchEvent(
-        new PointerEvent("pointerdown", { clientX: 10, clientY: 10, bubbles: true }),
-      );
-      canvas.dispatchEvent(
-        new PointerEvent("pointermove", { clientX: 40, clientY: 10, bubbles: true }),
-      );
-      canvas.dispatchEvent(
-        new PointerEvent("pointerup", { clientX: 40, clientY: 10, bubbles: true }),
-      );
-      canvas.dispatchEvent(
-        new MouseEvent("click", { clientX: 40, clientY: 10, bubbles: true }),
-      );
+      fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(canvas, { clientX: 40, clientY: 10 });
+      fireEvent.pointerUp(canvas, { clientX: 40, clientY: 10 });
+      fireEvent.click(canvas, { clientX: 40, clientY: 10 });
     });
     expect(onSphereClick).not.toHaveBeenCalled();
 
     act(() => {
-      canvas.dispatchEvent(
-        new PointerEvent("pointerdown", { clientX: 20, clientY: 20, bubbles: true }),
-      );
-      canvas.dispatchEvent(
-        new PointerEvent("pointerup", { clientX: 21, clientY: 20, bubbles: true }),
-      );
-      canvas.dispatchEvent(
-        new MouseEvent("click", { clientX: 21, clientY: 20, bubbles: true }),
-      );
+      fireEvent.pointerDown(canvas, { clientX: 20, clientY: 20 });
+      fireEvent.pointerUp(canvas, { clientX: 21, clientY: 20 });
+      fireEvent.click(canvas, { clientX: 21, clientY: 20 });
     });
     expect(onSphereClick).toHaveBeenCalledWith({ yaw: 12, pitch: -3 });
   });
