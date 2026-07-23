@@ -69,6 +69,7 @@ Optional: `obsidian_simple_search` to locate notes before editing.
 | Monorepo agent tooling | `.cursor/rules/`, `.cursor/commands/` | `LS Foundry/Cursor rules and slash commands.md`, `LS Foundry/00 Index.md` |
 | `@jeffgo10/helpers` API or publish | `packages/helpers/README.md` | `LS Foundry/Notes — helpers gestures subpath.md` |
 | `@jeffgo10/three-d-label-customizer` | `docs/three-d-label-customizer/` | `LS Foundry/Notes — three-d-label-customizer.md` |
+| `@jeffgo10/panorama-viewer` | `docs/panorama-viewer/` | `LS Foundry/Notes — panorama-viewer.md` |
 | Agent version bump policy | `ls-foundry-core.mdc` | `LS Foundry/Cursor rules and slash commands.md` |
 | CI / package publish workflow | `README.md`, `scripts/publish-changed.sh` | `LS Foundry/Notes — CI package publish on master.md`, `Phase 1 Complete — ls-foundry.md` |
 
@@ -87,4 +88,5 @@ Optional: `obsidian_simple_search` to locate notes before editing.
 - Assume Obsidian is reachable — always pre-check.
 - Put StickPak canvas/upscaler notes in `LS Foundry/` (use `StickPak/`).
 - Put `three-d-label-customizer` notes in `StickPak/` or `LiteShadeMedia/` (use `LS Foundry/Notes — three-d-label-customizer`).
+- Put `panorama-viewer` notes in `StickPak/` or `LiteShadeMedia/` (use `LS Foundry/Notes — panorama-viewer`).
 - Put gl-viewer consumer/integration notes in `LS Foundry/` (use `LiteShadeMedia/`; source code is `packages/gl-viewer/` in this repo).

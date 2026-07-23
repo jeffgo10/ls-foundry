@@ -23,3 +23,23 @@ if (!global.crypto.randomUUID) {
 if (!global.fetch) {
   global.fetch = jest.fn();
 }
+
+/** jsdom omits PointerEvent; React pointer handlers need it in jsdom tests only. */
+if (
+  typeof globalThis.PointerEvent === "undefined" &&
+  typeof globalThis.MouseEvent !== "undefined"
+) {
+  class PointerEventPolyfill extends MouseEvent {
+    readonly pointerId: number;
+    readonly pointerType: string;
+
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 1;
+      this.pointerType = init.pointerType ?? "mouse";
+    }
+  }
+
+  globalThis.PointerEvent =
+    PointerEventPolyfill as unknown as typeof PointerEvent;
+}

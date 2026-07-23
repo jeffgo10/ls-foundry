@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     "@jeffgo10/gl-viewer",
     "@jeffgo10/helpers",
     "@jeffgo10/history",
+    "@jeffgo10/panorama-viewer",
     "@jeffgo10/react-canvas-designer",
     "@jeffgo10/shared-types",
     "@jeffgo10/three-d-label-customizer",
@@ -51,6 +52,15 @@ const nextConfig: NextConfig = {
       "@jeffgo10/three-d-label-customizer": path.join(
         packageSrc,
         "three-d-label-customizer/src/index.ts",
+      ),
+      // Subpath before root; `$` so styles.css is not resolved as src/index.ts/styles.css.
+      "@jeffgo10/panorama-viewer/styles.css": path.join(
+        packageSrc,
+        "panorama-viewer/src/styles.dev.css",
+      ),
+      "@jeffgo10/panorama-viewer$": path.join(
+        packageSrc,
+        "panorama-viewer/src/index.ts",
       ),
     };
 

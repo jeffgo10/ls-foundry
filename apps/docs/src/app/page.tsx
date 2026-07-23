@@ -25,6 +25,12 @@ function HomePage() {
         >
           3D label customizer →
         </Link>
+        <Link
+          href="/panorama"
+          className="mt-2 block text-xs tracking-[0.15em] text-white/40 underline-offset-4 hover:text-white/70 hover:underline"
+        >
+          360 panorama viewer →
+        </Link>
       </header>
       <LidarSprayViewerSection />
     </main>

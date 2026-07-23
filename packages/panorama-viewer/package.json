@@ -1,0 +1,55 @@
+{
+  "name": "@jeffgo10/panorama-viewer",
+  "version": "0.1.2",
+  "description": "React 360 panorama viewer (Pannellum) with navigation, info, and label hotspots",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeffgo10/ls-foundry.git",
+    "directory": "packages/panorama-viewer"
+  },
+  "type": "module",
+  "sideEffects": ["**/*.css", "./dist/styles.css"],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup && node ./scripts/bundle-styles.mjs",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "pannellum": "^2.5.7"
+  },
+  "devDependencies": {
+    "@ls-foundry/test-utils": "workspace:*",
+    "@ls-foundry/tsconfig": "workspace:*",
+    "@testing-library/react": "^16.3.0",
+    "@types/pannellum": "^2.5.1",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}
