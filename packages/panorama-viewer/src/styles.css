@@ -1,0 +1,112 @@
+/* Hotspot pins + package-owned content overlays (Pannellum base CSS is prepended at build). */
+
+.ls-pv-hotspot-root {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent !important;
+  border: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.ls-pv-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.ls-pv-pin-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.ls-pv-pin-nav .ls-pv-pin {
+  background: #0f766e;
+  border: 2px solid #99f6e4;
+}
+
+.ls-pv-pin-info .ls-pv-pin {
+  background: #1d4ed8;
+  border: 2px solid #93c5fd;
+}
+
+.ls-pv-pin-label .ls-pv-pin {
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.ls-pv-pin-label .ls-pv-pin:empty {
+  display: none;
+}
+
+.ls-pv-billboard,
+.ls-pv-popover {
+  max-width: 220px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 15, 18, 0.92);
+  color: #f4f4f5;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.ls-pv-billboard {
+  background: rgba(15, 15, 18, 0.82);
+}
+
+.ls-pv-content-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.ls-pv-content-text,
+.ls-pv-content-caption {
+  margin: 0;
+}
+
+.ls-pv-content-caption {
+  margin-top: 4px;
+  opacity: 0.75;
+  font-size: 11px;
+}
+
+.ls-pv-content-image {
+  display: block;
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.ls-pv-content-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #93c5fd;
+}
+
+.ls-pv-content-html {
+  font-size: 12px;
+}
+
+.ls-pv-info-panel[hidden] {
+  display: none !important;
+}
