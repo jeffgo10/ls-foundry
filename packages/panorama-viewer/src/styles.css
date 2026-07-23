@@ -1,5 +1,25 @@
 /* Hotspot pins + package-owned content overlays (Pannellum base CSS is prepended at build). */
 
+/* Outer shell owns sizing; Pannellum sets .pnlm-container { height: 100% }. */
+.ls-pv-shell {
+  box-sizing: border-box;
+}
+
+.ls-pv-shell-fit {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.ls-pv-canvas,
+.ls-pv-canvas.pnlm-container {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+}
+
 .ls-pv-hotspot-root {
   cursor: pointer;
   display: flex;

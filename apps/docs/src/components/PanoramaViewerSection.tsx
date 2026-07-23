@@ -13,7 +13,7 @@ const PanoramaViewer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[min(70vh,520px)] items-center justify-center rounded-xl border border-white/10 bg-[#070708] text-xs tracking-[0.2em] text-white/40">
+      <div className="flex h-full min-h-[min(70vh,520px)] items-center justify-center text-xs tracking-[0.2em] text-white/40">
         LOADING PANORAMA…
       </div>
     ),
@@ -208,12 +208,13 @@ function PanoramaViewerSection() {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-white/10">
+      <div className="h-[min(70vh,520px)] overflow-hidden rounded-xl border border-white/10 bg-[#070708]">
         <PanoramaViewer
           imageUrl={imageUrl}
           markers={markers}
           mode={mode}
-          className="h-[min(70vh,520px)] w-full bg-[#070708]"
+          fitParent
+          className="h-full min-h-0 w-full"
           onSphereClick={handleSphereClick}
           onMarkerClick={(m) => {
             setLastEvent(`Clicked ${m.kind} “${m.title ?? m.id}”`);

@@ -5,13 +5,15 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import {
-  markersGeometryKey,
-  markersToHotSpots,
-} from "./markers";
-import type { PanoramaMarker, PanoramaViewerHandle, PanoramaViewerProps } from "./types";
+import { markersGeometryKey, markersToHotSpots } from "./markers";
+import type {
+  PanoramaMarker,
+  PanoramaViewerHandle,
+  PanoramaViewerProps,
+} from "./types";
 
 async function ensurePannellum(): Promise<void> {
   if (typeof window === "undefined") return;
@@ -19,11 +21,22 @@ async function ensurePannellum(): Promise<void> {
   await import("pannellum/build/pannellum.js");
 }
 
+const DEFAULT_SHELL_STYLE: CSSProperties = {
+  width: "100%",
+  height: "min(70vh, 520px)",
+  minHeight: "min(70vh, 520px)",
+  background: "#18181b",
+  position: "relative",
+  overflow: "hidden",
+};
+
 const PanoramaViewer = forwardRef<PanoramaViewerHandle, PanoramaViewerProps>(
   function PanoramaViewer(
     {
       imageUrl,
       className,
+      style,
+      fitParent = false,
       initialYaw = 0,
       initialPitch = 0,
       initialHfov = 100,
@@ -34,6 +47,7 @@ const PanoramaViewer = forwardRef<PanoramaViewerHandle, PanoramaViewerProps>(
     },
     ref,
   ) {
+    const shellRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<Pannellum.Viewer | null>(null);
     const onSphereClickRef = useRef(onSphereClick);
@@ -116,7 +130,9 @@ const PanoramaViewer = forwardRef<PanoramaViewerHandle, PanoramaViewerProps>(
     const handleContainerClick = (event: ReactMouseEvent<HTMLDivElement>) => {
       if (modeRef.current !== "edit" || !onSphereClickRef.current) return;
       const target = event.target as HTMLElement;
-      if (target.closest(".pnlm-hotspot, .ls-pv-hotspot-root, .ls-pv-hotspot")) {
+      if (
+        target.closest(".pnlm-hotspot, .ls-pv-hotspot-root, .ls-pv-hotspot")
+      ) {
         return;
       }
       const viewer = viewerRef.current;
@@ -125,19 +141,28 @@ const PanoramaViewer = forwardRef<PanoramaViewerHandle, PanoramaViewerProps>(
       onSphereClickRef.current({ yaw, pitch });
     };
 
+    const shellStyle: CSSProperties = fitParent
+      ? { position: "relative", overflow: "hidden", ...style }
+      : { ...DEFAULT_SHELL_STYLE, ...style };
+
+    const shellClassName = [
+      "ls-pv-shell",
+      fitParent ? "ls-pv-shell-fit" : "",
+      className ?? "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
     return (
-      <div
-        ref={containerRef}
-        className={className ?? "ls-pv-root"}
-        role="img"
-        aria-label="360 panorama viewer"
-        onClick={handleContainerClick}
-        style={
-          className
-            ? undefined
-            : { width: "100%", height: "100%", minHeight: 320, background: "#18181b" }
-        }
-      />
+      <div ref={shellRef} className={shellClassName} style={shellStyle}>
+        <div
+          ref={containerRef}
+          className="ls-pv-canvas"
+          role="img"
+          aria-label="360 panorama viewer"
+          onClick={handleContainerClick}
+        />
+      </div>
     );
   },
 );

@@ -92,7 +92,9 @@ const markers: PanoramaMarker[] = [
 | Prop | Type | Description |
 |------|------|-------------|
 | `imageUrl` | `string` | Equirectangular panorama URL |
-| `className` | `string?` | Wrapper class |
+| `className` | `string?` | Wrapper (shell) classes |
+| `style` | `CSSProperties?` | Merged over default shell sizing |
+| `fitParent` | `boolean?` | Skip default height; parent must size the shell (`h-full`) |
 | `initialYaw` / `initialPitch` / `initialHfov` | `number?` | Initial camera (degrees) |
 | `markers` | `PanoramaMarker[]?` | Hotspots |
 | `mode` | `"view" \| "edit"` | Edit enables sphere click |

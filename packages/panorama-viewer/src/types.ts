@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 export type MarkerKind = "navigation" | "info" | "label";
 
 export type MarkerContent =
@@ -41,6 +43,12 @@ export type PanoramaMarker = {
 export type PanoramaViewerProps = {
   imageUrl: string;
   className?: string;
+  /** Merged over default shell sizing (`min(70vh, 520px)` height). */
+  style?: CSSProperties;
+  /**
+   * Use `h-full min-h-0` and skip default block height; parent must define height.
+   */
+  fitParent?: boolean;
   /** Initial camera (degrees) */
   initialYaw?: number;
   initialPitch?: number;

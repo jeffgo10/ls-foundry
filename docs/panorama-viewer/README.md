@@ -19,7 +19,7 @@ Platform-agnostic — no Supabase, R2, Next routes, or billing. Primary consumer
 | Item | Value |
 |------|-------|
 | npm | `@jeffgo10/panorama-viewer` |
-| Version | `0.1.0` |
+| Version | `0.1.1` |
 | Source | `packages/panorama-viewer/` |
 
 ## Browser demo

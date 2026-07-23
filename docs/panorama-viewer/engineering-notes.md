@@ -9,7 +9,7 @@ Standalone ls-foundry package — not StickPak, not LiteShadeMedia / gl-viewer. 
 | Item | Value |
 |------|-------|
 | npm | `@jeffgo10/panorama-viewer` |
-| Version | `0.1.0` |
+| Version | `0.1.1` |
 | Source | `packages/panorama-viewer/` |
 | Engine | Pannellum `^2.5.7` (npm assets, not CDN) |
 
@@ -24,6 +24,7 @@ Standalone ls-foundry package — not StickPak, not LiteShadeMedia / gl-viewer. 
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
+| Viewer flashes then collapses to 0 height | Pannellum `.pnlm-container { height: 100% }` with no sized parent | Outer shell with default `min(70vh, 520px)`; inner canvas absolute fill; docs use fixed-height wrapper + `fitParent` |
 | (initial) | Vantage CDN scaffold | Publish reusable package with bundled pannellum assets |
 
 ## HTML content trust boundary
