@@ -1,8 +1,8 @@
 # Panorama viewer — engineering notes
 
-Running log for `@jeffgo10/panorama-viewer` (first publish **v0.1.0**).
+Running log for `@jeffgo10/panorama-viewer` (**v0.1.2**; first publish v0.1.0).
 
-Standalone ls-foundry package — not StickPak, not LiteShadeMedia / gl-viewer. Demo: `pnpm run dev --filter=@ls-foundry/docs` → `/panorama`.
+Standalone ls-foundry package — not StickPak, not LiteShadeMedia / gl-viewer. Demo: `pnpm run dev --filter=@ls-foundry/docs` → `/panorama`. Obsidian: `LS Foundry/Notes — panorama-viewer`.
 
 ## Package
 
