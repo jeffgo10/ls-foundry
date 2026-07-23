@@ -35,6 +35,12 @@ module.exports = {
       lines: 90,
       statements: 90,
     },
+    "./src/pointer.ts": {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
     "./src/PanoramaViewer.tsx": {
       branches: 40,
       functions: 50,

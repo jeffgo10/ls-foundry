@@ -1,6 +1,6 @@
 {
   "name": "@jeffgo10/panorama-viewer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "React 360 panorama viewer (Pannellum) with navigation, info, and label hotspots",
   "license": "MIT",
   "repository": {

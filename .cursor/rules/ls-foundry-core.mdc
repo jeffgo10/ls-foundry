@@ -21,7 +21,7 @@ packages/           # publishable + internal packages
 
 | Scope | Use | Examples |
 |-------|-----|----------|
-| `@jeffgo10/*` | **Published** to GitHub Packages (`npm.pkg.github.com`) | `shared-types`, `react-canvas-designer`, `canvas-upscaler`, `three-d-label-customizer`, `helpers`, `gl-viewer` (v0.3.1; consumed by **LiteShadeMedia**), `panorama-viewer` (v0.1.1; consumed by **Vantage**) |
+| `@jeffgo10/*` | **Published** to GitHub Packages (`npm.pkg.github.com`) | `shared-types`, `react-canvas-designer`, `canvas-upscaler`, `three-d-label-customizer`, `helpers`, `gl-viewer` (v0.3.1; consumed by **LiteShadeMedia**), `panorama-viewer` (v0.1.2; consumed by **Vantage**) |
 | `@ls-foundry/*` | **Private** monorepo-only | `docs`, `tsconfig`, `ui`, `utils`, `maps` |
 
 Publish scope must match GitHub owner (`@jeffgo10`). Bump versions in `packages/*/package.json` before `pnpm run deploy`.
@@ -56,7 +56,7 @@ Always bump `shared-types` first when changing layout/DPI APIs; keep dependent p
 | `@jeffgo10/history` | 0.1.0 | `packages/history/` — generic undo/redo snapshot stacks |
 | `@jeffgo10/three-d-label-customizer` | 0.1.0 | `docs/three-d-label-customizer/` |
 | `@jeffgo10/gl-viewer` | 0.3.1 | `packages/gl-viewer/` (consumer: **LiteShadeMedia**) |
-| `@jeffgo10/panorama-viewer` | 0.1.1 | `docs/panorama-viewer/` (consumer: **Vantage**) |
+| `@jeffgo10/panorama-viewer` | 0.1.2 | `docs/panorama-viewer/` (consumer: **Vantage**) |
 
 `three-d-label-customizer` is a **standalone** product mockup package. Obsidian: `LS Foundry/Notes — three-d-label-customizer`.
 

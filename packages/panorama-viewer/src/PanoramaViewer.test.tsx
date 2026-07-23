@@ -62,6 +62,49 @@ describe("PanoramaViewer", () => {
     expect(destroy).toHaveBeenCalled();
   });
 
+  it("places a marker on click but not after a drag", async () => {
+    const onSphereClick = jest.fn();
+    const { container } = render(
+      <PanoramaViewer
+        imageUrl="https://example.com/pano.jpg"
+        mode="edit"
+        onSphereClick={onSphereClick}
+      />,
+    );
+
+    await waitFor(() => expect(pannellumViewer).toHaveBeenCalled());
+    const canvas = container.querySelector(".ls-pv-canvas") as HTMLElement;
+
+    act(() => {
+      canvas.dispatchEvent(
+        new PointerEvent("pointerdown", { clientX: 10, clientY: 10, bubbles: true }),
+      );
+      canvas.dispatchEvent(
+        new PointerEvent("pointermove", { clientX: 40, clientY: 10, bubbles: true }),
+      );
+      canvas.dispatchEvent(
+        new PointerEvent("pointerup", { clientX: 40, clientY: 10, bubbles: true }),
+      );
+      canvas.dispatchEvent(
+        new MouseEvent("click", { clientX: 40, clientY: 10, bubbles: true }),
+      );
+    });
+    expect(onSphereClick).not.toHaveBeenCalled();
+
+    act(() => {
+      canvas.dispatchEvent(
+        new PointerEvent("pointerdown", { clientX: 20, clientY: 20, bubbles: true }),
+      );
+      canvas.dispatchEvent(
+        new PointerEvent("pointerup", { clientX: 21, clientY: 20, bubbles: true }),
+      );
+      canvas.dispatchEvent(
+        new MouseEvent("click", { clientX: 21, clientY: 20, bubbles: true }),
+      );
+    });
+    expect(onSphereClick).toHaveBeenCalledWith({ yaw: 12, pitch: -3 });
+  });
+
   it("exposes imperative handle helpers", async () => {
     const ref = createRef<PanoramaViewerHandle>();
     render(

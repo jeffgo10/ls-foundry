@@ -7,8 +7,10 @@ import {
   useRef,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { markersGeometryKey, markersToHotSpots } from "./markers";
+import { exceedsDragThreshold } from "./pointer";
 import type {
   PanoramaMarker,
   PanoramaViewerHandle,
@@ -53,6 +55,8 @@ const PanoramaViewer = forwardRef<PanoramaViewerHandle, PanoramaViewerProps>(
     const onSphereClickRef = useRef(onSphereClick);
     const onMarkerClickRef = useRef(onMarkerClick);
     const modeRef = useRef(mode);
+    const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+    const didDragRef = useRef(false);
 
     onSphereClickRef.current = onSphereClick;
     onMarkerClickRef.current = onMarkerClick;
@@ -127,7 +131,31 @@ const PanoramaViewer = forwardRef<PanoramaViewerHandle, PanoramaViewerProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [imageUrl, geometryKey, initialYaw, initialPitch, initialHfov]);
 
+    const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+      pointerStartRef.current = { x: event.clientX, y: event.clientY };
+      didDragRef.current = false;
+    };
+
+    const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+      const start = pointerStartRef.current;
+      if (!start || didDragRef.current) return;
+      if (
+        exceedsDragThreshold(start, { x: event.clientX, y: event.clientY })
+      ) {
+        didDragRef.current = true;
+      }
+    };
+
+    const handlePointerUp = () => {
+      pointerStartRef.current = null;
+    };
+
     const handleContainerClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+      // Ignore click that follows a drag-pan on the sphere.
+      if (didDragRef.current) {
+        didDragRef.current = false;
+        return;
+      }
       if (modeRef.current !== "edit" || !onSphereClickRef.current) return;
       const target = event.target as HTMLElement;
       if (
@@ -160,6 +188,10 @@ const PanoramaViewer = forwardRef<PanoramaViewerHandle, PanoramaViewerProps>(
           className="ls-pv-canvas"
           role="img"
           aria-label="360 panorama viewer"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           onClick={handleContainerClick}
         />
       </div>

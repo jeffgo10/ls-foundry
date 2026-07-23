@@ -144,7 +144,7 @@ type PanoramaViewerHandle = {
 />
 ```
 
-Drag-to-reposition markers is a follow-up (not in 0.1.0).
+Sphere clicks place markers; **drag-to-pan does not** (movement above a small pixel threshold is ignored). Drag-to-reposition existing markers is a follow-up (not in 0.1.x).
 
 ## Demo
 
