@@ -1,0 +1,3 @@
+/* Dev/docs entry: resolve pannellum CSS from the workspace dependency. */
+@import "pannellum/build/pannellum.css";
+@import "./styles.css";

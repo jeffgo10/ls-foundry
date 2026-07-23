@@ -53,13 +53,14 @@ const nextConfig: NextConfig = {
         packageSrc,
         "three-d-label-customizer/src/index.ts",
       ),
-      "@jeffgo10/panorama-viewer": path.join(
-        packageSrc,
-        "panorama-viewer/src/index.ts",
-      ),
+      // Subpath before root; `$` so styles.css is not resolved as src/index.ts/styles.css.
       "@jeffgo10/panorama-viewer/styles.css": path.join(
         packageSrc,
-        "panorama-viewer/dist/styles.css",
+        "panorama-viewer/src/styles.dev.css",
+      ),
+      "@jeffgo10/panorama-viewer$": path.join(
+        packageSrc,
+        "panorama-viewer/src/index.ts",
       ),
     };
 
