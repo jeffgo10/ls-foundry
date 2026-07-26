@@ -17,6 +17,17 @@ export { loadImage } from "./loadImage";
 export { offsetClosedPolygon } from "./offsetClosedPolygon";
 export {
   dilateBinaryMask,
+  normalizeCutLinePoints,
+  refineClosedContour,
+  splitCutLineContours,
   traceAlphaContour,
+  walkAllContours,
+  walkAllHoleContours,
+  walkAllOuterContours,
+  walkOuterContour,
+  DEFAULT_CONTOUR_SIMPLIFY_TOLERANCE,
+  DEFAULT_CONTOUR_SMOOTH_ITERATIONS,
+  OFFSET_CONTOUR_SIMPLIFY_TOLERANCE,
+  OFFSET_CONTOUR_SMOOTH_ITERATIONS,
   type TraceAlphaContourOptions,
 } from "./traceAlphaContour";

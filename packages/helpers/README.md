@@ -35,6 +35,8 @@ import {
   loadImage,
   offsetClosedPolygon,
   traceAlphaContour,
+  splitCutLineContours,
+  normalizeCutLinePoints,
 } from "@jeffgo10/helpers/image";
 ```
 
@@ -42,11 +44,15 @@ import {
 
 Traces the alpha boundary of an `HTMLImageElement` (or canvas image source) in **local image coordinates**. Returns a flat `[x0, y0, x1, y1, …]` array suitable for Konva `Line` points.
 
+Disconnected opaque islands (e.g. a star above a crest in one PNG) each get their own closed contour, joined with `NaN` separators. Use `splitCutLineContours(points)` to get `number[][]`, or `normalizeCutLinePoints` after `JSON.parse` (`null` ↔ `NaN`).
+
+Contours are refined with mild RDP (**1.25**) by default. **Chaikin smoothing is off** for tight (no-offset) traces so sharp art stays faithful. Offset bake (`bakeCutLineOffset`) and expand paths opt into lower RDP + Chaikin via `OFFSET_CONTOUR_*` defaults (`simplifyTolerance` / `smoothIterations` to override).
+
 Optional `expandPx` morphologically dilates the alpha mask before tracing (legacy / verify paths). Prefer `bakeCutLineOffset` for designer placement so resize stays cheap.
 
 ### `bakeCutLineOffset(image, offsetPx, options?)`
 
-Dilates the alpha mask (fast BFS), draws the art, then fills the expanded ring with a solid color. By default the fill is the **dominant edge color** sampled along the alpha boundary (`dominantEdgeColorFromAlphaData`); pass `options.fill` (CSS color) to override. Returns `{ dataUrl, width, height, cutLinePoints, pad, contentScale }`. Large sources are downsampled (default max edge **768**) so drop stays responsive. Used by the designer so cutline offset is baked once (async after place) instead of re-dilating every scale frame.
+Dilates the alpha mask with a **circular** (Euclidean) brush so convex corners become rounded fillets — not sharp Chebyshev tips — then draws the art and fills the expanded ring with a solid color. By default the fill is the **dominant edge color** sampled along the alpha boundary (`dominantEdgeColorFromAlphaData`); pass `options.fill` (CSS color) to override. Returns `{ dataUrl, width, height, cutLinePoints, pad, contentScale }`. When nearby islands merge under the pad, enclosed transparent gaps are traced as extra cut-line contours (`includeHoles`, default on). Large sources are downsampled (default max edge **768**) so drop stays responsive. Used by the designer so cutline offset is baked once (async after place) instead of re-dilating every scale frame.
 
 > **Designer (`react-canvas-designer` ≥ 1.0.0):** `setSelectedCutLineOffset({ fill? })` / `prepareCutLineMedia(..., fill?)` forward this option. Omit/`undefined` = auto edge; CSS color = explicit fill (persisted as `cutLineOffsetFill`).
 

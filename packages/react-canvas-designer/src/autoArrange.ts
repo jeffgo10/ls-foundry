@@ -106,9 +106,12 @@ function contourBoundsAtOrigin(
       : [0, 0, item.width, 0, item.width, item.height, 0, item.height];
 
   for (let i = 0; i < samplePoints.length; i += 2) {
+    const lx = samplePoints[i]!;
+    const ly = samplePoints[i + 1]!;
+    if (!Number.isFinite(lx) || !Number.isFinite(ly)) continue;
     const { x, y } = transformLocalPoint(
-      samplePoints[i]!,
-      samplePoints[i + 1]!,
+      lx,
+      ly,
       item.scaleX,
       item.scaleY,
       item.rotation,

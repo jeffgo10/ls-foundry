@@ -81,7 +81,12 @@ function itemsEqual(
       return false;
     }
     for (let pointIndex = 0; pointIndex < leftPoints.length; pointIndex += 1) {
-      if (leftPoints[pointIndex] !== rightPoints[pointIndex]) {
+      const leftPoint = leftPoints[pointIndex]!;
+      const rightPoint = rightPoints[pointIndex]!;
+      if (Number.isNaN(leftPoint) && Number.isNaN(rightPoint)) {
+        continue;
+      }
+      if (leftPoint !== rightPoint) {
         return false;
       }
     }

@@ -1,5 +1,9 @@
 import {
   bakeCutLineOffset,
+  normalizeCutLinePoints,
+  OFFSET_CONTOUR_SIMPLIFY_TOLERANCE,
+  OFFSET_CONTOUR_SMOOTH_ITERATIONS,
+  splitCutLineContours,
   traceAlphaContour,
   type TraceAlphaContourOptions,
 } from "@jeffgo10/helpers/image";
@@ -7,6 +11,8 @@ import {
   mmToCanvasPixels,
   type CanvasItem,
 } from "@jeffgo10/shared-types";
+
+export { normalizeCutLinePoints, splitCutLineContours };
 
 /**
  * Convert a physical cut-line offset (mm) into local image pixels so that
@@ -306,9 +312,10 @@ export function toDisplayCanvasItem(
 }
 
 /**
- * Tight-trace only. Prefer {@link prepareCutLineMedia} for placement so offset
- * is baked into the bitmap; this remains for callers that already have baked
- * art or need a one-off expand (legacy).
+ * Trace alpha cut-line points.
+ * - `offsetLocalPx === 0`: tight art-faithful contour (no Chaikin smoothing).
+ * - `offsetLocalPx > 0`: legacy expand path with offset-only smooth refine.
+ * Prefer {@link prepareCutLineMedia} for placement so offset is baked into the bitmap.
  */
 export function buildCutLinePoints(
   image: HTMLImageElement,
@@ -322,6 +329,9 @@ export function buildCutLinePoints(
   }
 
   return traceAlphaContour(image, imageWidth, imageHeight, {
+    simplifyTolerance: OFFSET_CONTOUR_SIMPLIFY_TOLERANCE,
+    smoothIterations: OFFSET_CONTOUR_SMOOTH_ITERATIONS,
+    includeHoles: true,
     ...options,
     expandPx: offsetLocalPx,
   });
