@@ -1,5 +1,6 @@
 import type { MarginBoundsItem } from "./canvasMargin";
 import { getCutLineAxisAlignedBounds } from "./canvasMargin";
+import { splitCutLineContours } from "./cutLine";
 
 export type StagePoint = { x: number; y: number };
 
@@ -23,7 +24,7 @@ function transformLocalPoint(
   };
 }
 
-/** Cut-line contour vertices in stage space. */
+/** Cut-line contour vertices in stage space (one polygon; separators stripped). */
 export function getCutLineStagePolygon(
   item: MarginBoundsItem,
   cutLinePoints: number[],
@@ -34,10 +35,13 @@ export function getCutLineStagePolygon(
   const polygon: StagePoint[] = [];
 
   for (let i = 0; i < cutLinePoints.length; i += 2) {
+    const lx = cutLinePoints[i]!;
+    const ly = cutLinePoints[i + 1]!;
+    if (!Number.isFinite(lx) || !Number.isFinite(ly)) continue;
     polygon.push(
       transformLocalPoint(
-        cutLinePoints[i]!,
-        cutLinePoints[i + 1]!,
+        lx,
+        ly,
         item.scaleX,
         item.scaleY,
         item.rotation,
@@ -48,6 +52,38 @@ export function getCutLineStagePolygon(
   }
 
   return polygon;
+}
+
+/** All closed cut-line islands in stage space (multi-asset PNGs). */
+export function getCutLineStagePolygons(
+  item: MarginBoundsItem,
+  cutLinePoints: number[],
+  position?: { x: number; y: number },
+): StagePoint[][] {
+  const contours = splitCutLineContours(cutLinePoints);
+  if (contours.length === 0) {
+    const fallback = getCutLineStagePolygon(item, cutLinePoints, position);
+    return fallback.length >= 3 ? [fallback] : [];
+  }
+  const polygons = contours
+    .map((contour) => getCutLineStagePolygon(item, contour, position))
+    .filter((polygon) => polygon.length >= 3);
+
+  // Drop hole contours (sample vertex lies inside another contour). Overlap /
+  // gap checks should use outer silhouettes only; holes are for stroke preview.
+  if (polygons.length < 2) {
+    return polygons;
+  }
+  return polygons.filter((polygon, index) => {
+    const sample = polygon[0]!;
+    for (let other = 0; other < polygons.length; other += 1) {
+      if (other === index) continue;
+      if (pointInPolygon(sample, polygons[other]!)) {
+        return false;
+      }
+    }
+    return true;
+  });
 }
 
 export function pointInPolygon(point: StagePoint, polygon: StagePoint[]): boolean {
@@ -181,11 +217,22 @@ export function cutLinesViolateGap(
   cutLineB: number[],
   gapPx: number,
 ): boolean {
-  const polygonA = getCutLineStagePolygon(itemA, cutLineA);
-  const polygonB = getCutLineStagePolygon(itemB, cutLineB);
+  const polygonsA = getCutLineStagePolygons(itemA, cutLineA);
+  const polygonsB = getCutLineStagePolygons(itemB, cutLineB);
+
+  if (polygonsA.length === 0 || polygonsB.length === 0) {
+    return false;
+  }
 
   if (gapPx <= 0) {
-    return polygonsMinDistance(polygonA, polygonB) === 0;
+    for (const polygonA of polygonsA) {
+      for (const polygonB of polygonsB) {
+        if (polygonsMinDistance(polygonA, polygonB) === 0) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   const boundsA = getCutLineAxisAlignedBounds(itemA, cutLineA);
@@ -199,5 +246,12 @@ export function cutLinesViolateGap(
     return false;
   }
 
-  return polygonsMinDistance(polygonA, polygonB) < gapPx;
+  for (const polygonA of polygonsA) {
+    for (const polygonB of polygonsB) {
+      if (polygonsMinDistance(polygonA, polygonB) < gapPx) {
+        return true;
+      }
+    }
+  }
+  return false;
 }

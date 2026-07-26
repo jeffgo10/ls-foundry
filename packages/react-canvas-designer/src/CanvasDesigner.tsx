@@ -43,7 +43,9 @@ import {
   applyPreparedCutLineMedia,
   buildCutLinePoints,
   normalizeCutLineOffsetFill,
+  normalizeCutLinePoints,
   prepareCutLineMedia,
+  splitCutLineContours,
   toDisplayCanvasItem,
   toPersistedCanvasItem,
   yieldToBrowser,
@@ -450,15 +452,22 @@ function DraggableImage({
 
     // Offset is baked into the bitmap when enabled. Keep a tight contour cache
     // and never re-dilate on scale — that was the resize jitter source.
-    const existing = itemRef.current.cutLinePoints;
-    if (existing && existing.length >= 4) {
-      setCutLinePoints(existing);
-      return;
-    }
-
+    // Always re-trace when the bitmap is ready so multi-island PNGs pick up
+    // every opaque component (stale single-island caches are replaced).
     const points = buildCutLinePoints(image, item.width, item.height, 0);
     setCutLinePoints(points);
     if (points.length < 4) {
+      return;
+    }
+    const existing = normalizeCutLinePoints(itemRef.current.cutLinePoints);
+    if (
+      existing.length === points.length &&
+      existing.every((value, index) =>
+        Number.isNaN(value)
+          ? Number.isNaN(points[index]!)
+          : value === points[index],
+      )
+    ) {
       return;
     }
     onChange({ ...itemRef.current, cutLinePoints: points });
@@ -577,20 +586,24 @@ function DraggableImage({
         <Line
           points={cutLinePoints}
           closed
+          fillRule="evenodd"
           fill="rgba(239, 68, 68, 0.4)"
           listening={false}
         />
       ) : null}
-      {showCutLine && cutLinePoints.length > 0 ? (
-        <Line
-          points={cutLinePoints}
-          stroke={cutLineColor}
-          strokeWidth={1.5}
-          strokeScaleEnabled={false}
-          closed
-          listening={false}
-        />
-      ) : null}
+      {showCutLine && cutLinePoints.length > 0
+        ? splitCutLineContours(cutLinePoints).map((points, index) => (
+            <Line
+              key={`cut-${index}`}
+              points={points}
+              stroke={cutLineColor}
+              strokeWidth={1.5}
+              strokeScaleEnabled={false}
+              closed
+              listening={false}
+            />
+          ))
+        : null}
     </Group>
   );
 }

@@ -1,4 +1,12 @@
-import { dilateBinaryMask, traceAlphaContour } from "./traceAlphaContour";
+import {
+  dilateBinaryMask,
+  normalizeCutLinePoints,
+  refineClosedContour,
+  splitCutLineContours,
+  traceAlphaContour,
+  walkAllContours,
+  walkAllHoleContours,
+} from "./traceAlphaContour";
 
 function buildAlphaGrid(
   width: number,
@@ -59,6 +67,104 @@ describe("dilateBinaryMask", () => {
   });
 });
 
+describe("splitCutLineContours / normalizeCutLinePoints", () => {
+  it("splits NaN-separated contours", () => {
+    const points = [
+      0, 0, 10, 0, 10, 10, 0, 10, NaN, NaN, 20, 20, 30, 20, 30, 30, 20, 30,
+    ];
+    expect(splitCutLineContours(points)).toEqual([
+      [0, 0, 10, 0, 10, 10, 0, 10],
+      [20, 20, 30, 20, 30, 30, 20, 30],
+    ]);
+  });
+
+  it("returns a single contour when there is no separator", () => {
+    expect(splitCutLineContours([0, 0, 1, 0, 1, 1, 0, 1])).toEqual([
+      [0, 0, 1, 0, 1, 1, 0, 1],
+    ]);
+  });
+
+  it("rehydrates null separators from JSON", () => {
+    const parsed = JSON.parse(
+      JSON.stringify([
+        0, 0, 1, 0, 1, 1, 0, 1, NaN, NaN, 2, 2, 3, 2, 3, 3, 2, 3,
+      ]),
+    ) as Array<number | null>;
+    const normalized = normalizeCutLinePoints(parsed);
+    expect(splitCutLineContours(normalized)).toHaveLength(2);
+  });
+});
+
+describe("refineClosedContour", () => {
+  it("Chaikin passes increase vertex count and round a sharp square", () => {
+    const square: Array<[number, number]> = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ];
+    const refined = refineClosedContour(square, {
+      simplifyTolerance: 0,
+      smoothIterations: 2,
+    });
+    // 4 → 8 → 16 vertices
+    expect(refined.length).toBe(16);
+    // Corners are no longer exactly on the original square vertices
+    expect(refined.some(([x, y]) => x === 0 && y === 0)).toBe(false);
+    // Still roughly centered on the square
+    const cx =
+      refined.reduce((sum, [x]) => sum + x, 0) / refined.length;
+    const cy =
+      refined.reduce((sum, [, y]) => sum + y, 0) / refined.length;
+    expect(cx).toBeGreaterThan(4);
+    expect(cx).toBeLessThan(6);
+    expect(cy).toBeGreaterThan(4);
+    expect(cy).toBeLessThan(6);
+  });
+
+  it("skips Chaikin when smoothIterations is 0", () => {
+    const square: Array<[number, number]> = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ];
+    expect(
+      refineClosedContour(square, {
+        simplifyTolerance: 0,
+        smoothIterations: 0,
+      }),
+    ).toEqual(square);
+  });
+});
+
+describe("walkAllHoleContours", () => {
+  it("traces an enclosed transparent hole inside an opaque ring", () => {
+    // 9×9 ring: outer border opaque, center 3×3 transparent.
+    const w = 9;
+    const isOpaque = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= w || y >= w) return false;
+      if (x >= 3 && x <= 5 && y >= 3 && y <= 5) return false;
+      return true;
+    };
+
+    const holes = walkAllHoleContours(isOpaque, w, w);
+    expect(holes.length).toBe(1);
+    expect(holes[0]!.length).toBeGreaterThanOrEqual(3);
+
+    const all = walkAllContours(isOpaque, w, w, { includeHoles: true });
+    expect(all.length).toBe(2);
+  });
+
+  it("ignores exterior transparent regions", () => {
+    // Solid block in the middle — exterior transparent is not a hole.
+    const w = 9;
+    const isOpaque = (x: number, y: number) =>
+      x >= 3 && x <= 5 && y >= 3 && y <= 5;
+    expect(walkAllHoleContours(isOpaque, w, w)).toEqual([]);
+  });
+});
+
 describe("traceAlphaContour", () => {
   const image = {
     naturalWidth: 20,
@@ -82,6 +188,37 @@ describe("traceAlphaContour", () => {
     );
     const contour = traceAlphaContour(image, 20, 20);
     expect(contour.length).toBeGreaterThanOrEqual(8);
+    expect(splitCutLineContours(contour)).toHaveLength(1);
+    restore();
+  });
+
+  it("traces every disconnected opaque island", () => {
+    // Two separate blobs: a small square near the top and a larger one below —
+    // mirrors multi-asset PNGs (e.g. star above a crest).
+    const restore = mockCanvasContext(
+      20,
+      20,
+      buildAlphaGrid(20, 20, (x, y) => {
+        if (x >= 8 && x <= 11 && y >= 1 && y <= 4) return 255;
+        if (x >= 4 && x <= 15 && y >= 10 && y <= 18) return 255;
+        return 0;
+      }),
+    );
+    const contour = traceAlphaContour(image, 20, 20, { simplifyTolerance: 0 });
+    const parts = splitCutLineContours(contour);
+    expect(parts).toHaveLength(2);
+
+    const centers = parts.map((pts) => {
+      const xs = pts.filter((_, i) => i % 2 === 0);
+      const ys = pts.filter((_, i) => i % 2 === 1);
+      return {
+        x: (Math.min(...xs) + Math.max(...xs)) / 2,
+        y: (Math.min(...ys) + Math.max(...ys)) / 2,
+      };
+    });
+    centers.sort((a, b) => a.y - b.y);
+    expect(centers[0]!.y).toBeLessThan(8);
+    expect(centers[1]!.y).toBeGreaterThan(8);
     restore();
   });
 
@@ -116,8 +253,8 @@ describe("traceAlphaContour", () => {
     restore();
 
     const bounds = (pts: number[]) => {
-      const xs = pts.filter((_, i) => i % 2 === 0);
-      const ys = pts.filter((_, i) => i % 2 === 1);
+      const xs = pts.filter((_, i) => i % 2 === 0 && Number.isFinite(pts[i]!));
+      const ys = pts.filter((_, i) => i % 2 === 1 && Number.isFinite(pts[i]!));
       return {
         minX: Math.min(...xs),
         maxX: Math.max(...xs),

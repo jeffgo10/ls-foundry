@@ -36,14 +36,33 @@ describe("dominantEdgeColorFromAlphaData", () => {
 });
 
 describe("dilateBinaryMaskFast", () => {
-  it("expands a single seed by Chebyshev radius", () => {
+  it("expands a single seed by Euclidean (circular) radius", () => {
     const mask = new Uint8Array(7 * 7);
     mask[3 * 7 + 3] = 1;
     const dilated = dilateBinaryMaskFast(mask, 7, 7, 2);
     expect(dilated[3 * 7 + 3]).toBe(1);
     expect(dilated[3 * 7 + 5]).toBe(1);
     expect(dilated[1 * 7 + 3]).toBe(1);
-    expect(dilated[1 * 7 + 1]).toBe(1); // Chebyshev includes diagonals
+    // Corner of the 2px box is outside a radius-2 circle (~2.83)
+    expect(dilated[1 * 7 + 1]).toBe(0);
+  });
+
+  it("rounds convex corners instead of keeping sharp tips", () => {
+    // Solid 3×3 block centered in 11×11; expand by 3px.
+    const w = 11;
+    const mask = new Uint8Array(w * w);
+    for (let y = 4; y <= 6; y += 1) {
+      for (let x = 4; x <= 6; x += 1) {
+        mask[y * w + x] = 1;
+      }
+    }
+    const dilated = dilateBinaryMaskFast(mask, w, w, 3);
+    // Axis pad from the block edge reaches distance 3
+    expect(dilated[4 * w + 1]).toBe(1); // left of (4,4) by 3
+    expect(dilated[1 * w + 4]).toBe(1); // above (4,4) by 3
+    // Sharp AABB corner of the expanded rect would be at (1,1); circular
+    // offset from nearest seed (4,4) is ~4.24 > 3, so it stays empty.
+    expect(dilated[1 * w + 1]).toBe(0);
   });
 });
 

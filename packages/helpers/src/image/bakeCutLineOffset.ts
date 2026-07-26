@@ -1,3 +1,10 @@
+import {
+  OFFSET_CONTOUR_SIMPLIFY_TOLERANCE,
+  OFFSET_CONTOUR_SMOOTH_ITERATIONS,
+  refineClosedContour,
+  walkAllContours,
+} from "./traceAlphaContour";
+
 type Point = [number, number];
 
 const NEIGHBORS: Point[] = [
@@ -22,8 +29,21 @@ export type BakeCutLineOffsetOptions = {
   fill?: string;
   /** Alpha threshold matching `traceAlphaContour`. Default 20. */
   alphaThreshold?: number;
-  /** RDP simplification in output pixels. Default 1.25. */
+  /**
+   * RDP simplification in output pixels.
+   * Default {@link OFFSET_CONTOUR_SIMPLIFY_TOLERANCE} (smooth offset curves).
+   */
   simplifyTolerance?: number;
+  /**
+   * Chaikin smoothing passes after RDP.
+   * Default {@link OFFSET_CONTOUR_SMOOTH_ITERATIONS}. Set `0` to disable.
+   */
+  smoothIterations?: number;
+  /**
+   * Trace enclosed transparent holes (gaps trapped when offset merges islands).
+   * Default **true**.
+   */
+  includeHoles?: boolean;
   /** Downsample longest edge before dilate/composite. Default 768. */
   maxDimension?: number;
 };
@@ -129,100 +149,10 @@ function parseCssColor(fill: string): Rgb {
   return [255, 255, 255];
 }
 
-function perpendicularDistance(point: Point, lineStart: Point, lineEnd: Point) {
-  const [px, py] = point;
-  const [x1, y1] = lineStart;
-  const [x2, y2] = lineEnd;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  if (dx === 0 && dy === 0) {
-    return Math.hypot(px - x1, py - y1);
-  }
-  const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
-  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
-}
-
-function simplifyRdp(points: Point[], tolerance: number): Point[] {
-  if (points.length < 3) return points;
-  let maxDistance = 0;
-  let index = 0;
-  const end = points.length - 1;
-  for (let i = 1; i < end; i += 1) {
-    const distance = perpendicularDistance(points[i]!, points[0]!, points[end]!);
-    if (distance > maxDistance) {
-      maxDistance = distance;
-      index = i;
-    }
-  }
-  if (maxDistance > tolerance) {
-    const left = simplifyRdp(points.slice(0, index + 1), tolerance);
-    const right = simplifyRdp(points.slice(index), tolerance);
-    return [...left.slice(0, -1), ...right];
-  }
-  return [points[0]!, points[end]!];
-}
-
-function walkOuterContour(
-  isOpaque: (x: number, y: number) => boolean,
-  width: number,
-  height: number,
-): Point[] {
-  const isBoundary = (x: number, y: number) => {
-    if (!isOpaque(x, y)) return false;
-    return (
-      !isOpaque(x - 1, y) ||
-      !isOpaque(x + 1, y) ||
-      !isOpaque(x, y - 1) ||
-      !isOpaque(x, y + 1)
-    );
-  };
-
-  let start: Point | null = null;
-  outer: for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (isBoundary(x, y)) {
-        start = [x, y];
-        break outer;
-      }
-    }
-  }
-  if (!start) return [];
-
-  const contour: Point[] = [start];
-  let [currentX, currentY] = start;
-  let backtrack = 7;
-  const maxSteps = width * height * 4;
-
-  for (let step = 0; step < maxSteps; step += 1) {
-    let moved = false;
-    for (let i = 0; i < 8; i += 1) {
-      const direction = (backtrack + i) % 8;
-      const [dx, dy] = NEIGHBORS[direction]!;
-      const nextX = currentX + dx;
-      const nextY = currentY + dy;
-      if (!isOpaque(nextX, nextY)) continue;
-      currentX = nextX;
-      currentY = nextY;
-      backtrack = (direction + 6) % 8;
-      moved = true;
-      if (
-        currentX === start[0] &&
-        currentY === start[1] &&
-        contour.length > 3
-      ) {
-        moved = false;
-        break;
-      }
-      contour.push([currentX, currentY]);
-      break;
-    }
-    if (!moved) break;
-  }
-  return contour;
-}
-
 /**
- * Expand a binary mask by Chebyshev distance ≤ radius via multi-source BFS.
+ * Expand a binary mask by Euclidean distance ≤ radius (circular brush).
+ * Multi-source brushfire that tracks the nearest opaque seed so convex
+ * corners become quarter-circle fillets instead of sharp Chebyshev points.
  * O(width × height) — much cheaper than stamping a disk per opaque pixel.
  */
 export function dilateBinaryMaskFast(
@@ -231,13 +161,16 @@ export function dilateBinaryMaskFast(
   height: number,
   radius: number,
 ): Uint8Array {
-  const r = Math.max(0, Math.ceil(radius));
+  const r = Math.max(0, radius);
   if (r === 0 || mask.length === 0) {
     return mask.slice();
   }
 
-  const dist = new Int16Array(width * height);
-  dist.fill(32767);
+  const rSq = r * r;
+  const distSq = new Float64Array(width * height);
+  distSq.fill(Number.POSITIVE_INFINITY);
+  const seedX = new Int32Array(width * height);
+  const seedY = new Int32Array(width * height);
   const queueX = new Int32Array(width * height);
   const queueY = new Int32Array(width * height);
   let head = 0;
@@ -247,7 +180,9 @@ export function dilateBinaryMaskFast(
     for (let x = 0; x < width; x += 1) {
       const i = y * width + x;
       if (mask[i] !== 1) continue;
-      dist[i] = 0;
+      distSq[i] = 0;
+      seedX[i] = x;
+      seedY[i] = y;
       queueX[tail] = x;
       queueY[tail] = y;
       tail += 1;
@@ -258,27 +193,31 @@ export function dilateBinaryMaskFast(
     const x = queueX[head]!;
     const y = queueY[head]!;
     head += 1;
-    const d = dist[y * width + x]!;
-    if (d >= r) continue;
+    const i = y * width + x;
+    const sx = seedX[i]!;
+    const sy = seedY[i]!;
 
     for (const [dx, dy] of NEIGHBORS) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
       const ni = ny * width + nx;
-      const nd = d + 1;
-      if (nd < dist[ni]!) {
-        dist[ni] = nd;
-        queueX[tail] = nx;
-        queueY[tail] = ny;
-        tail += 1;
-      }
+      const ndx = nx - sx;
+      const ndy = ny - sy;
+      const nd = ndx * ndx + ndy * ndy;
+      if (nd > rSq || !(nd < distSq[ni]!)) continue;
+      distSq[ni] = nd;
+      seedX[ni] = sx;
+      seedY[ni] = sy;
+      queueX[tail] = nx;
+      queueY[tail] = ny;
+      tail += 1;
     }
   }
 
   const out = new Uint8Array(width * height);
-  for (let i = 0; i < dist.length; i += 1) {
-    if (dist[i]! <= r) out[i] = 1;
+  for (let i = 0; i < distSq.length; i += 1) {
+    if (distSq[i]! <= rSq) out[i] = 1;
   }
   return out;
 }
@@ -294,7 +233,11 @@ export function bakeCutLineOffset(
   options: BakeCutLineOffsetOptions = {},
 ): BakeCutLineOffsetResult {
   const alphaThreshold = options.alphaThreshold ?? 20;
-  const simplifyTolerance = options.simplifyTolerance ?? 1.25;
+  const simplifyTolerance =
+    options.simplifyTolerance ?? OFFSET_CONTOUR_SIMPLIFY_TOLERANCE;
+  const smoothIterations =
+    options.smoothIterations ?? OFFSET_CONTOUR_SMOOTH_ITERATIONS;
+  const includeHoles = options.includeHoles ?? true;
   const maxDimension = options.maxDimension ?? BAKE_CUTLINE_MAX_DIMENSION;
 
   const srcW = Math.max(1, image.naturalWidth || image.width);
@@ -397,9 +340,20 @@ export function bakeCutLineOffset(
     if (x < 0 || y < 0 || x >= width || y >= height) return false;
     return dilated[y * width + x] === 1;
   };
-  const contour = walkOuterContour(isOpaque, width, height);
-  const simplified = simplifyRdp(contour, simplifyTolerance);
-  const cutLinePoints = simplified.flatMap(([x, y]) => [x, y]);
+  const contours = walkAllContours(isOpaque, width, height, { includeHoles });
+  const cutLinePoints: number[] = [];
+  for (let i = 0; i < contours.length; i += 1) {
+    if (i > 0) {
+      cutLinePoints.push(Number.NaN, Number.NaN);
+    }
+    const refined = refineClosedContour(contours[i]!, {
+      simplifyTolerance,
+      smoothIterations,
+    });
+    for (const [x, y] of refined) {
+      cutLinePoints.push(x, y);
+    }
+  }
 
   return {
     dataUrl: out.toDataURL("image/png"),
