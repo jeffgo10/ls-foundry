@@ -31,6 +31,10 @@ jest.mock("@jeffgo10/helpers/image", () => ({
     contentScale: 1,
   })),
   traceAlphaContour: jest.fn(() => []),
+  splitCutLineContours: jest.fn((points: number[]) =>
+    points.length >= 4 ? [points] : [],
+  ),
+  normalizeCutLinePoints: jest.fn((points: number[] | undefined) => points ?? []),
   offsetClosedPolygon: jest.fn((points: number[]) => points),
   dilateBinaryMaskFast: jest.fn((mask: Uint8Array) => mask.slice()),
 }));

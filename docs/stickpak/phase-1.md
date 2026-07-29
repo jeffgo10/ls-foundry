@@ -20,22 +20,22 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 | Package | Version | Notes |
 |---------|---------|-------|
 | `@jeffgo10/shared-types` | **1.0.0** | Layout schema; optional `cutLineOffsetMm` + `cutLineOffsetFill` on layout items |
-| `@jeffgo10/react-canvas-designer` | **1.0.0** | Full StickPak designer (cut-line offset fill API; deps helpers/history **1.0.0**) |
-| `@jeffgo10/helpers` | **1.0.0** | `./image` (`offsetClosedPolygon`), `./gestures`, `./browser`, `./clipboard` |
+| `@jeffgo10/react-canvas-designer` | **1.0.3** | Full StickPak designer; offset hole cut lines (deps helpers **1.0.5**) |
+| `@jeffgo10/helpers` | **1.0.5** | `./image` (multi-island + offset hole contours; circular pad; offset-only Chaikin), `./gestures`, `./browser`, `./clipboard` |
 | `@jeffgo10/canvas-upscaler` | **1.0.0** | Bakes `cutLineOffsetMm`/`cutLineOffsetFill` for StickPak print; dep shared-types **1.0.0** |
 
 Install both designer packages together:
 
 ```json
 "@jeffgo10/shared-types": "1.0.0",
-"@jeffgo10/react-canvas-designer": "1.0.0",
+"@jeffgo10/react-canvas-designer": "1.0.3",
 "@jeffgo10/canvas-upscaler": "1.0.0"
 ```
 
 Helpers (cut-line offset):
 
 ```json
-"@jeffgo10/helpers": "1.0.0"
+"@jeffgo10/helpers": "1.0.5"
 ```
 
 See [engineering-notes.md](./engineering-notes.md#package-version-mismatch-react-canvas-designer-vs-shared-types).

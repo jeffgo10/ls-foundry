@@ -62,9 +62,12 @@ export function getItemAxisAlignedBounds(
   let maxY = -Infinity;
 
   for (let i = 0; i < samplePoints.length; i += 2) {
+    const lx = samplePoints[i]!;
+    const ly = samplePoints[i + 1]!;
+    if (!Number.isFinite(lx) || !Number.isFinite(ly)) continue;
     const { x, y } = transformLocalPoint(
-      samplePoints[i]!,
-      samplePoints[i + 1]!,
+      lx,
+      ly,
       item.scaleX,
       item.scaleY,
       item.rotation,
@@ -95,9 +98,12 @@ export function getCutLineAxisAlignedBounds(
   let maxY = -Infinity;
 
   for (let i = 0; i < cutLinePoints.length; i += 2) {
+    const lx = cutLinePoints[i]!;
+    const ly = cutLinePoints[i + 1]!;
+    if (!Number.isFinite(lx) || !Number.isFinite(ly)) continue;
     const { x, y } = transformLocalPoint(
-      cutLinePoints[i]!,
-      cutLinePoints[i + 1]!,
+      lx,
+      ly,
       item.scaleX,
       item.scaleY,
       item.rotation,

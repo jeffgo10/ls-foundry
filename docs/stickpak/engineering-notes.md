@@ -2,6 +2,70 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Offset hole cut-line contours (helpers 1.0.5)
+
+**When:** July 2026 (`@jeffgo10/helpers` **1.0.5**, `@jeffgo10/react-canvas-designer` **1.0.3**).
+
+**Problem:** When cut-line offset merges nearby islands (star + crest), the trapped transparent gap had no red border — only the outer silhouette was traced.
+
+**Fix:** `walkAllHoleContours` finds enclosed transparent regions (not connected to the image border) and adds their boundaries to `cutLinePoints`. Enabled by default on offset bake / expand (`includeHoles`); tight no-offset traces stay outer-only. Overlap fill uses `fillRule="evenodd"`; gap geometry ignores hole polygons.
+
+**Storefront follow-up:** Pin helpers **1.0.5** + designer **1.0.3**; re-toggle offset to re-bake.
+
+**Code:** `traceAlphaContour.ts` (`walkAllHoleContours` / `walkAllContours`); `bakeCutLineOffset.ts`; `CanvasDesigner.tsx`
+
+## Offset-only cut-line smoothing (helpers 1.0.4)
+
+**When:** July 2026 (`@jeffgo10/helpers` **1.0.4**, `@jeffgo10/react-canvas-designer` **1.0.2**).
+
+**Problem:** Chaikin / low-RDP smoothing from 1.0.3 ran on **every** `traceAlphaContour`, including tight no-offset previews — warped sharp art (e.g. crest cut line looping across the shield).
+
+**Fix:** Tight traces stay at RDP **1.25** with **Chaikin off**. Offset bake (`bakeCutLineOffset`) and `buildCutLinePoints` expand path opt into `OFFSET_CONTOUR_SIMPLIFY_TOLERANCE` / `OFFSET_CONTOUR_SMOOTH_ITERATIONS` only.
+
+**Storefront follow-up:** Pin helpers **1.0.4** + designer **1.0.2**; re-drop or refresh stickers so cached cut lines re-trace.
+
+**Code:** `traceAlphaContour.ts` defaults; `bakeCutLineOffset.ts`; `cutLine.ts` `buildCutLinePoints`
+
+## Smoother cut-line contours (helpers 1.0.3)
+
+**When:** July 2026 (`@jeffgo10/helpers` **1.0.3**).
+
+**Problem:** After circular offset dilation, the red cut-line polyline still looked faceted — RDP `simplifyTolerance` default **1.25** collapsed smooth arcs into long chords.
+
+**Fix:** Default tolerance **0.35** + **2** Chaikin corner-cutting passes (`refineClosedContour`) in `traceAlphaContour` and `bakeCutLineOffset`. Override with `simplifyTolerance` / `smoothIterations`.
+
+**Storefront follow-up:** Pin `helpers@1.0.3` and re-toggle offset / re-drop so cut lines re-trace.
+
+**Code:** `packages/helpers/src/image/traceAlphaContour.ts` (`refineClosedContour`)
+
+## Rounded cut-line offset corners (helpers 1.0.2)
+
+**When:** July 2026 (`@jeffgo10/helpers` **1.0.2**).
+
+**Problem:** Cut-line offset pads used Chebyshev (square) dilation, so convex corners stayed sharp / pointy instead of Silhouette-style rounded fillets.
+
+**Fix:** `dilateBinaryMaskFast` now expands by Euclidean distance (circular brush), tracking the nearest opaque seed. Axis pads keep the requested mm; outer corners become quarter-circles. Designer bake + upscaler Node bake both pick this up via helpers.
+
+**Storefront follow-up:** Pin `helpers@1.0.2` and re-toggle offset (or re-drop) so stickers re-bake.
+
+**Code:** `packages/helpers/src/image/bakeCutLineOffset.ts` (`dilateBinaryMaskFast`)
+
+## Multi-island PNG cut-line contour (helpers 1.0.1)
+
+**When:** July 2026 (`@jeffgo10/helpers` **1.0.1**, `@jeffgo10/react-canvas-designer` **1.0.1**).
+
+**Problem:** `traceAlphaContour` walked only the first opaque connected component. PNGs with several disconnected assets in one file (e.g. England crest with a star above the shield) drew a red cut line around the top island only.
+
+**Fix:**
+- Flood-fill every 8-connected opaque island and Moore-walk each outer contour
+- Join contours with `NaN` separators; `splitCutLineContours` / `normalizeCutLinePoints` for render + JSON round-trip
+- Designer draws one Konva `Line` per island; overlap / margin / arrange skip separator points
+- `bakeCutLineOffset` uses the same multi-contour walk
+
+**Storefront follow-up:** Pin `helpers@1.0.1` + `react-canvas-designer@1.0.1`. Re-open a sheet (or re-drop the asset) so cached single-island `cutLinePoints` are re-traced.
+
+**Code:** `packages/helpers/src/image/traceAlphaContour.ts`, `bakeCutLineOffset.ts`, `packages/react-canvas-designer/src/CanvasDesigner.tsx`, `cutLineGeometry.ts`
+
 ## Stable 1.0.0 release wrap-up (July 2026)
 
 **When:** July 2026 — StickPak / shared `@jeffgo10/*` packages bumped to **1.0.0** to mark API stability after Phase 1. Left on pre-1.0: `three-d-label-customizer` and `panorama-viewer`.

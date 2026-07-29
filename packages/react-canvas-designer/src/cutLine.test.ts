@@ -25,6 +25,10 @@ jest.mock("@jeffgo10/helpers/image", () => ({
     }),
   ),
   traceAlphaContour: jest.fn(() => []),
+  splitCutLineContours: jest.fn((points: number[]) =>
+    points.length >= 4 ? [points] : [],
+  ),
+  normalizeCutLinePoints: jest.fn((points: number[] | undefined) => points ?? []),
 }));
 
 describe("normalizeCutLineOffsetFill", () => {
