@@ -38,7 +38,7 @@ module.exports = {
       // `typeof window/navigator` SSR branches are not exercisable under jsdom.
       branches: 70,
     },
-    "./src/text/ScrambleRevealProvider.tsx": {
+    "./src/text/ScrambleRevealProvider.ts": {
       ...threshold90,
       branches: 85,
     },

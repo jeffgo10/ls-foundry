@@ -1,5 +1,6 @@
 import {
   createContext,
+  createElement,
   useContext,
   useMemo,
   type ReactNode,
@@ -40,10 +41,10 @@ export function ScrambleRevealProvider({
     [skipAnimation],
   );
 
-  return (
-    <ScrambleRevealEnvironmentContext.Provider value={value}>
-      {children}
-    </ScrambleRevealEnvironmentContext.Provider>
+  return createElement(
+    ScrambleRevealEnvironmentContext.Provider,
+    { value },
+    children,
   );
 }
 
