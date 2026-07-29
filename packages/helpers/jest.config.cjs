@@ -29,6 +29,19 @@ module.exports = {
       ...threshold90,
       branches: 85,
     },
+    "./src/text/useScrambleReveal.ts": {
+      ...threshold90,
+      branches: 85,
+    },
+    "./src/text/skipEnvironment.ts": {
+      ...threshold90,
+      // `typeof window/navigator` SSR branches are not exercisable under jsdom.
+      branches: 70,
+    },
+    "./src/text/ScrambleRevealProvider.tsx": {
+      ...threshold90,
+      branches: 85,
+    },
     "./src/image/blobUrlToDataUrl.ts": threshold90,
     "./src/image/canvasToPngDataUrl.ts": threshold90,
     "./src/image/dataUrlToBlob.ts": threshold90,
