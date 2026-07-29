@@ -6,6 +6,7 @@ export default defineConfig({
     clipboard: "src/clipboard/index.ts",
     gestures: "src/gestures/index.ts",
     image: "src/image/index.ts",
+    text: "src/text/index.ts",
   },
   format: ["esm", "cjs"],
   dts: true,

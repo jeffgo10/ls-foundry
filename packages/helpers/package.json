@@ -1,6 +1,6 @@
 {
   "name": "@jeffgo10/helpers",
-  "version": "1.0.5",
+  "version": "1.2.0",
   "description": "Shared helper utilities for ls-foundry packages",
   "license": "MIT",
   "repository": {
@@ -30,6 +30,11 @@
       "types": "./dist/image.d.ts",
       "import": "./dist/image.js",
       "require": "./dist/image.cjs"
+    },
+    "./text": {
+      "types": "./dist/text.d.ts",
+      "import": "./dist/text.js",
+      "require": "./dist/text.cjs"
     }
   },
   "files": [
