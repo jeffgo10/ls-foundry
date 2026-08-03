@@ -54,6 +54,7 @@ function StickPakCanvasSection() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [viewportZoom, setViewportZoom] = useState(1);
+  const [panMode, setPanMode] = useState(false);
   const [selectedCutLineOffset, setSelectedCutLineOffset] = useState(false);
   const [selectedCutLineOffsetMm, setSelectedCutLineOffsetMm] = useState(5);
   const [selectedCutLineOffsetFill, setSelectedCutLineOffsetFill] = useState<
@@ -407,6 +408,16 @@ function StickPakCanvasSection() {
         />
         Inspect mode (select + border + labels only — no move/resize/rotate)
       </label>
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
+        <input
+          type="checkbox"
+          checked={panMode}
+          onChange={(event) => setPanMode(event.target.checked)}
+          className="size-4 rounded border-white/20"
+          aria-label="Pan mode"
+        />
+        Pan mode (mousedown + drag pans — same as holding Space)
+      </label>
       {isInspectMode ? (
         <p className="text-sm text-amber-200/70">
           Wizard preview chrome: blue border and W×H labels when selected;
@@ -491,6 +502,7 @@ function StickPakCanvasSection() {
           ref={designerRef}
           fitToContainer
           interactionMode={interactionMode}
+          panMode={panMode}
           showCutLine={showCutLine}
           cutLineOffsetMm={defaultCutLineOffsetMm}
           autoArrangeGapMm={autoArrangeGapMm}
@@ -522,13 +534,13 @@ function StickPakCanvasSection() {
         <p className="text-sm text-white/50">
           {isInspectMode
             ? hasSelection
-              ? "Inspect: sticker selected — blue border and size labels only (no drag, resize, or rotate). Click empty canvas to deselect. Scroll to zoom; hold Space and drag to pan."
-              : "Inspect: click a sticker to select it. Click empty canvas to clear selection. Move, resize, rotate, and marquee stay off. Scroll to zoom; hold Space and drag to pan."
+              ? "Inspect: sticker selected — blue border and size labels only (no drag, resize, or rotate). Click empty canvas to deselect. Scroll to zoom; hold Space (or enable Pan mode) and drag to pan."
+              : "Inspect: click a sticker to select it. Click empty canvas to clear selection. Move, resize, rotate, and marquee stay off. Scroll to zoom; hold Space (or enable Pan mode) and drag to pan."
             : hasSelection
               ? selectedIds.length > 1
-                ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate (hold Shift while rotating to snap to 45°). [ / ] rotate 90°. Scroll to zoom; Space + drag to pan.`
-                : "Selected sticker — duplicate to fill a row or column. Hold Shift while dragging the rotate handle to snap to 45°. [ / ] rotate 90° left/right. Scroll to zoom; Space + drag to pan."
-              : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select. Scroll to zoom; hold Space and drag to pan."}
+                ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate (hold Shift while rotating to snap to 45°). [ / ] rotate 90°. Scroll to zoom; Space or Pan mode + drag to pan.`
+                : "Selected sticker — duplicate to fill a row or column. Hold Shift while dragging the rotate handle to snap to 45°. [ / ] rotate 90° left/right. Scroll to zoom; Space or Pan mode + drag to pan."
+              : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select. Scroll to zoom; hold Space (or enable Pan mode) and drag to pan."}
         </p>
         <div className="flex flex-wrap gap-3">
           <button

@@ -134,6 +134,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `historyLimit` | `50` | Maximum undo snapshots kept in memory |
 | `onHistoryChange` | — | `{ canUndo, canRedo }` when stack availability changes |
 | `onViewportChange` | — | `{ zoom, panX, panY }` when the canvas camera changes (zoom 1…4 relative to fit/full) |
+| `panMode` | `false` | Toolbar-style pan: grab cursor, mousedown+drag pans, suppress sticker drag/marquee (same as holding Space; ORs with Space) |
 
 ## Imperative API (`ref` / `onReady`)
 
@@ -160,7 +161,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `undo()` / `redo()` | Step backward/forward through design mutations; returns `false` when unavailable |
 | `canUndo()` / `canRedo()` | Whether undo/redo is available |
 
-Keyboard shortcuts (when focus is not in a form field): **Ctrl/Cmd+Z** undo, **Ctrl/Cmd+Shift+Z** redo, **`[`** / **`]`** rotate 90° CCW/CW, **Shift+rotate-handle** snaps to 45°, **Space + drag** pans when zoomed, **scroll wheel** zooms toward the pointer. History covers add/delete/move/resize/rotate/duplicate/arrange/clear and typed size changes. Drag and transform gestures commit one snapshot per interaction. Stack logic lives in `@jeffgo10/history`; canvas-specific cloning in `canvasHistory.ts`.
+Keyboard shortcuts (when focus is not in a form field): **Ctrl/Cmd+Z** undo, **Ctrl/Cmd+Shift+Z** redo, **`[`** / **`]`** rotate 90° CCW/CW, **Shift+rotate-handle** snaps to 45°, **Space + drag** pans when zoomed (or set `panMode`), **scroll wheel** zooms toward the pointer. History covers add/delete/move/resize/rotate/duplicate/arrange/clear and typed size changes. Drag and transform gestures commit one snapshot per interaction. Stack logic lives in `@jeffgo10/history`; canvas-specific cloning in `canvasHistory.ts`.
 
 ## Layout item identity
 
