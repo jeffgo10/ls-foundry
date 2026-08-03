@@ -53,6 +53,7 @@ function StickPakCanvasSection() {
   const [isArranging, setIsArranging] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [viewportZoom, setViewportZoom] = useState(1);
   const [selectedCutLineOffset, setSelectedCutLineOffset] = useState(false);
   const [selectedCutLineOffsetMm, setSelectedCutLineOffsetMm] = useState(5);
   const [selectedCutLineOffsetFill, setSelectedCutLineOffsetFill] = useState<
@@ -503,6 +504,9 @@ function StickPakCanvasSection() {
             setCanUndo(undoAvailable);
             setCanRedo(redoAvailable);
           }}
+          onViewportChange={({ zoom }) => {
+            setViewportZoom(zoom);
+          }}
           onAutoArrange={({ allPlaced }) => {
             setDuplicateMessage("");
             setOverlapMessage("");
@@ -518,15 +522,45 @@ function StickPakCanvasSection() {
         <p className="text-sm text-white/50">
           {isInspectMode
             ? hasSelection
-              ? "Inspect: sticker selected — blue border and size labels only (no drag, resize, or rotate). Click empty canvas to deselect."
-              : "Inspect: click a sticker to select it. Click empty canvas to clear selection. Move, resize, rotate, and marquee stay off."
+              ? "Inspect: sticker selected — blue border and size labels only (no drag, resize, or rotate). Click empty canvas to deselect. Scroll to zoom; hold Space and drag to pan."
+              : "Inspect: click a sticker to select it. Click empty canvas to clear selection. Move, resize, rotate, and marquee stay off. Scroll to zoom; hold Space and drag to pan."
             : hasSelection
               ? selectedIds.length > 1
-                ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate (hold Shift while rotating to snap to 45°). [ / ] rotate 90°.`
-                : "Selected sticker — duplicate to fill a row or column. Hold Shift while dragging the rotate handle to snap to 45°. [ / ] rotate 90° left/right."
-              : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select."}
+                ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate (hold Shift while rotating to snap to 45°). [ / ] rotate 90°. Scroll to zoom; Space + drag to pan.`
+                : "Selected sticker — duplicate to fill a row or column. Hold Shift while dragging the rotate handle to snap to 45°. [ / ] rotate 90° left/right. Scroll to zoom; Space + drag to pan."
+              : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select. Scroll to zoom; hold Space and drag to pan."}
         </p>
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => designerRef.current?.zoomBy(1 / 1.25)}
+            disabled={viewportZoom <= 1}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Zoom out"
+          >
+            Zoom −
+          </button>
+          <span className="inline-flex items-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/60 tabular-nums">
+            {Math.round(viewportZoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={() => designerRef.current?.zoomBy(1.25)}
+            disabled={viewportZoom >= 4}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Zoom in"
+          >
+            Zoom +
+          </button>
+          <button
+            type="button"
+            onClick={() => designerRef.current?.resetViewport()}
+            disabled={viewportZoom === 1}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Reset zoom and pan"
+          >
+            Reset view
+          </button>
           <button
             type="button"
             onClick={() => designerRef.current?.undo()}

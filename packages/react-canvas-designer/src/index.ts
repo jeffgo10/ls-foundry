@@ -3,6 +3,7 @@ export {
   type CanvasDesignerHandle,
   type CanvasDesignerProps,
   type CanvasInteractionMode,
+  type CanvasViewportState,
   type DuplicateFillHandleOptions,
   type ImageSourceFromUrl,
   type LayoutLoadInput,
@@ -10,6 +11,15 @@ export {
   type SetSelectedCutLineOffsetOptions,
   type SetSelectedSizeOptions,
 } from "./CanvasDesigner";
+export {
+  clampPan,
+  clampUserZoom,
+  composeStageTransform,
+  DEFAULT_MAX_USER_ZOOM,
+  DEFAULT_MIN_USER_ZOOM,
+  zoomAtPoint,
+} from "./canvasViewport";
+export type { ViewportPan, StageTransform } from "./canvasViewport";
 export type { AutoArrangeOptions } from "./autoArrange";
 export {
   verifyItemOverlaps,

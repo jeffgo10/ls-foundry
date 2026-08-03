@@ -99,6 +99,12 @@ import {
 import { useContainerFitScale } from "./useContainerFitScale";
 import { stagePointerToDesign } from "./stagePointer";
 import {
+  clampPan,
+  composeStageTransform,
+  zoomAtPoint,
+  type CanvasViewportState,
+} from "./canvasViewport";
+import {
   beginPinchTransformSession,
   canPinchResizeSelection,
   getTouchPairAngleRad,
@@ -107,7 +113,7 @@ import {
   isAnyTouchOnElement,
   isPinchResizeTouchCount,
   parentPointToLocal,
-  touchPairCentroidToStage,
+  touchPairCentroidToDesign,
   transformFromPinchSession,
   type PinchTransformSession,
   PINCH_LIVE_NODE_EVENT,
@@ -283,7 +289,11 @@ export type CanvasDesignerProps = {
   historyLimit?: number;
   /** Fired when undo/redo availability changes. */
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
+  /** Fired when canvas zoom/pan (viewport camera) changes. */
+  onViewportChange?: (viewport: CanvasViewportState) => void;
 };
+
+export type { CanvasViewportState };
 
 export type ImageSourceFromUrl = {
   url: string;
@@ -395,6 +405,14 @@ export type CanvasDesignerHandle = {
   redo: () => boolean;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  /** Current user zoom (1 = fitted/full) and pan in Stage buffer pixels. */
+  getViewport: () => CanvasViewportState;
+  /** Set user zoom (clamped 1…4), anchoring on the viewport center. */
+  setViewportZoom: (zoom: number) => void;
+  /** Multiply current zoom by `factor`, anchoring on the viewport center. */
+  zoomBy: (factor: number) => void;
+  /** Reset zoom to 1 and pan to 0. */
+  resetViewport: () => void;
 };
 
 function DraggableImage({
@@ -655,6 +673,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       interactionMode = "edit",
       historyLimit = DEFAULT_HISTORY_LIMIT,
       onHistoryChange,
+      onViewportChange,
     },
     ref,
   ) {
@@ -662,6 +681,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const [items, setItems] = useState<PlacedImage[]>([]);
     const [overlapHighlightIds, setOverlapHighlightIds] = useState<string[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [userZoom, setUserZoom] = useState(1);
+    const [panX, setPanX] = useState(0);
+    const [panY, setPanY] = useState(0);
+    const [spacePanHeld, setSpacePanHeld] = useState(false);
+    const [isPanning, setIsPanning] = useState(false);
     const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(
       null,
     );
@@ -700,6 +724,22 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     onSelectedIdsChangeRef.current = onSelectedIdsChange;
     const onHistoryChangeRef = useRef(onHistoryChange);
     onHistoryChangeRef.current = onHistoryChange;
+    const onViewportChangeRef = useRef(onViewportChange);
+    onViewportChangeRef.current = onViewportChange;
+    const spacePanHeldRef = useRef(false);
+    spacePanHeldRef.current = spacePanHeld;
+    const panSessionRef = useRef<{
+      startClientX: number;
+      startClientY: number;
+      originPanX: number;
+      originPanY: number;
+    } | null>(null);
+    const userZoomRef = useRef(userZoom);
+    userZoomRef.current = userZoom;
+    const panXRef = useRef(panX);
+    panXRef.current = panX;
+    const panYRef = useRef(panY);
+    panYRef.current = panY;
     const rotateSelectedByRef = useRef<(degrees: number) => boolean>(() => false);
     const historyStacksRef = useRef(createCanvasHistoryStacks(historyLimit));
     const isApplyingHistoryRef = useRef(false);
@@ -853,6 +893,89 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const shellHeight = fitToContainer
       ? fit.stageDisplayHeight
       : canvasConfig.canvasHeight;
+    const fitScale = fitToContainer ? fit.displayScale : 1;
+    const effectiveScale = fitScale * userZoom;
+    const stageTransform = composeStageTransform(fitScale, userZoom, {
+      panX,
+      panY,
+    });
+    const effectiveScaleRef = useRef(effectiveScale);
+    effectiveScaleRef.current = effectiveScale;
+    const fitScaleRef = useRef(fitScale);
+    fitScaleRef.current = fitScale;
+    const shellWidthRef = useRef(shellWidth);
+    shellWidthRef.current = shellWidth;
+    const shellHeightRef = useRef(shellHeight);
+    shellHeightRef.current = shellHeight;
+
+    const applyViewport = useCallback((next: CanvasViewportState) => {
+      setUserZoom(next.zoom);
+      setPanX(next.panX);
+      setPanY(next.panY);
+      onViewportChangeRef.current?.(next);
+    }, []);
+
+    const zoomTowardBufferPoint = useCallback(
+      (nextZoom: number, pointerBuffer: { x: number; y: number }) => {
+        const result = zoomAtPoint({
+          currentZoom: userZoomRef.current,
+          nextZoom,
+          pan: { panX: panXRef.current, panY: panYRef.current },
+          fitScale: fitScaleRef.current > 0 ? fitScaleRef.current : 1,
+          pointerBuffer,
+          canvasWidth: canvasConfig.canvasWidth,
+          canvasHeight: canvasConfig.canvasHeight,
+          viewportWidth: shellWidthRef.current,
+          viewportHeight: shellHeightRef.current,
+        });
+        applyViewport(result);
+      },
+      [applyViewport, canvasConfig.canvasHeight, canvasConfig.canvasWidth],
+    );
+
+    const zoomTowardCenter = useCallback(
+      (nextZoom: number) => {
+        zoomTowardBufferPoint(nextZoom, {
+          x: shellWidthRef.current / 2,
+          y: shellHeightRef.current / 2,
+        });
+      },
+      [zoomTowardBufferPoint],
+    );
+
+    // Re-clamp pan when the fit baseline or shell size changes.
+    useEffect(() => {
+      if (userZoom <= 1) {
+        if (panX !== 0 || panY !== 0) {
+          applyViewport({ zoom: userZoom, panX: 0, panY: 0 });
+        }
+        return;
+      }
+      const clamped = clampPan(
+        { panX, panY },
+        {
+          userZoom,
+          fitScale: fitScale > 0 ? fitScale : 1,
+          canvasWidth: canvasConfig.canvasWidth,
+          canvasHeight: canvasConfig.canvasHeight,
+          viewportWidth: shellWidth,
+          viewportHeight: shellHeight,
+        },
+      );
+      if (clamped.panX !== panX || clamped.panY !== panY) {
+        applyViewport({ zoom: userZoom, ...clamped });
+      }
+    }, [
+      applyViewport,
+      canvasConfig.canvasHeight,
+      canvasConfig.canvasWidth,
+      fitScale,
+      panX,
+      panY,
+      shellHeight,
+      shellWidth,
+      userZoom,
+    ]);
 
     const selectedIdSet = useMemo(
       () => new Set(selectedIds),
@@ -1221,12 +1344,29 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         );
       };
 
+      const clearSpacePan = () => {
+        spacePanHeldRef.current = false;
+        setSpacePanHeld(false);
+        panSessionRef.current = null;
+        setIsPanning(false);
+      };
+
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Shift") {
           applyShiftRotationSnap(true);
         }
 
         if (isEditableTarget(event.target)) {
+          return;
+        }
+
+        // Spacebar pan works in edit and inspect (skip page scroll).
+        if (event.code === "Space" || event.key === " ") {
+          event.preventDefault();
+          if (!event.repeat) {
+            spacePanHeldRef.current = true;
+            setSpacePanHeld(true);
+          }
           return;
         }
 
@@ -1266,10 +1406,14 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         if (event.key === "Shift") {
           applyShiftRotationSnap(false);
         }
+        if (event.code === "Space" || event.key === " ") {
+          clearSpacePan();
+        }
       };
 
       const onWindowBlur = () => {
         applyShiftRotationSnap(false);
+        clearSpacePan();
       };
 
       window.addEventListener("keydown", onKeyDown);
@@ -1281,6 +1425,76 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         window.removeEventListener("blur", onWindowBlur);
       };
     }, [deleteSelectedItems, isInspectMode, redo, undo]);
+
+    // Wheel zoom toward pointer over the canvas shell.
+    useEffect(() => {
+      const shell = canvasShellRef.current;
+      if (!shell || !canvasShellReady) {
+        return;
+      }
+
+      const onWheel = (event: WheelEvent) => {
+        event.preventDefault();
+        const rect = shell.getBoundingClientRect();
+        const pointerBuffer = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        };
+        const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+        zoomTowardBufferPoint(userZoomRef.current * factor, pointerBuffer);
+      };
+
+      shell.addEventListener("wheel", onWheel, { passive: false });
+      return () => shell.removeEventListener("wheel", onWheel);
+    }, [canvasShellReady, zoomTowardBufferPoint]);
+
+    // Spacebar + drag pan (window listeners while a pan session is active).
+    useEffect(() => {
+      if (!isPanning) {
+        return;
+      }
+
+      const onPointerMove = (event: PointerEvent) => {
+        const session = panSessionRef.current;
+        if (!session) {
+          return;
+        }
+        const nextPan = clampPan(
+          {
+            panX: session.originPanX + (event.clientX - session.startClientX),
+            panY: session.originPanY + (event.clientY - session.startClientY),
+          },
+          {
+            userZoom: userZoomRef.current,
+            fitScale: fitScaleRef.current > 0 ? fitScaleRef.current : 1,
+            canvasWidth: canvasConfig.canvasWidth,
+            canvasHeight: canvasConfig.canvasHeight,
+            viewportWidth: shellWidthRef.current,
+            viewportHeight: shellHeightRef.current,
+          },
+        );
+        applyViewport({ zoom: userZoomRef.current, ...nextPan });
+      };
+
+      const onPointerUp = () => {
+        panSessionRef.current = null;
+        setIsPanning(false);
+      };
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerUp);
+      return () => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerUp);
+      };
+    }, [
+      applyViewport,
+      canvasConfig.canvasHeight,
+      canvasConfig.canvasWidth,
+      isPanning,
+    ]);
 
     const runAutoArrange = useCallback(
       async (options?: AutoArrangeOptions): Promise<boolean> => {
@@ -1676,11 +1890,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
 
         const containerRect = container.getBoundingClientRect();
-        const startPivotStage = touchPairCentroidToStage(
+        const startPivotStage = touchPairCentroidToDesign(
           touchPair,
           containerRect,
-          canvasConfig.canvasWidth,
-          canvasConfig.canvasHeight,
+          effectiveScaleRef.current,
+          panXRef.current,
+          panYRef.current,
         );
         const startDistance = getTouchPairDistance(touchPair[0], touchPair[1]);
         const startAngleRad = getTouchPairAngleRad(touchPair[0], touchPair[1]);
@@ -1715,7 +1930,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
         return true;
       },
-      [transformerTouchProfile, beginPinchInteraction, canvasConfig.canvasWidth, canvasConfig.canvasHeight],
+      [transformerTouchProfile, beginPinchInteraction],
     );
 
     const applyPinchResize = useCallback(
@@ -1757,11 +1972,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         }
 
         const containerRect = container.getBoundingClientRect();
-        const currentPivotStage = touchPairCentroidToStage(
+        const currentPivotStage = touchPairCentroidToDesign(
           touchPair,
           containerRect,
-          canvasConfig.canvasWidth,
-          canvasConfig.canvasHeight,
+          effectiveScaleRef.current,
+          panXRef.current,
+          panYRef.current,
         );
         const currentDistance = getTouchPairDistance(touchPair[0], touchPair[1]);
         const currentAngleRad = getTouchPairAngleRad(touchPair[0], touchPair[1]);
@@ -1809,8 +2025,6 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         clampPlacedTransform,
         minResizeSizeMm,
         canvasConfig.designDpi,
-        canvasConfig.canvasWidth,
-        canvasConfig.canvasHeight,
       ],
     );
 
@@ -1967,6 +2181,18 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       (event: KonvaEventObject<MouseEvent>) => {
         const nativeEvent = event.evt;
         if (!(nativeEvent instanceof MouseEvent) || nativeEvent.button !== 0) {
+          return;
+        }
+
+        // Space + drag pan (any target — takes priority over marquee/select).
+        if (spacePanHeldRef.current) {
+          panSessionRef.current = {
+            startClientX: nativeEvent.clientX,
+            startClientY: nativeEvent.clientY,
+            originPanX: panXRef.current,
+            originPanY: panYRef.current,
+          };
+          setIsPanning(true);
           return;
         }
 
@@ -2647,6 +2873,33 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       [autoArrangeGapMm, canvasConfig.designDpi],
     );
 
+    const getViewport = useCallback(
+      (): CanvasViewportState => ({
+        zoom: userZoomRef.current,
+        panX: panXRef.current,
+        panY: panYRef.current,
+      }),
+      [],
+    );
+
+    const setViewportZoom = useCallback(
+      (zoom: number) => {
+        zoomTowardCenter(zoom);
+      },
+      [zoomTowardCenter],
+    );
+
+    const zoomBy = useCallback(
+      (factor: number) => {
+        zoomTowardCenter(userZoomRef.current * factor);
+      },
+      [zoomTowardCenter],
+    );
+
+    const resetViewport = useCallback(() => {
+      applyViewport({ zoom: 1, panX: 0, panY: 0 });
+    }, [applyViewport]);
+
     const handle = useMemo(
       () => ({
         exportLayout,
@@ -2668,6 +2921,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         redo,
         canUndo,
         canRedo,
+        getViewport,
+        setViewportZoom,
+        zoomBy,
+        resetViewport,
       }),
       [
         exportLayout,
@@ -2688,6 +2945,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         redo,
         canUndo,
         canRedo,
+        getViewport,
+        setViewportZoom,
+        zoomBy,
+        resetViewport,
       ],
     );
 
@@ -2758,6 +3019,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             borderRadius: 8,
             boxSizing: "content-box",
             overflow: "hidden",
+            cursor: isPanning ? "grabbing" : spacePanHeld ? "grab" : undefined,
             background: backgroundImageUrl
               ? isDragActive
                 ? "#f8fafc"
@@ -2794,8 +3056,10 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           <Stage
             width={shellWidth}
             height={shellHeight}
-            scaleX={fitToContainer ? fit.displayScale : 1}
-            scaleY={fitToContainer ? fit.displayScale : 1}
+            scaleX={stageTransform.scaleX}
+            scaleY={stageTransform.scaleY}
+            x={stageTransform.x}
+            y={stageTransform.y}
             style={{ display: "block", ...CANVAS_INTERACTION_STYLE }}
             onMouseDown={handleStageMouseDown}
             onTouchStart={handleStageTouchStart}
@@ -2842,7 +3106,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   onChange={updateItem}
                   onInteractionStart={beginHistoryGesture}
                   onInteractionEnd={endHistoryGesture}
-                  draggable={!isInspectMode && !multiSelectActive}
+                  draggable={!isInspectMode && !multiSelectActive && !spacePanHeld}
                   shapeRef={(node) => {
                     if (node) {
                       shapeRefs.current.set(item.instanceId, node);
@@ -2913,7 +3177,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   widthLabel={selectionDimensionLabels.width}
                   heightLabel={selectionDimensionLabels.height}
                   color={dimensionLabelColor}
-                  displayScale={fitToContainer ? fit.displayScale : 1}
+                  displayScale={effectiveScale > 0 ? effectiveScale : 1}
                   liveDimensionFormatting={{
                     unit: dimensionUnit,
                     dpi: selectionDpi,

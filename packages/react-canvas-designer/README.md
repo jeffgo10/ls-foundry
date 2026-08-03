@@ -133,6 +133,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `onSelectedIdsChange` | — | Full selection set (Shift/Ctrl/Cmd multi-select) |
 | `historyLimit` | `50` | Maximum undo snapshots kept in memory |
 | `onHistoryChange` | — | `{ canUndo, canRedo }` when stack availability changes |
+| `onViewportChange` | — | `{ zoom, panX, panY }` when the canvas camera changes (zoom 1…4 relative to fit/full) |
 
 ## Imperative API (`ref` / `onReady`)
 
@@ -152,10 +153,14 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `rotateSelectedBy(degrees)` | Rotate selection by degrees (positive = CW); single pivots on sticker center, multi on AABB center |
 | `setSelectedCutLineOffset({ enabled?, offsetMm?, fill? })` | Bake/remove/re-bake offset pad on the single selected sticker. `fill` omitted keeps current; `undefined`/`""` = auto edge; CSS color = explicit. Persists `cutLineOffsetFill` when set |
 | `getSelectedCutLineOffset()` | `{ enabled, offsetMm, fill? }` when one sticker selected; `fill` undefined = auto |
+| `getViewport()` | `{ zoom, panX, panY }` — user zoom (1 = fitted/full) and pan in Stage buffer pixels |
+| `setViewportZoom(zoom)` | Set user zoom (clamped 1…4), anchoring on viewport center |
+| `zoomBy(factor)` | Multiply current zoom by `factor` |
+| `resetViewport()` | Zoom `1`, pan `0` |
 | `undo()` / `redo()` | Step backward/forward through design mutations; returns `false` when unavailable |
 | `canUndo()` / `canRedo()` | Whether undo/redo is available |
 
-Keyboard shortcuts (when focus is not in a form field): **Ctrl/Cmd+Z** undo, **Ctrl/Cmd+Shift+Z** redo, **`[`** / **`]`** rotate 90° CCW/CW, **Shift+rotate-handle** snaps to 45°. History covers add/delete/move/resize/rotate/duplicate/arrange/clear and typed size changes. Drag and transform gestures commit one snapshot per interaction. Stack logic lives in `@jeffgo10/history`; canvas-specific cloning in `canvasHistory.ts`.
+Keyboard shortcuts (when focus is not in a form field): **Ctrl/Cmd+Z** undo, **Ctrl/Cmd+Shift+Z** redo, **`[`** / **`]`** rotate 90° CCW/CW, **Shift+rotate-handle** snaps to 45°, **Space + drag** pans when zoomed, **scroll wheel** zooms toward the pointer. History covers add/delete/move/resize/rotate/duplicate/arrange/clear and typed size changes. Drag and transform gestures commit one snapshot per interaction. Stack logic lives in `@jeffgo10/history`; canvas-specific cloning in `canvasHistory.ts`.
 
 ## Layout item identity
 
