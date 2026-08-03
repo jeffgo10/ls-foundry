@@ -135,6 +135,67 @@ describe("CanvasDesigner", () => {
     expect(handle.redo).toBeDefined();
     expect(handle.canUndo).toBeDefined();
     expect(handle.canRedo).toBeDefined();
+    expect(handle.getViewport).toBeDefined();
+    expect(handle.setViewportZoom).toBeDefined();
+    expect(handle.zoomBy).toBeDefined();
+    expect(handle.resetViewport).toBeDefined();
+  });
+
+  it("zooms and resets the viewport via the imperative handle", async () => {
+    const onViewportChange = jest.fn();
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} onViewportChange={onViewportChange} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    expect(ref.current!.getViewport()).toEqual({ zoom: 1, panX: 0, panY: 0 });
+
+    act(() => {
+      ref.current!.setViewportZoom(2);
+    });
+    expect(ref.current!.getViewport().zoom).toBe(2);
+    expect(onViewportChange).toHaveBeenCalled();
+
+    act(() => {
+      ref.current!.zoomBy(1.5);
+    });
+    expect(ref.current!.getViewport().zoom).toBe(3);
+
+    act(() => {
+      ref.current!.resetViewport();
+    });
+    expect(ref.current!.getViewport()).toEqual({ zoom: 1, panX: 0, panY: 0 });
+  });
+
+  it("holds Space without throwing and ignores Space while typing in an input", async () => {
+    render(
+      <div>
+        <input data-testid="field" />
+        <CanvasDesigner />
+      </div>,
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true }),
+      );
+    });
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keyup", { key: " ", code: "Space", bubbles: true }),
+      );
+    });
+
+    const field = screen.getByTestId("field");
+    act(() => {
+      field.focus();
+      field.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: " ",
+          code: "Space",
+          bubbles: true,
+        }),
+      );
+    });
   });
 
   it("exposes exportLayoutState via ref", async () => {

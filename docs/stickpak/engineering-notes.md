@@ -2,6 +2,23 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Canvas zoom and pan (SP-024)
+
+**When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.2.0**).
+
+**Ask:** Zoom into the canvas to inspect stickers closely; pan with Spacebar + drag (Figma-style).
+
+**Fix:**
+- User zoom multiplies the fit/full baseline (`1`…`4`). Stage scale = `fitScale × userZoom`; pan via Stage `x`/`y` inside the overflow-hidden shell.
+- **Wheel** over the canvas zooms toward the pointer; **Space + drag** pans (grab/grabbing cursor). Skipped when focus is in a form field.
+- At zoom `1`, pan resets to `0`. Sticker pinch (SP-006) maps through `(buffer − pan) / effectiveScale` so it stays aligned when zoomed.
+- Handle API: `getViewport` / `setViewportZoom` / `zoomBy` / `resetViewport`; optional `onViewportChange`.
+- Docs `/stickpak`: Zoom − / % / + / Reset view toolbar.
+
+**Storefront follow-up:** Pin designer **1.2.0**. Built-in Space/wheel may overlap storefront `use-canvas-viewport` — prefer the designer camera or keep outer CSS viewport for mobile only; lock outer pan while editing via existing `onSelectedIdChange`.
+
+**Code:** `canvasViewport.ts`; `stagePointer.ts`; `selectedStickerPinch.ts` (`touchClientToDesign`); `CanvasDesigner.tsx`; `StickPakCanvasSection.tsx`
+
 ## Canvas rotation hotkeys (SP-012)
 
 **When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.1.1**).

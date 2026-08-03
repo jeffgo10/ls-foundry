@@ -71,6 +71,40 @@ export function touchPairCentroidToStage(
   return touchClientToStage(centroid, containerRect, stageWidth, stageHeight);
 }
 
+/**
+ * Map a client touch into design-canvas coordinates under Stage scale + pan.
+ * Prefer this over {@link touchClientToStage} when the viewport can zoom/pan.
+ */
+export function touchClientToDesign(
+  touch: TouchPoint,
+  containerRect: Pick<DOMRect, "left" | "top">,
+  effectiveScale: number,
+  panX = 0,
+  panY = 0,
+): StagePoint {
+  if (!Number.isFinite(effectiveScale) || effectiveScale === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  const bufferX = touch.clientX - containerRect.left;
+  const bufferY = touch.clientY - containerRect.top;
+  return {
+    x: (bufferX - panX) / effectiveScale,
+    y: (bufferY - panY) / effectiveScale,
+  };
+}
+
+export function touchPairCentroidToDesign(
+  pair: [TouchPoint, TouchPoint],
+  containerRect: Pick<DOMRect, "left" | "top">,
+  effectiveScale: number,
+  panX = 0,
+  panY = 0,
+): StagePoint {
+  const centroid = getTouchPairCentroid(pair[0], pair[1]);
+  return touchClientToDesign(centroid, containerRect, effectiveScale, panX, panY);
+}
+
 /** Maps a local sticker point to parent offset after scale + rotation (Konva order). */
 export function localPointToParentOffset(
   local: StagePoint,

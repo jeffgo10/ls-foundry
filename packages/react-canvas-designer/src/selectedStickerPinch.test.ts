@@ -11,7 +11,9 @@ import {
   localPointToParentOffset,
   parentPointToLocal,
   scaleFromPinchSession,
+  touchClientToDesign,
   touchClientToStage,
+  touchPairCentroidToDesign,
   touchPairCentroidToStage,
   transformFromPinchSession,
 } from "./selectedStickerPinch";
@@ -52,6 +54,25 @@ describe("selectedStickerPinch", () => {
         200,
       ),
     ).toEqual({ x: 50, y: 100 });
+  });
+
+  it("maps client touches to design coords under scale and pan", () => {
+    // buffer (100, 200), pan (-20, -40), scale 0.5 → design (240, 480)
+    expect(
+      touchClientToDesign({ clientX: 100, clientY: 200 }, containerRect, 0.5, -20, -40),
+    ).toEqual({ x: 240, y: 480 });
+    expect(
+      touchPairCentroidToDesign(
+        [
+          { clientX: 80, clientY: 160 },
+          { clientX: 120, clientY: 240 },
+        ],
+        containerRect,
+        0.5,
+        -20,
+        -40,
+      ),
+    ).toEqual({ x: 240, y: 480 });
   });
 
   it("scales around a local anchor so the pivot stays fixed", () => {

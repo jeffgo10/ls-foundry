@@ -1,8 +1,8 @@
 import type Konva from "konva";
 
-/** Map stage pointer position to design-canvas coordinates (accounts for stage scale). */
+/** Map stage pointer position to design-canvas coordinates (accounts for stage scale + pan). */
 export function stagePointerToDesign(
-  stage: Pick<Konva.Stage, "getPointerPosition" | "scaleX" | "scaleY">,
+  stage: Pick<Konva.Stage, "getPointerPosition" | "scaleX" | "scaleY" | "x" | "y">,
 ): { x: number; y: number } | null {
   const pos = stage.getPointerPosition();
   if (!pos) {
@@ -16,7 +16,7 @@ export function stagePointerToDesign(
   }
 
   return {
-    x: pos.x / scaleX,
-    y: pos.y / scaleY,
+    x: (pos.x - stage.x()) / scaleX,
+    y: (pos.y - stage.y()) / scaleY,
   };
 }
