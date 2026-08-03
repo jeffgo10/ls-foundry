@@ -123,6 +123,11 @@ import {
   type GroupTransformSnapshot,
   type ProxyState,
 } from "./groupTransform";
+import {
+  getRotationSnapToleranceForShift,
+  getRotationSnapsForShift,
+  rotateItemAroundCenter,
+} from "./rotationControls";
 import { createInstanceId } from "./createInstanceId";
 import {
   cloneItemsForHistory,
@@ -366,6 +371,12 @@ export type CanvasDesignerHandle = {
    * Returns false when nothing is selected, multiple stickers are selected, or input is invalid.
    */
   setSelectedSize: (options: SetSelectedSizeOptions) => boolean;
+  /**
+   * Rotate the selected sticker(s) by `degrees` (positive = CW, negative = CCW).
+   * Single select pivots around the sticker center; multi-select pivots around the
+   * selection AABB center. Returns false when nothing is selected or in inspect mode.
+   */
+  rotateSelectedBy: (degrees: number) => boolean;
   /**
    * Enable/disable or change cut-line offset on the single selected sticker.
    * Amount is per sticker; changing `offsetMm` while enabled re-bakes in place.
@@ -689,6 +700,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     onSelectedIdsChangeRef.current = onSelectedIdsChange;
     const onHistoryChangeRef = useRef(onHistoryChange);
     onHistoryChangeRef.current = onHistoryChange;
+    const rotateSelectedByRef = useRef<(degrees: number) => boolean>(() => false);
     const historyStacksRef = useRef(createCanvasHistoryStacks(historyLimit));
     const isApplyingHistoryRef = useRef(false);
     const gestureBeforeRef = useRef<PlacedImage[] | null>(null);
@@ -1198,7 +1210,22 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           target.tagName === "SELECT" ||
           target.isContentEditable);
 
+      const applyShiftRotationSnap = (shiftHeld: boolean) => {
+        const transformer = transformerRef.current;
+        if (!transformer) {
+          return;
+        }
+        transformer.rotationSnaps(getRotationSnapsForShift(shiftHeld));
+        transformer.rotationSnapTolerance(
+          getRotationSnapToleranceForShift(shiftHeld),
+        );
+      };
+
       const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Shift") {
+          applyShiftRotationSnap(true);
+        }
+
         if (isEditableTarget(event.target)) {
           return;
         }
@@ -1218,6 +1245,16 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           return;
         }
 
+        // `[` = 90° CCW (left), `]` = 90° CW (right)
+        if (event.key === "[" || event.key === "]") {
+          if (selectedIdsRef.current.length === 0) {
+            return;
+          }
+          event.preventDefault();
+          rotateSelectedByRef.current(event.key === "[" ? -90 : 90);
+          return;
+        }
+
         if (event.key !== "Delete" && event.key !== "Backspace") return;
         if (selectedIdsRef.current.length === 0) return;
 
@@ -1225,8 +1262,24 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         deleteSelectedItems();
       };
 
+      const onKeyUp = (event: KeyboardEvent) => {
+        if (event.key === "Shift") {
+          applyShiftRotationSnap(false);
+        }
+      };
+
+      const onWindowBlur = () => {
+        applyShiftRotationSnap(false);
+      };
+
       window.addEventListener("keydown", onKeyDown);
-      return () => window.removeEventListener("keydown", onKeyDown);
+      window.addEventListener("keyup", onKeyUp);
+      window.addEventListener("blur", onWindowBlur);
+      return () => {
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keyup", onKeyUp);
+        window.removeEventListener("blur", onWindowBlur);
+      };
     }, [deleteSelectedItems, isInspectMode, redo, undo]);
 
     const runAutoArrange = useCallback(
@@ -2264,6 +2317,115 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       ],
     );
 
+    const rotateSelectedBy = useCallback(
+      (degrees: number): boolean => {
+        if (isInspectMode || degrees === 0) {
+          return false;
+        }
+
+        const activeIds = selectedIdsRef.current;
+        if (activeIds.length === 0) {
+          return false;
+        }
+
+        if (activeIds.length === 1) {
+          const selectedId = activeIds[0]!;
+          const item = itemsRef.current.find(
+            (entry) => entry.instanceId === selectedId,
+          );
+          if (!item) {
+            return false;
+          }
+
+          pushHistoryBeforeMutation();
+          const next = clampPlacedTransform(
+            rotateItemAroundCenter(item, degrees),
+          );
+
+          const node = shapeRefs.current.get(selectedId);
+          if (node) {
+            node.rotation(next.rotation);
+            node.x(next.x);
+            node.y(next.y);
+            node.getLayer()?.batchDraw();
+          }
+
+          updateItem(next);
+          return true;
+        }
+
+        const selected = itemsRef.current.filter((item) =>
+          activeIds.includes(item.instanceId),
+        );
+        const box = getSelectionAxisAlignedBox(selected);
+        if (!box || selected.length < 2) {
+          return false;
+        }
+
+        pushHistoryBeforeMutation();
+        const snapshot: GroupTransformSnapshot = {
+          items: selected.map((item) => ({
+            instanceId: item.instanceId,
+            x: item.x,
+            y: item.y,
+            scaleX: item.scaleX,
+            scaleY: item.scaleY,
+            rotation: item.rotation,
+            width: item.width,
+            height: item.height,
+          })),
+          proxy: { ...box },
+        };
+        const transformed = applyGroupTransformFromProxy(snapshot, {
+          ...box,
+          rotation: degrees,
+        });
+
+        const updated = itemsRef.current.map((entry) => {
+          const nextEntry = transformed.find(
+            (item) => item.instanceId === entry.instanceId,
+          );
+          if (!nextEntry) {
+            return entry;
+          }
+          return clampPlacedTransform({ ...entry, ...nextEntry });
+        });
+
+        for (const entry of updated) {
+          if (!activeIds.includes(entry.instanceId)) {
+            continue;
+          }
+          const node = shapeRefs.current.get(entry.instanceId);
+          if (!node) {
+            continue;
+          }
+          node.rotation(entry.rotation);
+          node.x(entry.x);
+          node.y(entry.y);
+        }
+
+        const proxy = multiSelectProxyRef.current;
+        if (proxy) {
+          const nextBox = getSelectionAxisAlignedBox(
+            updated.filter((item) => activeIds.includes(item.instanceId)),
+          );
+          if (nextBox) {
+            proxy.position({ x: nextBox.x, y: nextBox.y });
+            proxy.rotation(0);
+            proxy.scale({ x: 1, y: 1 });
+          }
+        }
+
+        itemsRef.current = updated;
+        setItems(updated);
+        transformerRef.current?.forceUpdate();
+        transformerRef.current?.getLayer()?.batchDraw();
+        return true;
+      },
+      [clampPlacedTransform, isInspectMode, pushHistoryBeforeMutation, updateItem],
+    );
+    rotateSelectedByRef.current = rotateSelectedBy;
+
     const getSelectedCutLineOffset = useCallback((): SelectedCutLineOffsetState | null => {
       const selectedId = selectedIdsRef.current[0];
       if (!selectedId || selectedIdsRef.current.length !== 1) {
@@ -2499,6 +2661,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         verifyOverlaps,
         clearOverlapHighlights,
         setSelectedSize,
+        rotateSelectedBy,
         setSelectedCutLineOffset,
         getSelectedCutLineOffset,
         undo,
@@ -2518,6 +2681,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
         verifyOverlaps,
         clearOverlapHighlights,
         setSelectedSize,
+        rotateSelectedBy,
         setSelectedCutLineOffset,
         getSelectedCutLineOffset,
         undo,

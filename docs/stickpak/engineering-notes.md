@@ -2,6 +2,23 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Canvas rotation hotkeys (SP-012)
+
+**When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.1.1**).
+
+**Ask:** Shift+drag rotate handle snaps to 45°; 90° rotate left/right via API + keyboard.
+
+**Fix:**
+- Holding **Shift** toggles Konva Transformer `rotationSnaps` to `[0, 45, …, 315]` while rotating; released Shift clears snaps.
+- Snap tolerance is **22.5°** (half step). Konva keeps the *last* angle within tolerance, so a 45° tolerance skipped **0°** in favor of 45°/315° when dragging upright.
+- New handle API `rotateSelectedBy(degrees)` — single select pivots around sticker center; multi-select pivots around selection AABB via existing group transform math.
+- Keyboard **`[`** / **`]`** → −90° / +90° (skipped in inspect mode and when focus is in a form field).
+- Docs `/stickpak` toolbar: Rotate left/right 90° buttons.
+
+**Storefront follow-up:** Pin designer **1.1.1**; optional toolbar buttons calling `rotateSelectedBy(±90)`.
+
+**Code:** `rotationControls.ts`; `CanvasDesigner.tsx` (keydown + handle); `StickPakCanvasSection.tsx`
+
 ## Offset hole cut-line contours (helpers 1.0.5)
 
 **When:** July 2026 (`@jeffgo10/helpers` **1.0.5**, `@jeffgo10/react-canvas-designer` **1.0.3**).

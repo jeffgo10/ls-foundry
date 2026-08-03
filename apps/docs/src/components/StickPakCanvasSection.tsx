@@ -522,8 +522,8 @@ function StickPakCanvasSection() {
               : "Inspect: click a sticker to select it. Click empty canvas to clear selection. Move, resize, rotate, and marquee stay off."
             : hasSelection
               ? selectedIds.length > 1
-                ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate.`
-                : "Selected sticker — duplicate to fill a row or column inside the printable margin."
+                ? `${selectedIds.length} stickers selected — duplicate fills the whole selection together. Use the transform box to move, resize, or rotate (hold Shift while rotating to snap to 45°). [ / ] rotate 90°.`
+                : "Selected sticker — duplicate to fill a row or column. Hold Shift while dragging the rotate handle to snap to 45°. [ / ] rotate 90° left/right."
               : "Click a sticker to select it. Shift-click to multi-select, or drag on empty canvas to marquee-select."}
         </p>
         <div className="flex flex-wrap gap-3">
@@ -542,6 +542,24 @@ function StickPakCanvasSection() {
             className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Redo
+          </button>
+          <button
+            type="button"
+            onClick={() => designerRef.current?.rotateSelectedBy(-90)}
+            disabled={!hasSelection || isInspectMode}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Rotate 90° left ( [ )"
+          >
+            Rotate left 90°
+          </button>
+          <button
+            type="button"
+            onClick={() => designerRef.current?.rotateSelectedBy(90)}
+            disabled={!hasSelection || isInspectMode}
+            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Rotate 90° right ( ] )"
+          >
+            Rotate right 90°
           </button>
           <button
             type="button"
