@@ -20,7 +20,7 @@ Phase 1 lives entirely inside the `ls-foundry` monorepo. It delivers the reusabl
 | Package | Version | Notes |
 |---------|---------|-------|
 | `@jeffgo10/shared-types` | **1.0.0** | Layout schema; optional `cutLineOffsetMm` + `cutLineOffsetFill` on layout items |
-| `@jeffgo10/react-canvas-designer` | **1.0.3** | Full StickPak designer; offset hole cut lines (deps helpers **1.0.5**) |
+| `@jeffgo10/react-canvas-designer` | **1.1.1** | Full StickPak designer; SP-012 rotation hotkeys (45° Shift snap + 90° `[`/`]`); offset hole cut lines (deps helpers **1.0.5**) |
 | `@jeffgo10/helpers` | **1.0.5** | `./image` (multi-island + offset hole contours; circular pad; offset-only Chaikin), `./gestures`, `./browser`, `./clipboard` |
 | `@jeffgo10/canvas-upscaler` | **1.0.0** | Bakes `cutLineOffsetMm`/`cutLineOffsetFill` for StickPak print; dep shared-types **1.0.0** |
 
@@ -28,7 +28,7 @@ Install both designer packages together:
 
 ```json
 "@jeffgo10/shared-types": "1.0.0",
-"@jeffgo10/react-canvas-designer": "1.0.3",
+"@jeffgo10/react-canvas-designer": "1.1.1",
 "@jeffgo10/canvas-upscaler": "1.0.0"
 ```
 
@@ -44,7 +44,7 @@ See [engineering-notes.md](./engineering-notes.md#package-version-mismatch-react
 
 - [x] **1.1** pnpm workspaces + Turborepo (repo root)
 - [x] **1.2** `@jeffgo10/shared-types` (v0.2.0) — layout schema, A4 defaults, physical dimension helpers, customizable `canvasWidth`/`canvasHeight` + `designDpi`/`printDpi`, `instanceId`/`assetId` split
-- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.3.0) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds), **`cutLineOffsetMm`** (default 5 mm Silhouette-style outward pad on alpha contour), duplicate library images on one sheet, mobile touch-friendly transformer, **duplicate selected sticker(s) to fill row/column** (`duplicateSelectedHorizontally` / `duplicateSelectedVertically` with cut-line gap; multi-select duplicates the whole block), **Shift/Ctrl/Cmd multi-select with group transform box**, **marquee rubber-band selection**, **mobile select-on-press + pinch zoom/rotate selected sticker** (centroid pivot; live dimension labels during pinch), **`fitToContainer`** (scale canvas to parent width on mobile; margin guide + dimension labels stay aligned), **`setSelectedSize`** (typed width/height in mm/cm/in with optional aspect-ratio lock; respects `minResizeSizeMm`), **undo/redo** (`undo`/`redo` handle + Ctrl/Cmd+Z shortcuts; backed by `@jeffgo10/history`), **`interactionMode="inspect"`** (select + blue border + W×H labels; no resize/rotate handles, move, or pinch)
+- [x] **1.3** `@jeffgo10/react-canvas-designer` (v0.3.0) — dropzone, transform handles, cut-line preview, export, auto-arrange, selection dimensions, remote URLs, S3 persistence, customizable canvas size, Delete/Backspace to remove selection, minimum resize size (`minResizeSizeMm`), canvas edge margin (`canvasMarginMm`, cut-line bounds), **`cutLineOffsetMm`** (default 5 mm Silhouette-style outward pad on alpha contour), duplicate library images on one sheet, mobile touch-friendly transformer, **duplicate selected sticker(s) to fill row/column** (`duplicateSelectedHorizontally` / `duplicateSelectedVertically` with cut-line gap; multi-select duplicates the whole block), **Shift/Ctrl/Cmd multi-select with group transform box**, **marquee rubber-band selection**, **mobile select-on-press + pinch zoom/rotate selected sticker** (centroid pivot; live dimension labels during pinch), **`fitToContainer`** (scale canvas to parent width on mobile; margin guide + dimension labels stay aligned), **`setSelectedSize`** (typed width/height in mm/cm/in with optional aspect-ratio lock; respects `minResizeSizeMm`), **undo/redo** (`undo`/`redo` handle + Ctrl/Cmd+Z shortcuts; backed by `@jeffgo10/history`), **`interactionMode="inspect"`** (select + blue border + W×H labels; no resize/rotate handles, move, or pinch), **SP-012 rotation hotkeys** (`rotateSelectedBy`; Shift+rotate-handle → 45° snap; `[`/`]` → 90° CCW/CW)
 - [x] **1.4** `@jeffgo10/canvas-upscaler` (v0.2.2) — JSON CLI; print output size from layout dimensions + DPI; 1 mm Silhouette corner markers; bakes cut-line offset from layout metadata for StickPak admin print
 - [x] **1.5** `@jeffgo10/helpers` (v0.4.1) — `./image` (contour, `bakeCutLineOffset`, `offsetClosedPolygon`, blob URL, mobile-safe PNG download) + `./gestures` + `./browser` + `./clipboard`
 - [x] **1.6** Docs test page — `apps/docs` `/stickpak`

@@ -128,6 +128,7 @@ describe("CanvasDesigner", () => {
     expect(handle.verifyOverlaps).toBeDefined();
     expect(handle.clearOverlapHighlights).toBeDefined();
     expect(handle.setSelectedSize).toBeDefined();
+    expect(handle.rotateSelectedBy).toBeDefined();
     expect(handle.setSelectedCutLineOffset).toBeDefined();
     expect(handle.getSelectedCutLineOffset).toBeDefined();
     expect(handle.undo).toBeDefined();
@@ -351,6 +352,69 @@ describe("CanvasDesigner", () => {
 
     const nextScale = ref.current!.exportLayoutState().layout.items[0]!.scaleX;
     expect(nextScale).toBeGreaterThan(initialScale);
+  });
+
+  it("rotateSelectedBy returns false without a selection", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+    expect(ref.current!.rotateSelectedBy(90)).toBe(false);
+  });
+
+  it("rotateSelectedBy rotates the selected sticker 90° around its center", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} canvasMarginMm={0} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    const before = ref.current!.exportLayoutState().layout.items[0]!;
+
+    act(() => {
+      expect(ref.current!.rotateSelectedBy(90)).toBe(true);
+    });
+
+    const after = ref.current!.exportLayoutState().layout.items[0]!;
+    expect(after.rotation).toBeCloseTo(before.rotation + 90);
+    expect(after.instanceId).toBe(before.instanceId);
+  });
+
+  it("rotates 90° CCW / CW via [ and ] keyboard shortcuts", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    render(<CanvasDesigner ref={ref} canvasMarginMm={0} />);
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    act(() => {
+      ref.current!.addImagesFromUrls([{ url: "blob:test", mimeType: "image/png" }]);
+    });
+
+    await waitFor(() =>
+      expect(ref.current!.exportLayoutState().layout.items).toHaveLength(1),
+    );
+
+    const start = ref.current!.exportLayoutState().layout.items[0]!.rotation;
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "]" }));
+    });
+
+    expect(ref.current!.exportLayoutState().layout.items[0]!.rotation).toBeCloseTo(
+      start + 90,
+    );
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "[" }));
+    });
+
+    expect(ref.current!.exportLayoutState().layout.items[0]!.rotation).toBeCloseTo(
+      start,
+    );
   });
 
   it("exportLayout returns payload when items exist", async () => {

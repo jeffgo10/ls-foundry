@@ -437,6 +437,9 @@ export type MockTransformerApi = {
   resizeEnabled: (enabled?: boolean) => boolean;
   rotateEnabled: (enabled?: boolean) => boolean;
   enabledAnchors: (anchors?: string[]) => string[];
+  rotationSnaps: (snaps?: number[]) => number[];
+  rotationSnapTolerance: (tolerance?: number) => number;
+  forceUpdate: () => void;
 };
 
 /** Test helper: read the mock Transformer API attached to `data-konva="Transformer"`. */
@@ -464,6 +467,8 @@ export const Transformer = forwardRef<MockTransformerApi, KonvaStubProps>(
       resizeEnabled: resizeEnabledProp,
       rotateEnabled: rotateEnabledProp,
       enabledAnchors: enabledAnchorsProp,
+      rotationSnaps: [] as number[],
+      rotationSnapTolerance: 5,
     });
     stateRef.current.resizeEnabled = resizeEnabledProp;
     stateRef.current.rotateEnabled = rotateEnabledProp;
@@ -490,6 +495,19 @@ export const Transformer = forwardRef<MockTransformerApi, KonvaStubProps>(
         }
         return stateRef.current.enabledAnchors;
       }),
+      rotationSnaps: jest.fn((snaps?: number[]) => {
+        if (snaps) {
+          stateRef.current.rotationSnaps = snaps;
+        }
+        return stateRef.current.rotationSnaps;
+      }),
+      rotationSnapTolerance: jest.fn((tolerance?: number) => {
+        if (typeof tolerance === "number") {
+          stateRef.current.rotationSnapTolerance = tolerance;
+        }
+        return stateRef.current.rotationSnapTolerance;
+      }),
+      forceUpdate: jest.fn(),
     });
     useImperativeHandle(ref, () => apiRef.current);
 

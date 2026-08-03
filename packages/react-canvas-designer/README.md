@@ -105,7 +105,7 @@ import { CanvasDesigner } from "@jeffgo10/react-canvas-designer";
 />
 ```
 
-Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a sticker to move, resize, or rotate. **Delete** / **Backspace** removes the selection.
+Drop images onto the canvas (default **A4 @ 72 DPI**, 595 × 842 px). Select a sticker to move, resize, or rotate. **Delete** / **Backspace** removes the selection. Hold **Shift** while dragging the rotate handle to snap to **45°** increments. **`[`** / **`]`** rotate the selection **90°** left (CCW) / right (CW).
 
 On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers select on **press-down** (not tap-up); with one sticker selected, **pinch** on the canvas to resize uniformly around the pinch center and **twist** to rotate.
 
@@ -149,12 +149,13 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `duplicateSelectedVertically({ gapMm? })` | Copies downward until the printable area is full; multi-select duplicates the whole block together |
 | `addImagesFromUrls(sources)` | Place images from remote URLs; reuses `assetId`, mints new `instanceId` per placement |
 | `setSelectedSize({ width?, height?, unit?, lockAspectRatio? })` | Resize the single selected sticker from typed dimensions |
+| `rotateSelectedBy(degrees)` | Rotate selection by degrees (positive = CW); single pivots on sticker center, multi on AABB center |
 | `setSelectedCutLineOffset({ enabled?, offsetMm?, fill? })` | Bake/remove/re-bake offset pad on the single selected sticker. `fill` omitted keeps current; `undefined`/`""` = auto edge; CSS color = explicit. Persists `cutLineOffsetFill` when set |
 | `getSelectedCutLineOffset()` | `{ enabled, offsetMm, fill? }` when one sticker selected; `fill` undefined = auto |
 | `undo()` / `redo()` | Step backward/forward through design mutations; returns `false` when unavailable |
 | `canUndo()` / `canRedo()` | Whether undo/redo is available |
 
-Keyboard shortcuts (when focus is not in a form field): **Ctrl/Cmd+Z** undo, **Ctrl/Cmd+Shift+Z** redo. History covers add/delete/move/resize/rotate/duplicate/arrange/clear and typed size changes. Drag and transform gestures commit one snapshot per interaction. Stack logic lives in `@jeffgo10/history`; canvas-specific cloning in `canvasHistory.ts`.
+Keyboard shortcuts (when focus is not in a form field): **Ctrl/Cmd+Z** undo, **Ctrl/Cmd+Shift+Z** redo, **`[`** / **`]`** rotate 90° CCW/CW, **Shift+rotate-handle** snaps to 45°. History covers add/delete/move/resize/rotate/duplicate/arrange/clear and typed size changes. Drag and transform gestures commit one snapshot per interaction. Stack logic lives in `@jeffgo10/history`; canvas-specific cloning in `canvasHistory.ts`.
 
 ## Layout item identity
 
