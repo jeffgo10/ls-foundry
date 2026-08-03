@@ -291,6 +291,12 @@ export type CanvasDesignerProps = {
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void;
   /** Fired when canvas zoom/pan (viewport camera) changes. */
   onViewportChange?: (viewport: CanvasViewportState) => void;
+  /**
+   * When true, behaves like Space held: grab cursor, mousedown+drag pans,
+   * sticker drag and marquee are suppressed. Combine with Space freely
+   * (`panMode || Space`). Default false.
+   */
+  panMode?: boolean;
 };
 
 export type { CanvasViewportState };
@@ -674,6 +680,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       historyLimit = DEFAULT_HISTORY_LIMIT,
       onHistoryChange,
       onViewportChange,
+      panMode = false,
     },
     ref,
   ) {
@@ -686,6 +693,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const [panY, setPanY] = useState(0);
     const [spacePanHeld, setSpacePanHeld] = useState(false);
     const [isPanning, setIsPanning] = useState(false);
+    const panActive = panMode || spacePanHeld;
     const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(
       null,
     );
@@ -726,8 +734,11 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     onHistoryChangeRef.current = onHistoryChange;
     const onViewportChangeRef = useRef(onViewportChange);
     onViewportChangeRef.current = onViewportChange;
+    const panModeRef = useRef(false);
+    panModeRef.current = panMode;
     const spacePanHeldRef = useRef(false);
-    spacePanHeldRef.current = spacePanHeld;
+    // Effective pan-active flag (Space OR panMode) for pointer handlers.
+    spacePanHeldRef.current = panActive;
     const panSessionRef = useRef<{
       startClientX: number;
       startClientY: number;
@@ -1345,10 +1356,13 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       };
 
       const clearSpacePan = () => {
-        spacePanHeldRef.current = false;
         setSpacePanHeld(false);
-        panSessionRef.current = null;
-        setIsPanning(false);
+        spacePanHeldRef.current = panModeRef.current;
+        // Keep an active drag if toolbar panMode is still on.
+        if (!panModeRef.current) {
+          panSessionRef.current = null;
+          setIsPanning(false);
+        }
       };
 
       const onKeyDown = (event: KeyboardEvent) => {
@@ -1495,6 +1509,15 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       canvasConfig.canvasWidth,
       isPanning,
     ]);
+
+    // End pan session when neither Space nor panMode is active.
+    useEffect(() => {
+      if (panActive) {
+        return;
+      }
+      panSessionRef.current = null;
+      setIsPanning(false);
+    }, [panActive]);
 
     const runAutoArrange = useCallback(
       async (options?: AutoArrangeOptions): Promise<boolean> => {
@@ -3019,7 +3042,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
             borderRadius: 8,
             boxSizing: "content-box",
             overflow: "hidden",
-            cursor: isPanning ? "grabbing" : spacePanHeld ? "grab" : undefined,
+            cursor: isPanning ? "grabbing" : panActive ? "grab" : undefined,
             background: backgroundImageUrl
               ? isDragActive
                 ? "#f8fafc"
@@ -3106,7 +3129,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   onChange={updateItem}
                   onInteractionStart={beginHistoryGesture}
                   onInteractionEnd={endHistoryGesture}
-                  draggable={!isInspectMode && !multiSelectActive && !spacePanHeld}
+                  draggable={!isInspectMode && !multiSelectActive && !panActive}
                   shapeRef={(node) => {
                     if (node) {
                       shapeRefs.current.set(item.instanceId, node);

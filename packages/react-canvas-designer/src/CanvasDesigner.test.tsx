@@ -198,6 +198,21 @@ describe("CanvasDesigner", () => {
     });
   });
 
+  it("uses grab cursor when panMode is true without holding Space", async () => {
+    const { rerender } = render(<CanvasDesigner panMode />);
+    await waitFor(() => {
+      expect(document.querySelector("[data-canvas-designer]")).toBeTruthy();
+    });
+
+    const shell = document.querySelector(
+      "[data-canvas-designer]",
+    ) as HTMLElement;
+    expect(shell.style.cursor).toBe("grab");
+
+    rerender(<CanvasDesigner panMode={false} />);
+    expect(shell.style.cursor).toBe("");
+  });
+
   it("exposes exportLayoutState via ref", async () => {
     const ref = createRef<CanvasDesignerHandle>();
     render(<CanvasDesigner ref={ref} />);

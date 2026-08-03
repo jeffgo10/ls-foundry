@@ -164,6 +164,16 @@ describe("StickPakCanvasSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("toggles pan mode checkbox", async () => {
+    const user = userEvent.setup();
+    render(<StickPakCanvasSection />);
+
+    const checkbox = screen.getByLabelText(/Pan mode/i);
+    expect(checkbox).not.toBeChecked();
+    await user.click(checkbox);
+    expect(checkbox).toBeChecked();
+  });
+
   it("toggles cut-line offset on the selected sticker", async () => {
     const user = userEvent.setup();
     render(<StickPakCanvasSection />);

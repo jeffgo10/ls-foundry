@@ -2,6 +2,23 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Canvas panMode prop (SP-024 follow-up)
+
+**When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.3.0**).
+
+**Ask:** Storefront synthesizes Space keydown/keyup from a toolbar toggle (`useCanvasPanMode`). Prefer a first-class prop instead.
+
+**Fix:**
+- Optional `panMode?: boolean` on `CanvasDesigner` — ORs with Space-held state for grab cursor, mousedown+drag pan, and suppressed sticker drag/marquee.
+- Docs `/stickpak`: “Pan mode” checkbox demo.
+- Space release no longer cancels an in-progress pan when `panMode` stays true.
+
+**Published:** `@jeffgo10/react-canvas-designer@1.3.0` on GitHub Packages (`npm view …@1.3.0`).
+
+**Storefront follow-up:** Pin designer **1.3.0**; run `/update-ls-foundry-packages` and replace `useCanvasPanMode` Space synthesis with `panMode={…}`.
+
+**Code:** `CanvasDesigner.tsx`; `StickPakCanvasSection.tsx`
+
 ## Canvas zoom and pan (SP-024)
 
 **When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.2.0**).
@@ -15,7 +32,7 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 - Handle API: `getViewport` / `setViewportZoom` / `zoomBy` / `resetViewport`; optional `onViewportChange`.
 - Docs `/stickpak`: Zoom − / % / + / Reset view toolbar.
 
-**Storefront follow-up:** Pin designer **1.2.0**. Built-in Space/wheel may overlap storefront `use-canvas-viewport` — prefer the designer camera or keep outer CSS viewport for mobile only; lock outer pan while editing via existing `onSelectedIdChange`.
+**Storefront follow-up:** Pin designer **1.3.0** (includes `panMode`). Built-in Space/wheel may overlap storefront `use-canvas-viewport` — prefer the designer camera or keep outer CSS viewport for mobile only; lock outer pan while editing via existing `onSelectedIdChange`.
 
 **Code:** `canvasViewport.ts`; `stagePointer.ts`; `selectedStickerPinch.ts` (`touchClientToDesign`); `CanvasDesigner.tsx`; `StickPakCanvasSection.tsx`
 
