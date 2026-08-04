@@ -147,4 +147,4 @@ After merge + publish: consumer bumps `@jeffgo10/*` version and removes duplicat
 
 - Edit packages when Step 0 gate fails (dirty working tree).
 - Skip `/create-github-pr` after changing package source.
-- Manually `pnpm run deploy` unless the user explicitly asks (prefer merge → CI publish).
+- Manually `pnpm run deploy` / `npm publish` unless the user explicitly asks — see `ls-foundry-no-manual-publish.mdc` (prefer merge → CI publish).

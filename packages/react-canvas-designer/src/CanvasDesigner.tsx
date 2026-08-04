@@ -293,8 +293,8 @@ export type CanvasDesignerProps = {
   onViewportChange?: (viewport: CanvasViewportState) => void;
   /**
    * When true, behaves like Space held: grab cursor, mousedown+drag pans,
-   * sticker drag and marquee are suppressed. Combine with Space freely
-   * (`panMode || Space`). Default false.
+   * and sticker select / drag / resize / rotate / marquee are suppressed.
+   * Combine with Space freely (`panMode || Space`). Default false.
    */
   panMode?: boolean;
 };
@@ -437,6 +437,7 @@ function DraggableImage({
   onInteractionEnd,
   shapeRef,
   draggable,
+  listening = true,
 }: {
   item: PlacedImage;
   showCutLine: boolean;
@@ -453,6 +454,8 @@ function DraggableImage({
   onInteractionEnd?: () => void;
   shapeRef: (node: Konva.Group | null) => void;
   draggable: boolean;
+  /** When false, pointer events pass through (e.g. pan mode). */
+  listening?: boolean;
 }) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [cutLinePoints, setCutLinePoints] = useState<number[]>([]);
@@ -597,6 +600,7 @@ function DraggableImage({
       scaleY={item.scaleY}
       rotation={item.rotation}
       draggable={draggable}
+      listening={listening}
       onMouseDown={selectOnPress}
       onTouchStart={selectOnPress}
       onDragStart={() => onInteractionStart?.()}
@@ -1384,7 +1388,8 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           return;
         }
 
-        if (isInspectMode) {
+        // Pan (Space or panMode) locks sticker edit hotkeys; Space already returned.
+        if (isInspectMode || spacePanHeldRef.current) {
           return;
         }
 
@@ -1564,6 +1569,16 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       const transformer = transformerRef.current;
       if (!transformer) return;
 
+      // Pan locks all sticker chrome so handles cannot steal pan drags.
+      if (panActive) {
+        transformer.nodes([]);
+        transformer.resizeEnabled(false);
+        transformer.rotateEnabled(false);
+        transformer.enabledAnchors([]);
+        transformer.getLayer()?.batchDraw();
+        return;
+      }
+
       if (multiSelectActive && !isInspectMode) {
         const proxy = multiSelectProxyRef.current;
         transformer.nodes(proxy ? [proxy] : []);
@@ -1584,7 +1599,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
           : ["top-left", "top-right", "bottom-left", "bottom-right"],
       );
       transformer.getLayer()?.batchDraw();
-    }, [isInspectMode, multiSelectActive, selectedIds, items, activeProxyBox]);
+    }, [isInspectMode, panActive, multiSelectActive, selectedIds, items, activeProxyBox]);
 
     useEffect(() => {
       if (
@@ -1836,16 +1851,15 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
     const restorePinchInteraction = useCallback(() => {
       const selectedId = selectedIdsRef.current[0];
       const node = selectedId ? shapeRefs.current.get(selectedId) : null;
+      const editLocked = isInspectMode || spacePanHeldRef.current;
       if (node) {
-        node.draggable(
-          !isInspectMode && selectedIdsRef.current.length === 1,
-        );
+        node.draggable(!editLocked && selectedIdsRef.current.length === 1);
       }
 
       const transformer = transformerRef.current;
       if (transformer) {
-        transformer.resizeEnabled(!isInspectMode);
-        transformer.rotateEnabled(!isInspectMode);
+        transformer.resizeEnabled(!editLocked);
+        transformer.rotateEnabled(!editLocked);
         transformer.getLayer()?.batchDraw();
       }
     }, [isInspectMode]);
@@ -2110,7 +2124,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const maybeStartPinchFromShell = useCallback(
       (touches: TouchList): boolean => {
-        if (isInspectMode) {
+        if (isInspectMode || panActive) {
           return false;
         }
         if (!isAnyTouchOnElement(touches, canvasShellRef.current)) {
@@ -2125,6 +2139,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
       },
       [
         isInspectMode,
+        panActive,
         tryBeginOrRebasePinchSession,
         attachPinchWindowListeners,
         applyPinchResize,
@@ -2568,7 +2583,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
 
     const rotateSelectedBy = useCallback(
       (degrees: number): boolean => {
-        if (isInspectMode || degrees === 0) {
+        if (isInspectMode || spacePanHeldRef.current || degrees === 0) {
           return false;
         }
 
@@ -3130,6 +3145,7 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
                   onInteractionStart={beginHistoryGesture}
                   onInteractionEnd={endHistoryGesture}
                   draggable={!isInspectMode && !multiSelectActive && !panActive}
+                  listening={!panActive}
                   shapeRef={(node) => {
                     if (node) {
                       shapeRefs.current.set(item.instanceId, node);
@@ -3165,11 +3181,12 @@ export const CanvasDesigner = forwardRef<CanvasDesignerHandle, CanvasDesignerPro
               <Transformer
                 ref={transformerRef}
                 keepRatio
-                rotateEnabled={!isInspectMode}
-                resizeEnabled={!isInspectMode}
+                rotateEnabled={!isInspectMode && !panActive}
+                resizeEnabled={!isInspectMode && !panActive}
+                listening={!panActive}
                 shouldOverdrawWholeArea
                 enabledAnchors={
-                  isInspectMode
+                  isInspectMode || panActive
                     ? []
                     : [
                         "top-left",

@@ -1,0 +1,32 @@
+---
+description: Never publish @jeffgo10 packages locally — CI publishes on master merge
+alwaysApply: true
+---
+
+# ls-foundry — no manual package publish
+
+Agents must **not** publish npm packages from the local machine.
+
+## Do not run (unless the user explicitly asks)
+
+- `npm publish` / `pnpm publish`
+- `pnpm run deploy` / `pnpm run deploy:changed`
+- `scripts/publish-changed.sh`
+- Any other command that uploads `@jeffgo10/*` to GitHub Packages
+
+## Why
+
+1. Changes are often still **uncommitted** when work finishes; a local publish races ahead of git.
+2. Push/merge to **`master`** already triggers `.github/workflows/publish-packages.yml` → `scripts/publish-changed.sh`.
+3. Publishing locally then merging the same version bump can **conflict**, confuse consumers, or force awkward republish work.
+
+## What agents should do instead
+
+1. **Bump** `packages/*/package.json` versions (and pin tables) when changing `@jeffgo10/*` — see `ls-foundry-core.mdc`.
+2. Build/test locally as needed (`pnpm run build:packages`, `pnpm test`).
+3. Commit / open a PR only when the user asks (`/create-github-pr`).
+4. After merge, CI publishes. Confirm with `npm view` **only if the user asks**, and only after the version exists on `master`.
+
+## Exception
+
+Run publish/deploy **only** when the user explicitly requests it in the current message (e.g. “publish now”, “run deploy”). Do not infer publish from “done”, “ship it”, or a prior task checklist.
