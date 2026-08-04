@@ -2,17 +2,33 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Broken 1.3.1 tarball — workspace:* deps (republish 1.3.2)
+
+**When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.3.2**).
+
+**Ask:** Storefront cannot install **1.3.1** — published `package.json` still has `workspace:*` for helpers/history/shared-types.
+
+**Cause:** **1.3.1** was published with `pnpm exec npm publish` (agent mistake). Plain `npm publish` does **not** rewrite pnpm `workspace:*` protocols. CI / `pnpm publish --filter` does rewrite them (as **1.3.0** did: helpers `1.2.0`, history `1.0.0`, shared-types `1.0.0`).
+
+**Fix:** Republish panMode lock fix as **1.3.2** via `pnpm publish --filter @jeffgo10/react-canvas-designer`. Do not use `npm publish` / `pnpm exec npm publish` for workspace packages.
+
+**Published:** `@jeffgo10/react-canvas-designer@1.3.2` — deps helpers `1.2.0`, history `1.0.0`, shared-types `1.0.0` (verified `npm view`).
+
+**Storefront follow-up:** Pin **1.3.2**; run `/update-ls-foundry-packages`. Skip **1.3.1**.
+
+**Code:** publish workflow only (`scripts/publish-changed.sh` already uses `pnpm publish --filter`).
+
 ## Canvas panMode locks select/transform (1.3.1)
 
-**When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.3.1**).
+**When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.3.1** / installable fix **1.3.2**).
 
 **Ask:** With `panMode` on, stickers could still be selected, moved, and rotated.
 
 **Fix:** While pan is active (`panMode` or Space), sticker groups use `listening={false}` (pointer events pass through for pan), Transformer nodes/handles are cleared and rotate/resize are off, pinch and `[`/`]` rotate are blocked.
 
-**Published:** `@jeffgo10/react-canvas-designer@1.3.1` on GitHub Packages.
+**Published:** **1.3.1** tarball is broken (`workspace:*`); use **1.3.2**.
 
-**Storefront follow-up:** Pin designer **1.3.1**.
+**Storefront follow-up:** Pin designer **1.3.2**.
 
 **Code:** `CanvasDesigner.tsx`
 
@@ -29,7 +45,7 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Published:** `@jeffgo10/react-canvas-designer@1.3.0` on GitHub Packages (`npm view …@1.3.0`).
 
-**Storefront follow-up:** Pin designer **1.3.1**; run `/update-ls-foundry-packages` and replace `useCanvasPanMode` Space synthesis with `panMode={…}`.
+**Storefront follow-up:** Pin designer **1.3.2**; run `/update-ls-foundry-packages` and replace `useCanvasPanMode` Space synthesis with `panMode={…}`.
 
 **Code:** `CanvasDesigner.tsx`; `StickPakCanvasSection.tsx`
 
@@ -46,7 +62,7 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 - Handle API: `getViewport` / `setViewportZoom` / `zoomBy` / `resetViewport`; optional `onViewportChange`.
 - Docs `/stickpak`: Zoom − / % / + / Reset view toolbar.
 
-**Storefront follow-up:** Pin designer **1.3.1** (includes `panMode` lock). Built-in Space/wheel may overlap storefront `use-canvas-viewport` — prefer the designer camera or keep outer CSS viewport for mobile only; lock outer pan while editing via existing `onSelectedIdChange`.
+**Storefront follow-up:** Pin designer **1.3.2** (includes `panMode` lock). Built-in Space/wheel may overlap storefront `use-canvas-viewport` — prefer the designer camera or keep outer CSS viewport for mobile only; lock outer pan while editing via existing `onSelectedIdChange`.
 
 **Code:** `canvasViewport.ts`; `stagePointer.ts`; `selectedStickerPinch.ts` (`touchClientToDesign`); `CanvasDesigner.tsx`; `StickPakCanvasSection.tsx`
 
