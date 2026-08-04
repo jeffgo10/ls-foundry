@@ -213,6 +213,42 @@ describe("CanvasDesigner", () => {
     expect(shell.style.cursor).toBe("");
   });
 
+  it("disables transformer rotate/resize while panMode is on", async () => {
+    const ref = createRef<CanvasDesignerHandle>();
+    const { rerender } = render(<CanvasDesigner ref={ref} />);
+    await waitFor(() => {
+      expect(document.querySelector("[data-rotate-enabled]")).toBeTruthy();
+    });
+
+    expect(
+      document.querySelector("[data-rotate-enabled]")!.getAttribute(
+        "data-rotate-enabled",
+      ),
+    ).toBe("true");
+    expect(
+      document.querySelector("[data-resize-enabled]")!.getAttribute(
+        "data-resize-enabled",
+      ),
+    ).toBe("true");
+
+    rerender(<CanvasDesigner ref={ref} panMode />);
+
+    await waitFor(() => {
+      expect(
+        document.querySelector("[data-rotate-enabled]")!.getAttribute(
+          "data-rotate-enabled",
+        ),
+      ).toBe("false");
+      expect(
+        document.querySelector("[data-resize-enabled]")!.getAttribute(
+          "data-resize-enabled",
+        ),
+      ).toBe("false");
+    });
+
+    expect(ref.current!.rotateSelectedBy(90)).toBe(false);
+  });
+
   it("exposes exportLayoutState via ref", async () => {
     const ref = createRef<CanvasDesignerHandle>();
     render(<CanvasDesigner ref={ref} />);

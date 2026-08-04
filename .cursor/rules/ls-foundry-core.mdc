@@ -24,7 +24,7 @@ packages/           # publishable + internal packages
 | `@jeffgo10/*` | **Published** to GitHub Packages (`npm.pkg.github.com`) | `shared-types`, `react-canvas-designer`, `canvas-upscaler`, `three-d-label-customizer`, `helpers`, `gl-viewer` (v1.0.0; consumed by **LiteShadeMedia**), `panorama-viewer` (v0.1.2; consumed by **Vantage**) |
 | `@ls-foundry/*` | **Private** monorepo-only | `docs`, `tsconfig`, `ui`, `utils`, `maps` |
 
-Publish scope must match GitHub owner (`@jeffgo10`). Bump versions in `packages/*/package.json` before `pnpm run deploy`.
+Publish scope must match GitHub owner (`@jeffgo10`). Bump versions in `packages/*/package.json` before merge so CI can publish.
 
 ## Version bumps (agents)
 
@@ -38,12 +38,14 @@ When you change a published `@jeffgo10/*` package, **bump its `package.json` ver
 
 Also update the pin table below, `docs/stickpak/phase-1.md` version table + install pins, and any `workspace:*` dependency pins when the upstream API changed (`shared-types` first).
 
+**Do not publish locally** — see `ls-foundry-no-manual-publish.mdc`. CI publishes on merge to `master`.
+
 ## StickPak Phase 1 packages (current pins)
 
 | Package | Version |
 |---------|---------|
 | `@jeffgo10/shared-types` | 1.0.0 |
-| `@jeffgo10/react-canvas-designer` | 1.3.0 |
+| `@jeffgo10/react-canvas-designer` | 1.3.1 |
 | `@jeffgo10/canvas-upscaler` | 1.0.0 |
 
 Always bump `shared-types` first when changing layout/DPI APIs; keep dependent package pins in sync.
@@ -80,14 +82,13 @@ pnpm run build              # turbo build all
 pnpm run build:packages     # packages only
 pnpm test                   # unit tests (all packages)
 pnpm test:coverage          # with coverage thresholds (CI)
-pnpm run deploy             # build + publish all @jeffgo10/* packages
-pnpm run deploy:changed     # publish only packages changed since GIT_BEFORE (default HEAD~1) — same as CI
+# deploy / deploy:changed — CI only; agents must not run unless user explicitly asks
 pnpm run dev --filter=@ls-foundry/docs   # → localhost:3000/stickpak
 ```
 
 **CI test:** every pull request runs `.github/workflows/ci.yml` → `pnpm test:coverage`.
 
-**CI publish:** push to `master` with `packages/**` or `pnpm-lock.yaml` changes runs `.github/workflows/publish-packages.yml` → `scripts/publish-changed.sh`. Uses `GITHUB_TOKEN` (`packages: write`); bump versions before merge.
+**CI publish:** push to `master` with `packages/**` or `pnpm-lock.yaml` changes runs `.github/workflows/publish-packages.yml` → `scripts/publish-changed.sh`. Uses `GITHUB_TOKEN` (`packages: write`); bump versions before merge. Agents must **not** publish from the laptop — see `ls-foundry-no-manual-publish.mdc`.
 
 ## Repo docs (source of truth for agents)
 

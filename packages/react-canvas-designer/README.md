@@ -134,7 +134,7 @@ On touch devices (`touchFriendly` or coarse-pointer auto-detect): stickers selec
 | `historyLimit` | `50` | Maximum undo snapshots kept in memory |
 | `onHistoryChange` | — | `{ canUndo, canRedo }` when stack availability changes |
 | `onViewportChange` | — | `{ zoom, panX, panY }` when the canvas camera changes (zoom 1…4 relative to fit/full) |
-| `panMode` | `false` | Toolbar-style pan: grab cursor, mousedown+drag pans, suppress sticker drag/marquee (same as holding Space; ORs with Space) |
+| `panMode` | `false` | Toolbar-style pan: grab cursor, mousedown+drag pans; suppress sticker select / drag / resize / rotate / marquee (same as holding Space; ORs with Space) |
 
 ## Imperative API (`ref` / `onReady`)
 

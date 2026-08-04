@@ -2,6 +2,20 @@
 
 Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
+## Canvas panMode locks select/transform (1.3.1)
+
+**When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.3.1**).
+
+**Ask:** With `panMode` on, stickers could still be selected, moved, and rotated.
+
+**Fix:** While pan is active (`panMode` or Space), sticker groups use `listening={false}` (pointer events pass through for pan), Transformer nodes/handles are cleared and rotate/resize are off, pinch and `[`/`]` rotate are blocked.
+
+**Published:** `@jeffgo10/react-canvas-designer@1.3.1` on GitHub Packages.
+
+**Storefront follow-up:** Pin designer **1.3.1**.
+
+**Code:** `CanvasDesigner.tsx`
+
 ## Canvas panMode prop (SP-024 follow-up)
 
 **When:** August 2026 (`@jeffgo10/react-canvas-designer` **1.3.0**).
@@ -15,7 +29,7 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 
 **Published:** `@jeffgo10/react-canvas-designer@1.3.0` on GitHub Packages (`npm view …@1.3.0`).
 
-**Storefront follow-up:** Pin designer **1.3.0**; run `/update-ls-foundry-packages` and replace `useCanvasPanMode` Space synthesis with `panMode={…}`.
+**Storefront follow-up:** Pin designer **1.3.1**; run `/update-ls-foundry-packages` and replace `useCanvasPanMode` Space synthesis with `panMode={…}`.
 
 **Code:** `CanvasDesigner.tsx`; `StickPakCanvasSection.tsx`
 
@@ -32,7 +46,7 @@ Noteworthy issues and fixes (synced to Obsidian `StickPak/noteworthy/`).
 - Handle API: `getViewport` / `setViewportZoom` / `zoomBy` / `resetViewport`; optional `onViewportChange`.
 - Docs `/stickpak`: Zoom − / % / + / Reset view toolbar.
 
-**Storefront follow-up:** Pin designer **1.3.0** (includes `panMode`). Built-in Space/wheel may overlap storefront `use-canvas-viewport` — prefer the designer camera or keep outer CSS viewport for mobile only; lock outer pan while editing via existing `onSelectedIdChange`.
+**Storefront follow-up:** Pin designer **1.3.1** (includes `panMode` lock). Built-in Space/wheel may overlap storefront `use-canvas-viewport` — prefer the designer camera or keep outer CSS viewport for mobile only; lock outer pan while editing via existing `onSelectedIdChange`.
 
 **Code:** `canvasViewport.ts`; `stagePointer.ts`; `selectedStickerPinch.ts` (`touchClientToDesign`); `CanvasDesigner.tsx`; `StickPakCanvasSection.tsx`
 
