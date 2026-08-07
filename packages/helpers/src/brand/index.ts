@@ -17,3 +17,14 @@ export {
   LSM_PATH_OUTER,
   LSM_VIEW_BOX,
 } from "./paths";
+export {
+  generateFluorescentBlinkPlan,
+  LSM_MARK_PATH_IDS,
+  type FluorescentBlinkPlan,
+  type LsmMarkPathId,
+} from "./fluorescentBlink";
+export {
+  useFluorescentBlink,
+  type UseFluorescentBlinkOptions,
+  type UseFluorescentBlinkResult,
+} from "./useFluorescentBlink";

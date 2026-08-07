@@ -13,8 +13,31 @@ import {
 } from "./paths";
 
 describe("LiteShadeMark", () => {
+  beforeEach(() => {
+    resetSkipEnvironmentCache();
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: jest.fn().mockReturnValue({
+        matches: false,
+        media: "(prefers-reduced-motion: reduce)",
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      }),
+    });
+  });
+
+  afterEach(() => {
+    resetSkipEnvironmentCache();
+    jest.restoreAllMocks();
+  });
+
   it("renders three separate paths with animation hooks", () => {
-    const { container } = render(<LiteShadeMark />);
+    const { container } = render(<LiteShadeMark blinkDisabled />);
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
     expect(svg?.getAttribute("viewBox")).toBe(LSM_VIEW_BOX);
@@ -38,7 +61,7 @@ describe("LiteShadeMark", () => {
 
   it("applies color via style and size via width/height", () => {
     const { container } = render(
-      <LiteShadeMark size={32} color="#ffffff" />,
+      <LiteShadeMark size={32} color="#ffffff" blinkDisabled />,
     );
     const svg = container.querySelector("svg");
     expect(svg?.getAttribute("width")).toBe("32");
@@ -47,19 +70,48 @@ describe("LiteShadeMark", () => {
   });
 
   it("exposes an accessible title by default", () => {
-    render(<LiteShadeMark />);
+    render(<LiteShadeMark blinkDisabled />);
     expect(screen.getByRole("img", { name: "LiteShadeMedia" })).toBeTruthy();
     expect(screen.getByTitle("LiteShadeMedia")).toBeTruthy();
   });
 
   it("omits title when decorative (aria-hidden)", () => {
     const { container } = render(
-      <LiteShadeMark aria-hidden title={undefined} />,
+      <LiteShadeMark aria-hidden title={undefined} blinkDisabled />,
     );
     expect(container.querySelector("title")).toBeNull();
     expect(container.querySelector("svg")?.getAttribute("aria-hidden")).toBe(
       "true",
     );
+  });
+
+  it("runs unsynced fluorescent blink CSS on mount", () => {
+    jest.spyOn(Math, "random").mockReturnValue(0.35);
+    const { container } = render(
+      <LiteShadeMark blinkDurationMs={800} blinkDelayMs={0} />,
+    );
+
+    expect(container.querySelector("style")?.textContent).toEqual(
+      expect.stringContaining("@keyframes"),
+    );
+
+    const outer = container.querySelector('[data-lsm-path="outer"]');
+    const innerA = container.querySelector('[data-lsm-path="inner-a"]');
+    const innerB = container.querySelector('[data-lsm-path="inner-b"]');
+    expect(outer?.getAttribute("data-lsm-blink")).toBeTruthy();
+    expect(innerA?.getAttribute("data-lsm-blink")).toBeTruthy();
+    expect(innerB?.getAttribute("data-lsm-blink")).toBeTruthy();
+    expect(outer?.getAttribute("data-lsm-blink")).not.toBe(
+      innerA?.getAttribute("data-lsm-blink"),
+    );
+  });
+
+  it("skips fluorescent blink when blinkDisabled", () => {
+    const { container } = render(<LiteShadeMark blinkDisabled />);
+    expect(container.querySelector("style")).toBeNull();
+    expect(
+      container.querySelector("[data-lsm-blink]"),
+    ).toBeNull();
   });
 });
 

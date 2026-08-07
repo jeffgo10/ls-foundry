@@ -25,6 +25,15 @@ module.exports = {
     "./src/brand/LiteShadeWordmark.tsx": threshold90,
     "./src/brand/LiteShadeBrand.tsx": threshold90,
     "./src/brand/paths.ts": threshold90,
+    "./src/brand/fluorescentBlink.ts": {
+      ...threshold90,
+      // RNG opacity / Math.min settle branches are partially probabilistic.
+      branches: 80,
+    },
+    "./src/brand/useFluorescentBlink.ts": {
+      ...threshold90,
+      branches: 80,
+    },
     "./src/gestures/geometry.ts": threshold90,
     "./src/gestures/usePointerTransformGestures.ts": {
       ...threshold90,

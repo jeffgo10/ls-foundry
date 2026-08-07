@@ -187,15 +187,20 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 
 **Wordmark text is fixed** to `LITESHADEMEDIA` (no `label` prop). `LiteShadeWordmark` uses `useScrambleReveal` from `@jeffgo10/helpers/text` internally — real string stays in a visually-hidden node for SEO; the animated layer is `aria-hidden`. Forward scramble timing via wordmark props / `wordmarkProps` (`delayMs`, `disabled`, …). Do **not** expect `ScrambleRevealProvider` inside this package.
 
+**Mark fluorescent blink (start only):** on mount, each of the three paths runs its own randomized CSS `@keyframes` flicker (`step-end`, unsynced duration/delay) for ~`blinkDurationMs` (default `2000`), then settles to full opacity — like a tube warming up. Same skip gates as scramble (provider / reduced-motion / bots). Disable with `blinkDisabled` or `markProps={{ blinkDisabled: true }}`.
+
 | Prop | Components | Default | Notes |
 |------|------------|---------|--------|
 | `color` | Mark / Wordmark / Brand | `currentColor` | Sets CSS `color` |
 | `size` | Mark / Brand | `24` | SVG width & height |
 | `showMark` / `showWordmark` | Brand | `true` | Toggle parts |
 | `gap` | Brand | `0.5rem` | Flex gap |
-| `markProps` / `wordmarkProps` | Brand | — | Forwarded to children (scramble options on wordmark) |
+| `markProps` / `wordmarkProps` | Brand | — | Forwarded to children (blink / scramble options) |
 | `as` | Wordmark | `span` | `span` \| `div` \| `p` |
 | `delayMs` / `disabled` / … | Wordmark | see `./text` | `UseScrambleRevealOptions` (text is not overridable) |
+| `blinkDisabled` | Mark | `false` | Skip fluorescent turn-on |
+| `blinkDurationMs` | Mark | `2000` | Base flicker window before settle |
+| `blinkDelayMs` | Mark | `0` | Delay before flicker starts |
 
 **Peer dependency:** `react` ^18 or ^19. Framework-agnostic — no Next.js / `/public` assets.
 
