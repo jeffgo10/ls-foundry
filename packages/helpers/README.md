@@ -10,6 +10,7 @@ Published subpaths:
 - **`@jeffgo10/helpers/clipboard`** — `useCopyLink` React hook for copy-to-clipboard UI
 - **`@jeffgo10/helpers/text`** — `useScrambleReveal` React hook for ticker-style text reveal
 - **`@jeffgo10/helpers/brand`** — LiteShade Media mark + wordmark as inline SVG React components
+- **`@jeffgo10/helpers/ui`** — presentational UI primitives (`SlidingText` vertical hover reveal)
 
 Source: [github.com/jeffgo10/ls-foundry](https://github.com/jeffgo10/ls-foundry) (`packages/helpers`).
 
@@ -203,6 +204,45 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 | `blinkDelayMs` | Mark | `0` | Delay before flicker starts |
 
 **Peer dependency:** `react` ^18 or ^19. Framework-agnostic — no Next.js / `/public` assets.
+
+## `@jeffgo10/helpers/ui`
+
+```tsx
+import {
+  SlidingText,
+  slidingTextGroupProps,
+} from "@jeffgo10/helpers/ui";
+import { useScrambleReveal } from "@jeffgo10/helpers/text";
+
+// Self-contained (hover / focus-visible on the clip itself)
+<SlidingText color="rgba(255,255,255,0.6)" activeColor="#fff">
+  HOME
+</SlidingText>
+
+// Nav / CTA: put the group attr on the interactive ancestor so index siblings count
+<a href="/showcase" {...slidingTextGroupProps}>
+  <span aria-hidden>02/ </span>
+  <SlidingText color="#fff" decorative>
+    {displayText}
+  </SlidingText>
+</a>
+```
+
+Vertical slide reveal extracted from LiteShadeMedia `SlidingTextLink` / TopNav: two stacked copies in a `1.15em` overflow clip; rest shows the primary layer; hover/focus slides primary out and the duplicate in (`300ms`, `cubic-bezier(0.2, 0.9, 0.2, 1)`). No Tailwind — scoped CSS is injected per instance.
+
+| Prop | Default | Notes |
+|------|---------|--------|
+| `children` | — | Label (compose scramble outside) |
+| `color` | `currentColor` | Rest layer |
+| `activeColor` | same as `color` | Hover/focus layer |
+| `durationMs` | `300` | Transition duration |
+| `easing` | `cubic-bezier(0.2, 0.9, 0.2, 1)` | |
+| `slideDistance` | `110%` | |
+| `decorative` | `false` | `aria-hidden` on clip when parent owns the name |
+
+Triggers: root `:hover` / `:focus-visible` / `:focus-within`, **and** ancestor `[data-sliding-text-group]:hover` / `:focus-visible` via `slidingTextGroupProps`. Duplicate layer is always `aria-hidden`. No Next.js / scramble baked in.
+
+**Peer dependency:** `react` ^18 or ^19.
 
 ## License
 

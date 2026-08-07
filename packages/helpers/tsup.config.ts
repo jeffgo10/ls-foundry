@@ -8,6 +8,7 @@ export default defineConfig({
     gestures: "src/gestures/index.ts",
     image: "src/image/index.ts",
     text: "src/text/index.ts",
+    ui: "src/ui/index.ts",
   },
   format: ["esm", "cjs"],
   dts: true,

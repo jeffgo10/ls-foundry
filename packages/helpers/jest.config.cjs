@@ -17,10 +17,13 @@ module.exports = {
   moduleNameMapper: {
     "^@jeffgo10/helpers/text$": "<rootDir>/src/text/index.ts",
     "^@jeffgo10/helpers/brand$": "<rootDir>/src/brand/index.ts",
+    "^@jeffgo10/helpers/ui$": "<rootDir>/src/ui/index.ts",
     "^@ls-foundry/test-utils$": path.join(__dirname, "../test-utils/src/index.ts"),
     "^@ls-foundry/test-utils/(.*)$": path.join(__dirname, "../test-utils/src/$1"),
   },
   coverageThreshold: {
+    "./src/ui/SlidingText.tsx": threshold90,
+    "./src/ui/slidingTextCss.ts": threshold90,
     "./src/brand/LiteShadeMark.tsx": threshold90,
     "./src/brand/LiteShadeWordmark.tsx": threshold90,
     "./src/brand/LiteShadeBrand.tsx": threshold90,
