@@ -15,6 +15,8 @@ module.exports = {
   rootDir: ".",
   testEnvironment: "jsdom",
   moduleNameMapper: {
+    "^@jeffgo10/helpers/text$": "<rootDir>/src/text/index.ts",
+    "^@jeffgo10/helpers/brand$": "<rootDir>/src/brand/index.ts",
     "^@ls-foundry/test-utils$": path.join(__dirname, "../test-utils/src/index.ts"),
     "^@ls-foundry/test-utils/(.*)$": path.join(__dirname, "../test-utils/src/$1"),
   },

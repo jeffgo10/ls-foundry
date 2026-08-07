@@ -161,20 +161,19 @@ Provider + hook only — no presentational text component. Mark consumer compone
 ## `@jeffgo10/helpers/brand`
 
 ```tsx
+import { ScrambleRevealProvider } from "@jeffgo10/helpers/text";
 import {
   LiteShadeMark,
   LiteShadeWordmark,
   LiteShadeBrand,
 } from "@jeffgo10/helpers/brand";
 
-// Icon only — real DOM paths (animatable via CSS / SMIL / GSAP)
-<LiteShadeMark size={24} color="#fff" />
-
-// Wordmark only (static; scramble via @jeffgo10/helpers/text in the app)
-<LiteShadeWordmark color="currentColor" />
-
-// Combined header block (flex + gap + tracking, no Tailwind required)
-<LiteShadeBrand color="#ffffff" size={24} />
+// Consumer provides the provider once (app shell / layout) — brand does not.
+<ScrambleRevealProvider>
+  <LiteShadeMark size={24} color="#fff" />
+  <LiteShadeWordmark color="currentColor" />
+  <LiteShadeBrand color="#ffffff" size={24} />
+</ScrambleRevealProvider>
 ```
 
 Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg`. Paths use `fill="currentColor"` so `color` (or CSS `color`) themes the mark without white/black asset variants. Three paths stay separate with stable hooks:
@@ -186,17 +185,17 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 | `[data-lsm-path="inner-a"]` | Upper / right facet |
 | `[data-lsm-path="inner-b"]` | Lower / left facet |
 
-Forward remaining SVG props (`onMouseEnter`, `style`, `className`, …) so animation libraries can attach without forking. No built-in hover/load animations and no scramble — those stay consumer concerns.
+**Wordmark text is fixed** to `LITESHADEMEDIA` (no `label` prop). `LiteShadeWordmark` uses `useScrambleReveal` from `@jeffgo10/helpers/text` internally — real string stays in a visually-hidden node for SEO; the animated layer is `aria-hidden`. Forward scramble timing via wordmark props / `wordmarkProps` (`delayMs`, `disabled`, …). Do **not** expect `ScrambleRevealProvider` inside this package.
 
 | Prop | Components | Default | Notes |
 |------|------------|---------|--------|
 | `color` | Mark / Wordmark / Brand | `currentColor` | Sets CSS `color` |
 | `size` | Mark / Brand | `24` | SVG width & height |
-| `label` | Wordmark / Brand | `LITESHADEMEDIA` | Wordmark text |
 | `showMark` / `showWordmark` | Brand | `true` | Toggle parts |
 | `gap` | Brand | `0.5rem` | Flex gap |
-| `markProps` / `wordmarkProps` | Brand | — | Forwarded to children |
+| `markProps` / `wordmarkProps` | Brand | — | Forwarded to children (scramble options on wordmark) |
 | `as` | Wordmark | `span` | `span` \| `div` \| `p` |
+| `delayMs` / `disabled` / … | Wordmark | see `./text` | `UseScrambleRevealOptions` (text is not overridable) |
 
 **Peer dependency:** `react` ^18 or ^19. Framework-agnostic — no Next.js / `/public` assets.
 

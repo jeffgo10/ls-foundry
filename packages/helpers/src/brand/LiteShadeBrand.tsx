@@ -8,7 +8,6 @@ import {
   LiteShadeWordmark,
   type LiteShadeWordmarkProps,
 } from "./LiteShadeWordmark";
-import { LSM_BRAND_LABEL } from "./paths";
 
 export type LiteShadeBrandProps = Omit<
   HTMLAttributes<HTMLDivElement>,
@@ -18,8 +17,8 @@ export type LiteShadeBrandProps = Omit<
   color?: string;
   /** Mark size (width & height). Default `24` (~1.5rem). */
   size?: number | string;
-  /** Wordmark text. Default `"LITESHADEMEDIA"`. */
-  label?: string;
+  /** Fixed brand string — not overridable (always `LITESHADEMEDIA`). */
+  label?: never;
   /** Render the SVG mark. Default `true`. */
   showMark?: boolean;
   /** Render the wordmark. Default `true`. */
@@ -28,27 +27,33 @@ export type LiteShadeBrandProps = Omit<
   gap?: number | string;
   /** Extra props for {@link LiteShadeMark} (animation classNames, etc.). */
   markProps?: Omit<LiteShadeMarkProps, "size" | "color">;
-  /** Extra props for {@link LiteShadeWordmark}. */
-  wordmarkProps?: Omit<LiteShadeWordmarkProps, "label" | "color">;
+  /**
+   * Extra props for {@link LiteShadeWordmark} (scramble options, className, …).
+   * Label is fixed to `LITESHADEMEDIA` and cannot be overridden.
+   */
+  wordmarkProps?: Omit<LiteShadeWordmarkProps, "color">;
 };
 
 /**
  * Combined LiteShade mark + wordmark for headers / nav.
  * Layout matches LiteShadeMedia TopNav brand block (flex, gap, tracking).
+ * Wordmark always reads `LITESHADEMEDIA` with scramble via `useScrambleReveal`.
+ * Provide {@link ScrambleRevealProvider} in the consumer app.
  */
 export function LiteShadeBrand({
   color = "currentColor",
   size = 24,
   className,
-  label = LSM_BRAND_LABEL,
   showMark = true,
   showWordmark = true,
   gap = "0.5rem",
   markProps,
   wordmarkProps,
   style,
+  label: _forbiddenLabel,
   ...rest
 }: LiteShadeBrandProps) {
+  void _forbiddenLabel;
   const mergedStyle: CSSProperties = {
     display: "flex",
     alignItems: "center",
@@ -73,7 +78,7 @@ export function LiteShadeBrand({
         />
       ) : null}
       {showWordmark ? (
-        <LiteShadeWordmark label={label} color={color} {...wordmarkProps} />
+        <LiteShadeWordmark color={color} {...wordmarkProps} />
       ) : null}
     </div>
   );

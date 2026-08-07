@@ -14,5 +14,6 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ["react", "react-dom"],
+  // Keep brand → text as a runtime import so ScrambleRevealProvider context is shared.
+  external: ["react", "react-dom", "@jeffgo10/helpers/text"],
 });

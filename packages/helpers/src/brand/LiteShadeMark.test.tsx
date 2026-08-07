@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 
+import { resetSkipEnvironmentCache } from "../text/skipEnvironment";
 import { LiteShadeBrand } from "./LiteShadeBrand";
 import { LiteShadeMark } from "./LiteShadeMark";
 import { LiteShadeWordmark } from "./LiteShadeWordmark";
@@ -63,25 +64,107 @@ describe("LiteShadeMark", () => {
 });
 
 describe("LiteShadeWordmark", () => {
-  it("renders the default brand label", () => {
-    render(<LiteShadeWordmark />);
-    expect(screen.getByText(LSM_BRAND_LABEL)).toBeTruthy();
+  beforeEach(() => {
+    resetSkipEnvironmentCache();
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: jest.fn().mockReturnValue({
+        matches: false,
+        media: "(prefers-reduced-motion: reduce)",
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      }),
+    });
   });
 
-  it("supports custom label, color, and as", () => {
+  afterEach(() => {
+    resetSkipEnvironmentCache();
+    jest.restoreAllMocks();
+  });
+
+  it("always renders the fixed LITESHADEMEDIA label (SEO layer)", () => {
+    const { container } = render(<LiteShadeWordmark disabled />);
+    expect(screen.getAllByText(LSM_BRAND_LABEL).length).toBeGreaterThanOrEqual(1);
+    expect(
+      container.querySelector("[aria-hidden='true']")?.textContent,
+    ).toBe(LSM_BRAND_LABEL);
+  });
+
+  it("ignores a custom label if passed at runtime", () => {
     const { container } = render(
-      <LiteShadeWordmark as="p" label="CUSTOM" color="#abc" />,
+      // @ts-expect-error — label is intentionally not part of the public API
+      <LiteShadeWordmark label="CUSTOM" disabled />,
+    );
+    expect(container.querySelector("[data-lsm-wordmark]")?.getAttribute("label")).toBeNull();
+    expect(screen.queryByText("CUSTOM")).toBeNull();
+    expect(
+      container.querySelector("[aria-hidden='true']")?.textContent,
+    ).toBe(LSM_BRAND_LABEL);
+  });
+
+  it("supports color, as, and scramble disabled", () => {
+    const { container } = render(
+      <LiteShadeWordmark as="p" color="#abc" disabled />,
     );
     const el = container.querySelector("[data-lsm-wordmark]");
     expect(el?.tagName).toBe("P");
-    expect(el?.textContent).toBe("CUSTOM");
     expect(el).toHaveStyle({ color: "#abc", letterSpacing: "0.25em" });
+    expect(el?.querySelector("[aria-hidden='true']")?.textContent).toBe(
+      LSM_BRAND_LABEL,
+    );
+  });
+
+  it("scrambles then reveals via useScrambleReveal", () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    let nowMs = 0;
+    jest.spyOn(performance, "now").mockImplementation(() => nowMs);
+    jest.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    jest.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    jest.spyOn(Math, "random").mockReturnValue(0);
+
+    const { container } = render(
+      <LiteShadeWordmark
+        tickIntervalMs={1}
+        initialScrambleMs={10}
+        charRevealMs={5}
+      />,
+    );
+
+    const flush = (atMs: number) => {
+      nowMs = atMs;
+      const pending = [...rafCallbacks];
+      rafCallbacks.length = 0;
+      act(() => {
+        for (const cb of pending) cb(atMs);
+      });
+    };
+
+    flush(0);
+    const animated = container.querySelector("[aria-hidden='true']");
+    expect(animated?.textContent).not.toBe(LSM_BRAND_LABEL);
+
+    for (let t = 1; t <= 500; t += 5) {
+      flush(t);
+      if (rafCallbacks.length === 0) break;
+    }
+
+    expect(animated?.textContent).toBe(LSM_BRAND_LABEL);
   });
 });
 
 describe("LiteShadeBrand", () => {
-  it("composes mark + wordmark with TopNav-like layout", () => {
-    const { container } = render(<LiteShadeBrand color="#fff" size={24} />);
+  it("composes mark + fixed wordmark with TopNav-like layout", () => {
+    const { container } = render(
+      <LiteShadeBrand color="#fff" size={24} wordmarkProps={{ disabled: true }} />,
+    );
     const root = container.querySelector("[data-lsm-brand]");
     expect(root).toHaveStyle({
       display: "flex",
@@ -92,7 +175,10 @@ describe("LiteShadeBrand", () => {
       letterSpacing: "0.25em",
     });
     expect(container.querySelectorAll("path[data-lsm-path]")).toHaveLength(3);
-    expect(screen.getByText(LSM_BRAND_LABEL)).toBeTruthy();
+    expect(
+      container.querySelector("[data-lsm-wordmark] [aria-hidden='true']")
+        ?.textContent,
+    ).toBe(LSM_BRAND_LABEL);
     expect(
       container.querySelector("svg")?.getAttribute("aria-hidden"),
     ).toBe("true");
@@ -100,10 +186,13 @@ describe("LiteShadeBrand", () => {
 
   it("can hide mark or wordmark", () => {
     const { container, rerender } = render(
-      <LiteShadeBrand showMark={false} />,
+      <LiteShadeBrand showMark={false} wordmarkProps={{ disabled: true }} />,
     );
     expect(container.querySelector("svg")).toBeNull();
-    expect(screen.getByText(LSM_BRAND_LABEL)).toBeTruthy();
+    expect(
+      container.querySelector("[data-lsm-wordmark] [aria-hidden='true']")
+        ?.textContent,
+    ).toBe(LSM_BRAND_LABEL);
 
     rerender(<LiteShadeBrand showWordmark={false} />);
     expect(container.querySelectorAll("path")).toHaveLength(3);

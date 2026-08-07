@@ -2,7 +2,11 @@
   "extends": "../config-ts/react-library.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "paths": {
+      "@jeffgo10/helpers/text": ["./src/text/index.ts"],
+      "@jeffgo10/helpers/brand": ["./src/brand/index.ts"]
+    }
   },
   "include": ["src/**/*"]
 }
