@@ -4,6 +4,10 @@ import {
   useScrambleReveal,
   type UseScrambleRevealOptions,
 } from "@jeffgo10/helpers/text";
+import {
+  SlidingText,
+  type SlidingTextProps,
+} from "@jeffgo10/helpers/ui";
 
 import { LSM_BRAND_LABEL } from "./paths";
 
@@ -20,6 +24,11 @@ const visuallyHiddenStyle: CSSProperties = {
   borderWidth: 0,
 };
 
+export type LiteShadeWordmarkSlideProps = Omit<
+  SlidingTextProps,
+  "children" | "color" | "decorative"
+>;
+
 export type LiteShadeWordmarkProps = Omit<
   HTMLAttributes<HTMLElement>,
   "children" | "color"
@@ -30,6 +39,13 @@ export type LiteShadeWordmarkProps = Omit<
   as?: "span" | "div" | "p";
   /** Fixed brand string — not overridable. */
   label?: never;
+  /**
+   * Wrap the animated layer in {@link SlidingText} (vertical hover slide).
+   * Default `false` when used alone; {@link LiteShadeBrand} enables this.
+   */
+  slide?: boolean;
+  /** Forwarded to {@link SlidingText} when `slide` is true. */
+  slideProps?: LiteShadeWordmarkSlideProps;
 } & Pick<
   UseScrambleRevealOptions,
   | "delayMs"
@@ -56,6 +72,8 @@ export function LiteShadeWordmark({
   initialScrambleMs,
   charRevealMs,
   disabled,
+  slide = false,
+  slideProps,
   label: _forbiddenLabel,
   ...rest
 }: LiteShadeWordmarkProps) {
@@ -80,7 +98,13 @@ export function LiteShadeWordmark({
   return (
     <Tag className={className} style={mergedStyle} data-lsm-wordmark="" {...rest}>
       <span style={visuallyHiddenStyle}>{LSM_BRAND_LABEL}</span>
-      <span aria-hidden="true">{displayText}</span>
+      {slide ? (
+        <SlidingText color={color} decorative {...slideProps}>
+          {displayText}
+        </SlidingText>
+      ) : (
+        <span aria-hidden="true">{displayText}</span>
+      )}
     </Tag>
   );
 }

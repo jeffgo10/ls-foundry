@@ -188,7 +188,9 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 
 **Wordmark text is fixed** to `LITESHADEMEDIA` (no `label` prop). `LiteShadeWordmark` uses `useScrambleReveal` from `@jeffgo10/helpers/text` internally — real string stays in a visually-hidden node for SEO; the animated layer is `aria-hidden`. Forward scramble timing via wordmark props / `wordmarkProps` (`delayMs`, `disabled`, …). Do **not** expect `ScrambleRevealProvider` inside this package.
 
-**Mark fluorescent blink (start only):** on mount, each of the three paths runs its own randomized CSS `@keyframes` flicker (`step-end`, unsynced duration/delay) for ~`blinkDurationMs` (default `2000`), then settles to full opacity — like a tube warming up. Same skip gates as scramble (provider / reduced-motion / bots). Disable with `blinkDisabled` or `markProps={{ blinkDisabled: true }}`.
+**Mark fluorescent blink:** on mount, each of the three paths runs its own randomized CSS `@keyframes` flicker (`step-end`, unsynced duration/delay) for ~`blinkDurationMs` (default `2000`), then settles to full opacity — like a tube warming up. Same skip gates as scramble (provider / reduced-motion / bots). Disable with `blinkDisabled` or `markProps={{ blinkDisabled: true }}`. Pass `blinkReplayToken` (or use Brand hover) to replay with fresh keyframe names.
+
+**Brand hover (default on):** `LiteShadeBrand` puts `data-sliding-text-group` on the root, wraps the wordmark in `SlidingText`, and on `mouseenter` / `focus` re-blinks the mark (shorter `hoverBlinkDurationMs`, default `900`) in parallel with the slide. Initial scramble + mount blink still run once. Set `hoverEffects={false}` to opt out.
 
 | Prop | Components | Default | Notes |
 |------|------------|---------|--------|
@@ -196,12 +198,17 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 | `size` | Mark / Brand | `24` | SVG width & height |
 | `showMark` / `showWordmark` | Brand | `true` | Toggle parts |
 | `gap` | Brand | `0.5rem` | Flex gap |
+| `hoverEffects` | Brand | `true` | Slide wordmark + re-blink mark on hover |
+| `hoverBlinkDurationMs` | Brand | `900` | Fluorescent window for hover replay |
+| `slideProps` | Brand | — | Forwarded to wordmark `SlidingText` |
 | `markProps` / `wordmarkProps` | Brand | — | Forwarded to children (blink / scramble options) |
 | `as` | Wordmark | `span` | `span` \| `div` \| `p` |
+| `slide` / `slideProps` | Wordmark | `false` / — | Optional `SlidingText` wrap (Brand enables) |
 | `delayMs` / `disabled` / … | Wordmark | see `./text` | `UseScrambleRevealOptions` (text is not overridable) |
 | `blinkDisabled` | Mark | `false` | Skip fluorescent turn-on |
 | `blinkDurationMs` | Mark | `2000` | Base flicker window before settle |
 | `blinkDelayMs` | Mark | `0` | Delay before flicker starts |
+| `blinkReplayToken` | Mark | `0` | Bump to replay fluorescent blink |
 
 **Peer dependency:** `react` ^18 or ^19. Framework-agnostic — no Next.js / `/public` assets.
 

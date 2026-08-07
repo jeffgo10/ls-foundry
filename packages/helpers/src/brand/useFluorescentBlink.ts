@@ -18,6 +18,11 @@ export type UseFluorescentBlinkOptions = {
   durationMs?: number;
   /** Delay before flicker starts (all paths). Default `0`. */
   delayMs?: number;
+  /**
+   * Bump to replay the fluorescent blink (e.g. brand hover).
+   * Included in keyframe names so CSS animations restart cleanly.
+   */
+  replayToken?: number;
 };
 
 export type UseFluorescentBlinkResult = {
@@ -42,7 +47,12 @@ const IDLE_BLINK: Record<LsmMarkPathId, string | null> = {
 export function useFluorescentBlink(
   options: UseFluorescentBlinkOptions = {},
 ): UseFluorescentBlinkResult {
-  const { disabled = false, durationMs = 2000, delayMs = 0 } = options;
+  const {
+    disabled = false,
+    durationMs = 2000,
+    delayMs = 0,
+    replayToken = 0,
+  } = options;
   const reactId = useId();
   const environment = useScrambleRevealEnvironment();
   const skipFromEnvironment = environment?.skipAnimation;
@@ -61,7 +71,8 @@ export function useFluorescentBlink(
     }
 
     const next = generateFluorescentBlinkPlan({
-      id: reactId,
+      // Token in id → unique @keyframes names so replay restarts CSS animation.
+      id: `${reactId}-r${replayToken}`,
       durationMs,
       delayMs,
     });
@@ -79,7 +90,7 @@ export function useFluorescentBlink(
     return () => {
       window.clearTimeout(timer);
     };
-  }, [disabled, durationMs, delayMs, reactId, skipFromEnvironment]);
+  }, [disabled, durationMs, delayMs, reactId, replayToken, skipFromEnvironment]);
 
   if (!plan) {
     return { cssText: null, blinkAttr: IDLE_BLINK, isComplete };

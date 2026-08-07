@@ -1,4 +1,8 @@
-import { buildSlidingTextCss, SLIDING_TEXT_GROUP_ATTR } from "./slidingTextCss";
+import {
+  buildSlidingTextCss,
+  SLIDING_TEXT_DEFAULTS,
+  SLIDING_TEXT_GROUP_ATTR,
+} from "./slidingTextCss";
 
 describe("buildSlidingTextCss", () => {
   it("scopes transforms for rest, hover, focus, and group ancestors", () => {
@@ -21,6 +25,15 @@ describe("buildSlidingTextCss", () => {
     expect(css).toContain(":focus-within");
     expect(css).toContain(`[${SLIDING_TEXT_GROUP_ATTR}]:hover`);
     expect(css).toContain(`[${SLIDING_TEXT_GROUP_ATTR}]:focus-visible`);
+  });
+
+  it("falls back to default motion options when omitted", () => {
+    const css = buildSlidingTextCss("defaults");
+    expect(css).toContain(
+      `transform ${SLIDING_TEXT_DEFAULTS.durationMs}ms ${SLIDING_TEXT_DEFAULTS.easing}`,
+    );
+    expect(css).toContain(`translateY(${SLIDING_TEXT_DEFAULTS.slideDistance})`);
+    expect(css).toContain(`translateY(-${SLIDING_TEXT_DEFAULTS.slideDistance})`);
   });
 
   it("sanitizes scope ids and accepts custom motion", () => {

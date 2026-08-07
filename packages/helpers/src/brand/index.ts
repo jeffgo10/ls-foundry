@@ -9,6 +9,7 @@ export {
 export {
   LiteShadeWordmark,
   type LiteShadeWordmarkProps,
+  type LiteShadeWordmarkSlideProps,
 } from "./LiteShadeWordmark";
 export {
   LSM_BRAND_LABEL,

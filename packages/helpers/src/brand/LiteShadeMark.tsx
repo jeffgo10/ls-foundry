@@ -33,6 +33,11 @@ export type LiteShadeMarkProps = Omit<
   blinkDurationMs?: number;
   /** Delay before flicker starts. Default `0`. */
   blinkDelayMs?: number;
+  /**
+   * Bump to replay the fluorescent blink (e.g. from {@link LiteShadeBrand} hover).
+   * Default `0` (mount-only until changed).
+   */
+  blinkReplayToken?: number;
 };
 
 /**
@@ -41,6 +46,7 @@ export type LiteShadeMarkProps = Omit<
  *
  * On mount, paths run an unsynced fluorescent blink (CSS keyframes) for ~n seconds,
  * then stay lit — same one-shot idea as scramble reveal on the wordmark.
+ * Bump `blinkReplayToken` (Brand hover does this) to replay with fresh keyframes.
  */
 export function LiteShadeMark({
   size = 24,
@@ -54,6 +60,7 @@ export function LiteShadeMark({
   blinkDisabled = false,
   blinkDurationMs = 2000,
   blinkDelayMs = 0,
+  blinkReplayToken = 0,
   ...svgProps
 }: LiteShadeMarkProps) {
   const isDecorative = ariaHidden === true || ariaHidden === "true";
@@ -69,6 +76,7 @@ export function LiteShadeMark({
     disabled: blinkDisabled,
     durationMs: blinkDurationMs,
     delayMs: blinkDelayMs,
+    replayToken: blinkReplayToken,
   };
   const { cssText, blinkAttr } = useFluorescentBlink(blinkOptions);
 

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import { resetSkipEnvironmentCache } from "../text/skipEnvironment";
 import { LiteShadeBrand } from "./LiteShadeBrand";
@@ -171,6 +171,19 @@ describe("LiteShadeWordmark", () => {
     );
   });
 
+  it("optionally wraps the animated layer in SlidingText", () => {
+    const { container } = render(
+      <LiteShadeWordmark disabled slide slideProps={{ activeColor: "#fff" }} />,
+    );
+    expect(container.querySelector("[data-lsm-sliding]")).not.toBeNull();
+    expect(
+      container.querySelector("[data-lsm-sliding-primary]")?.textContent,
+    ).toBe(LSM_BRAND_LABEL);
+    expect(
+      container.querySelector("[data-lsm-sliding-active]"),
+    ).toHaveStyle({ color: "#fff" });
+  });
+
   it("scrambles then reveals via useScrambleReveal", () => {
     const rafCallbacks: FrameRequestCallback[] = [];
     let nowMs = 0;
@@ -213,9 +226,37 @@ describe("LiteShadeWordmark", () => {
 });
 
 describe("LiteShadeBrand", () => {
+  beforeEach(() => {
+    resetSkipEnvironmentCache();
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: jest.fn().mockReturnValue({
+        matches: false,
+        media: "(prefers-reduced-motion: reduce)",
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      }),
+    });
+  });
+
+  afterEach(() => {
+    resetSkipEnvironmentCache();
+    jest.restoreAllMocks();
+  });
+
   it("composes mark + fixed wordmark with TopNav-like layout", () => {
     const { container } = render(
-      <LiteShadeBrand color="#fff" size={24} wordmarkProps={{ disabled: true }} />,
+      <LiteShadeBrand
+        color="#fff"
+        size={24}
+        markProps={{ blinkDisabled: true }}
+        wordmarkProps={{ disabled: true }}
+      />,
     );
     const root = container.querySelector("[data-lsm-brand]");
     expect(root).toHaveStyle({
@@ -226,9 +267,13 @@ describe("LiteShadeBrand", () => {
       fontSize: "0.875rem",
       letterSpacing: "0.25em",
     });
+    expect(root?.hasAttribute("data-sliding-text-group")).toBe(true);
     expect(container.querySelectorAll("path[data-lsm-path]")).toHaveLength(3);
     expect(
-      container.querySelector("[data-lsm-wordmark] [aria-hidden='true']")
+      container.querySelector("[data-lsm-wordmark] [data-lsm-sliding]"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("[data-lsm-wordmark] [data-lsm-sliding-primary]")
         ?.textContent,
     ).toBe(LSM_BRAND_LABEL);
     expect(
@@ -238,17 +283,113 @@ describe("LiteShadeBrand", () => {
 
   it("can hide mark or wordmark", () => {
     const { container, rerender } = render(
-      <LiteShadeBrand showMark={false} wordmarkProps={{ disabled: true }} />,
+      <LiteShadeBrand
+        showMark={false}
+        markProps={{ blinkDisabled: true }}
+        wordmarkProps={{ disabled: true }}
+      />,
     );
     expect(container.querySelector("svg")).toBeNull();
+    expect(
+      container.querySelector("[data-lsm-wordmark] [data-lsm-sliding-primary]")
+        ?.textContent,
+    ).toBe(LSM_BRAND_LABEL);
+
+    rerender(
+      <LiteShadeBrand showWordmark={false} markProps={{ blinkDisabled: true }} />,
+    );
+    expect(container.querySelectorAll("path")).toHaveLength(3);
+    expect(container.querySelector("[data-lsm-wordmark]")).toBeNull();
+    expect(screen.getByRole("img", { name: "LiteShadeMedia" })).toBeTruthy();
+  });
+
+  it("on hover replays fluorescent blink while sliding wordmark stays wired", () => {
+    jest.spyOn(Math, "random").mockReturnValue(0.35);
+    const onMouseEnter = jest.fn();
+    const { container } = render(
+      <LiteShadeBrand
+        hoverBlinkDurationMs={500}
+        wordmarkProps={{ disabled: true }}
+        onMouseEnter={onMouseEnter}
+      />,
+    );
+
+    const outer = () =>
+      container.querySelector('[data-lsm-path="outer"]');
+    const mountName = outer()?.getAttribute("data-lsm-blink");
+    expect(mountName).toBeTruthy();
+    expect(container.querySelector("[data-lsm-sliding]")).not.toBeNull();
+
+    act(() => {
+      fireEvent.mouseEnter(container.querySelector("[data-lsm-brand]")!);
+    });
+
+    const hoverName = outer()?.getAttribute("data-lsm-blink");
+    expect(hoverName).toBeTruthy();
+    expect(hoverName).not.toBe(mountName);
+    expect(onMouseEnter).toHaveBeenCalledTimes(1);
+    expect(container.querySelector("style")?.textContent).toEqual(
+      expect.stringContaining("@keyframes"),
+    );
+  });
+
+  it("replays blink on focus and forwards onFocus", () => {
+    jest.spyOn(Math, "random").mockReturnValue(0.2);
+    const onFocus = jest.fn();
+    const { container } = render(
+      <LiteShadeBrand
+        hoverBlinkDurationMs={400}
+        wordmarkProps={{ disabled: true }}
+        onFocus={onFocus}
+      />,
+    );
+
+    const outer = () =>
+      container.querySelector('[data-lsm-path="outer"]');
+    const mountName = outer()?.getAttribute("data-lsm-blink");
+
+    act(() => {
+      fireEvent.focus(container.querySelector("[data-lsm-brand]")!);
+    });
+
+    expect(outer()?.getAttribute("data-lsm-blink")).not.toBe(mountName);
+    expect(onFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reblink on hover when mark blink is disabled", () => {
+    const { container } = render(
+      <LiteShadeBrand
+        markProps={{ blinkDisabled: true }}
+        wordmarkProps={{ disabled: true }}
+      />,
+    );
+    expect(container.querySelector("[data-lsm-blink]")).toBeNull();
+
+    act(() => {
+      fireEvent.mouseEnter(container.querySelector("[data-lsm-brand]")!);
+    });
+
+    expect(container.querySelector("[data-lsm-blink]")).toBeNull();
+    expect(container.querySelector("[data-lsm-sliding]")).not.toBeNull();
+  });
+
+  it("skips hover slide + group when hoverEffects is false", () => {
+    const { container } = render(
+      <LiteShadeBrand
+        hoverEffects={false}
+        markProps={{ blinkDisabled: true }}
+        wordmarkProps={{ disabled: true }}
+      />,
+    );
+    expect(
+      container.querySelector("[data-lsm-brand]")?.hasAttribute(
+        "data-sliding-text-group",
+      ),
+    ).toBe(false);
+    expect(container.querySelector("[data-lsm-sliding]")).toBeNull();
     expect(
       container.querySelector("[data-lsm-wordmark] [aria-hidden='true']")
         ?.textContent,
     ).toBe(LSM_BRAND_LABEL);
-
-    rerender(<LiteShadeBrand showWordmark={false} />);
-    expect(container.querySelectorAll("path")).toHaveLength(3);
-    expect(container.querySelector("[data-lsm-wordmark]")).toBeNull();
-    expect(screen.getByRole("img", { name: "LiteShadeMedia" })).toBeTruthy();
   });
 });
