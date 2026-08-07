@@ -192,12 +192,16 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 
 **Brand hover (default on):** `LiteShadeBrand` puts `data-sliding-text-group` on the root, wraps the wordmark in `SlidingText`, and on `mouseenter` / `focus` re-blinks the mark (shorter `hoverBlinkDurationMs`, default `900`) in parallel with the slide. Initial scramble + mount blink still run once. Set `hoverEffects={false}` to opt out.
 
+**Brand link (default on):** root renders as `<a href="https://liteshademedia.com">` (`LSM_BRAND_HOME_URL`). Pass a custom `href` string, or `href={false}` for a non-link `<div>` when the app already wraps with Next.js `Link`. Optional `referral` appends `?ref=<value>` (prop is named `referral` so it does not collide with React’s `ref`).
+
 | Prop | Components | Default | Notes |
 |------|------------|---------|--------|
 | `color` | Mark / Wordmark / Brand | `currentColor` | Sets CSS `color` |
 | `size` | Mark / Brand | `24` | SVG width & height |
 | `showMark` / `showWordmark` | Brand | `true` | Toggle parts |
 | `gap` | Brand | `0.5rem` | Flex gap |
+| `href` | Brand | `https://liteshademedia.com` | Brand root link; `false` → `<div>` |
+| `referral` | Brand | — | Appended as `?ref=` on the href |
 | `hoverEffects` | Brand | `true` | Slide wordmark + re-blink mark on hover |
 | `hoverBlinkDurationMs` | Brand | `900` | Fluorescent window for hover replay |
 | `slideProps` | Brand | — | Forwarded to wordmark `SlidingText` |

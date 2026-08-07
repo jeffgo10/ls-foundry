@@ -4,6 +4,7 @@ import { resetSkipEnvironmentCache } from "../text/skipEnvironment";
 import { LiteShadeBrand } from "./LiteShadeBrand";
 import { LiteShadeMark } from "./LiteShadeMark";
 import { LiteShadeWordmark } from "./LiteShadeWordmark";
+import { LSM_BRAND_HOME_URL } from "./brandHref";
 import {
   LSM_BRAND_LABEL,
   LSM_PATH_INNER_A,
@@ -259,6 +260,9 @@ describe("LiteShadeBrand", () => {
       />,
     );
     const root = container.querySelector("[data-lsm-brand]");
+    expect(root?.tagName).toBe("A");
+    expect(root?.getAttribute("href")).toBe(LSM_BRAND_HOME_URL);
+    expect(root?.getAttribute("rel")).toBe("noopener noreferrer");
     expect(root).toHaveStyle({
       display: "flex",
       alignItems: "center",
@@ -279,6 +283,45 @@ describe("LiteShadeBrand", () => {
     expect(
       container.querySelector("svg")?.getAttribute("aria-hidden"),
     ).toBe("true");
+  });
+
+  it("appends referral as ref query param and allows custom href", () => {
+    const { container, rerender } = render(
+      <LiteShadeBrand
+        referral="stickpak"
+        markProps={{ blinkDisabled: true }}
+        wordmarkProps={{ disabled: true }}
+      />,
+    );
+    expect(container.querySelector("[data-lsm-brand]")?.getAttribute("href")).toBe(
+      "https://liteshademedia.com/?ref=stickpak",
+    );
+
+    rerender(
+      <LiteShadeBrand
+        href="https://example.com/brand"
+        referral="nav"
+        markProps={{ blinkDisabled: true }}
+        wordmarkProps={{ disabled: true }}
+      />,
+    );
+    expect(container.querySelector("[data-lsm-brand]")?.getAttribute("href")).toBe(
+      "https://example.com/brand?ref=nav",
+    );
+  });
+
+  it("renders a non-link div when href is false", () => {
+    const { container } = render(
+      <LiteShadeBrand
+        href={false}
+        markProps={{ blinkDisabled: true }}
+        wordmarkProps={{ disabled: true }}
+      />,
+    );
+    const root = container.querySelector("[data-lsm-brand]");
+    expect(root?.tagName).toBe("DIV");
+    expect(root?.getAttribute("href")).toBeNull();
+    expect(root?.getAttribute("rel")).toBeNull();
   });
 
   it("can hide mark or wordmark", () => {

@@ -27,6 +27,7 @@ module.exports = {
     "./src/brand/LiteShadeMark.tsx": threshold90,
     "./src/brand/LiteShadeWordmark.tsx": threshold90,
     "./src/brand/LiteShadeBrand.tsx": threshold90,
+    "./src/brand/brandHref.ts": threshold90,
     "./src/brand/paths.ts": threshold90,
     "./src/brand/fluorescentBlink.ts": {
       ...threshold90,
