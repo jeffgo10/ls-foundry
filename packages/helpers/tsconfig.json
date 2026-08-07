@@ -5,7 +5,8 @@
     "outDir": "dist",
     "paths": {
       "@jeffgo10/helpers/text": ["./src/text/index.ts"],
-      "@jeffgo10/helpers/brand": ["./src/brand/index.ts"]
+      "@jeffgo10/helpers/brand": ["./src/brand/index.ts"],
+      "@jeffgo10/helpers/ui": ["./src/ui/index.ts"]
     }
   },
   "include": ["src/**/*"]

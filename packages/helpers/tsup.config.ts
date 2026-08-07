@@ -8,12 +8,19 @@ export default defineConfig({
     gestures: "src/gestures/index.ts",
     image: "src/image/index.ts",
     text: "src/text/index.ts",
+    ui: "src/ui/index.ts",
   },
   format: ["esm", "cjs"],
   dts: true,
   sourcemap: true,
   clean: true,
   treeshake: true,
-  // Keep brand → text as a runtime import so ScrambleRevealProvider context is shared.
-  external: ["react", "react-dom", "@jeffgo10/helpers/text"],
+  // Keep brand → text/ui as runtime imports so context + SlidingText stay shared.
+  external: [
+    "react",
+    "react-dom",
+    "@jeffgo10/helpers/text",
+    "@jeffgo10/helpers/ui",
+  ],
 });
+

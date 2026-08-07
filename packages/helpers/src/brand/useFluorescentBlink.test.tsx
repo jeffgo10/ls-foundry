@@ -76,4 +76,22 @@ describe("useFluorescentBlink", () => {
 
     expect(result.current.isComplete).toBe(true);
   });
+
+  it("replays with new keyframe names when replayToken bumps", () => {
+    const { result, rerender } = renderHook(
+      ({ replayToken }) =>
+        useFluorescentBlink({ durationMs: 400, replayToken }),
+      { initialProps: { replayToken: 0 } },
+    );
+
+    const first = result.current.blinkAttr.outer;
+    expect(first).toEqual(expect.any(String));
+
+    rerender({ replayToken: 1 });
+
+    const second = result.current.blinkAttr.outer;
+    expect(second).toEqual(expect.any(String));
+    expect(second).not.toBe(first);
+    expect(result.current.isComplete).toBe(false);
+  });
 });

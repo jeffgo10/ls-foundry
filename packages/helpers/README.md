@@ -10,6 +10,7 @@ Published subpaths:
 - **`@jeffgo10/helpers/clipboard`** — `useCopyLink` React hook for copy-to-clipboard UI
 - **`@jeffgo10/helpers/text`** — `useScrambleReveal` React hook for ticker-style text reveal
 - **`@jeffgo10/helpers/brand`** — LiteShade Media mark + wordmark as inline SVG React components
+- **`@jeffgo10/helpers/ui`** — presentational UI primitives (`SlidingText` vertical hover reveal)
 
 Source: [github.com/jeffgo10/ls-foundry](https://github.com/jeffgo10/ls-foundry) (`packages/helpers`).
 
@@ -187,7 +188,9 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 
 **Wordmark text is fixed** to `LITESHADEMEDIA` (no `label` prop). `LiteShadeWordmark` uses `useScrambleReveal` from `@jeffgo10/helpers/text` internally — real string stays in a visually-hidden node for SEO; the animated layer is `aria-hidden`. Forward scramble timing via wordmark props / `wordmarkProps` (`delayMs`, `disabled`, …). Do **not** expect `ScrambleRevealProvider` inside this package.
 
-**Mark fluorescent blink (start only):** on mount, each of the three paths runs its own randomized CSS `@keyframes` flicker (`step-end`, unsynced duration/delay) for ~`blinkDurationMs` (default `2000`), then settles to full opacity — like a tube warming up. Same skip gates as scramble (provider / reduced-motion / bots). Disable with `blinkDisabled` or `markProps={{ blinkDisabled: true }}`.
+**Mark fluorescent blink:** on mount, each of the three paths runs its own randomized CSS `@keyframes` flicker (`step-end`, unsynced duration/delay) for ~`blinkDurationMs` (default `2000`), then settles to full opacity — like a tube warming up. Same skip gates as scramble (provider / reduced-motion / bots). Disable with `blinkDisabled` or `markProps={{ blinkDisabled: true }}`. Pass `blinkReplayToken` (or use Brand hover) to replay with fresh keyframe names.
+
+**Brand hover (default on):** `LiteShadeBrand` puts `data-sliding-text-group` on the root, wraps the wordmark in `SlidingText`, and on `mouseenter` / `focus` re-blinks the mark (shorter `hoverBlinkDurationMs`, default `900`) in parallel with the slide. Initial scramble + mount blink still run once. Set `hoverEffects={false}` to opt out.
 
 | Prop | Components | Default | Notes |
 |------|------------|---------|--------|
@@ -195,14 +198,58 @@ Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg
 | `size` | Mark / Brand | `24` | SVG width & height |
 | `showMark` / `showWordmark` | Brand | `true` | Toggle parts |
 | `gap` | Brand | `0.5rem` | Flex gap |
+| `hoverEffects` | Brand | `true` | Slide wordmark + re-blink mark on hover |
+| `hoverBlinkDurationMs` | Brand | `900` | Fluorescent window for hover replay |
+| `slideProps` | Brand | — | Forwarded to wordmark `SlidingText` |
 | `markProps` / `wordmarkProps` | Brand | — | Forwarded to children (blink / scramble options) |
 | `as` | Wordmark | `span` | `span` \| `div` \| `p` |
+| `slide` / `slideProps` | Wordmark | `false` / — | Optional `SlidingText` wrap (Brand enables) |
 | `delayMs` / `disabled` / … | Wordmark | see `./text` | `UseScrambleRevealOptions` (text is not overridable) |
 | `blinkDisabled` | Mark | `false` | Skip fluorescent turn-on |
 | `blinkDurationMs` | Mark | `2000` | Base flicker window before settle |
 | `blinkDelayMs` | Mark | `0` | Delay before flicker starts |
+| `blinkReplayToken` | Mark | `0` | Bump to replay fluorescent blink |
 
 **Peer dependency:** `react` ^18 or ^19. Framework-agnostic — no Next.js / `/public` assets.
+
+## `@jeffgo10/helpers/ui`
+
+```tsx
+import {
+  SlidingText,
+  slidingTextGroupProps,
+} from "@jeffgo10/helpers/ui";
+import { useScrambleReveal } from "@jeffgo10/helpers/text";
+
+// Self-contained (hover / focus-visible on the clip itself)
+<SlidingText color="rgba(255,255,255,0.6)" activeColor="#fff">
+  HOME
+</SlidingText>
+
+// Nav / CTA: put the group attr on the interactive ancestor so index siblings count
+<a href="/showcase" {...slidingTextGroupProps}>
+  <span aria-hidden>02/ </span>
+  <SlidingText color="#fff" decorative>
+    {displayText}
+  </SlidingText>
+</a>
+```
+
+Vertical slide reveal extracted from LiteShadeMedia `SlidingTextLink` / TopNav: two stacked copies in a `1.15em` overflow clip; rest shows the primary layer; hover/focus slides primary out and the duplicate in (`300ms`, `cubic-bezier(0.2, 0.9, 0.2, 1)`). No Tailwind — scoped CSS is injected per instance.
+
+| Prop | Default | Notes |
+|------|---------|--------|
+| `children` | — | Label (compose scramble outside) |
+| `color` | `currentColor` | Rest layer |
+| `activeColor` | same as `color` | Hover/focus layer |
+| `durationMs` | `300` | Transition duration |
+| `easing` | `cubic-bezier(0.2, 0.9, 0.2, 1)` | |
+| `slideDistance` | `110%` | |
+| `decorative` | `false` | `aria-hidden` on clip when parent owns the name |
+
+Triggers: root `:hover` / `:focus-visible` / `:focus-within`, **and** ancestor `[data-sliding-text-group]:hover` / `:focus-visible` via `slidingTextGroupProps`. Duplicate layer is always `aria-hidden`. No Next.js / scramble baked in.
+
+**Peer dependency:** `react` ^18 or ^19.
 
 ## License
 
