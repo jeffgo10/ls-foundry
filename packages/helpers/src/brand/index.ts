@@ -3,6 +3,10 @@ export {
   type LiteShadeBrandProps,
 } from "./LiteShadeBrand";
 export {
+  buildLiteShadeBrandHref,
+  LSM_BRAND_HOME_URL,
+} from "./brandHref";
+export {
   LiteShadeMark,
   type LiteShadeMarkProps,
 } from "./LiteShadeMark";

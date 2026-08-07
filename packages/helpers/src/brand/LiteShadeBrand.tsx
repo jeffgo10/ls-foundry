@@ -1,13 +1,18 @@
 import {
   useState,
   type CSSProperties,
+  type ElementType,
+  type FocusEvent,
   type HTMLAttributes,
   type MouseEvent,
-  type FocusEvent,
 } from "react";
 
 import { slidingTextGroupProps } from "@jeffgo10/helpers/ui";
 
+import {
+  buildLiteShadeBrandHref,
+  LSM_BRAND_HOME_URL,
+} from "./brandHref";
 import {
   LiteShadeMark,
   type LiteShadeMarkProps,
@@ -21,8 +26,8 @@ import {
 const DEFAULT_HOVER_BLINK_MS = 900;
 
 export type LiteShadeBrandProps = Omit<
-  HTMLAttributes<HTMLDivElement>,
-  "children" | "color"
+  HTMLAttributes<HTMLElement>,
+  "children" | "color" | "href"
 > & {
   /** Applied to mark + wordmark (and root `color`). Default `"currentColor"`. */
   color?: string;
@@ -36,6 +41,17 @@ export type LiteShadeBrandProps = Omit<
   showWordmark?: boolean;
   /** Flex gap between mark and wordmark. Default `"0.5rem"`. */
   gap?: number | string;
+  /**
+   * Destination URL for the brand root (`<a>`). Default
+   * {@link LSM_BRAND_HOME_URL}. Pass `false` to render a non-link `<div>`
+   * (e.g. when the consumer already wraps with Next.js `Link`).
+   */
+  href?: string | false;
+  /**
+   * Optional referral / campaign code appended as the `ref` query param.
+   * Named `referral` so it does not collide with React’s `ref`.
+   */
+  referral?: string;
   /**
    * On hover / focus-within: wordmark vertical slide + mark fluorescent re-blink.
    * Initial mount scramble / blink still run. Default `true`.
@@ -64,7 +80,8 @@ export type LiteShadeBrandProps = Omit<
  * Wordmark always reads `LITESHADEMEDIA` with scramble via `useScrambleReveal`.
  * Provide {@link ScrambleRevealProvider} in the consumer app.
  *
- * Hover (default): sliding wordmark + fluorescent re-blink on the mark, in parallel.
+ * By default the root is a link to {@link LSM_BRAND_HOME_URL}. Hover (default):
+ * sliding wordmark + fluorescent re-blink on the mark, in parallel.
  */
 export function LiteShadeBrand({
   color = "currentColor",
@@ -73,6 +90,8 @@ export function LiteShadeBrand({
   showMark = true,
   showWordmark = true,
   gap = "0.5rem",
+  href = LSM_BRAND_HOME_URL,
+  referral,
   hoverEffects = true,
   hoverBlinkDurationMs = DEFAULT_HOVER_BLINK_MS,
   markProps,
@@ -87,6 +106,11 @@ export function LiteShadeBrand({
   void _forbiddenLabel;
   const [blinkReplayToken, setBlinkReplayToken] = useState(0);
 
+  const isLink = href !== false;
+  const resolvedHref = isLink
+    ? buildLiteShadeBrandHref(href, referral)
+    : undefined;
+
   const mergedStyle: CSSProperties = {
     display: "flex",
     alignItems: "center",
@@ -94,6 +118,12 @@ export function LiteShadeBrand({
     color,
     fontSize: "0.875rem",
     letterSpacing: "0.25em",
+    ...(isLink
+      ? {
+          textDecoration: "none",
+          cursor: "pointer",
+        }
+      : null),
     ...style,
   };
 
@@ -106,12 +136,12 @@ export function LiteShadeBrand({
     setBlinkReplayToken((token) => token + 1);
   };
 
-  const handleMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+  const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
     replayHoverBlink();
     onMouseEnter?.(event);
   };
 
-  const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
+  const handleFocus = (event: FocusEvent<HTMLElement>) => {
     // Focus on the brand root (or bubbled from a focusable child).
     replayHoverBlink();
     onFocus?.(event);
@@ -123,11 +153,16 @@ export function LiteShadeBrand({
       ? hoverBlinkDurationMs
       : mountBlinkDurationMs;
 
+  const Tag = (isLink ? "a" : "div") as ElementType;
+
   return (
-    <div
+    <Tag
       className={className}
       style={mergedStyle}
       data-lsm-brand=""
+      href={resolvedHref}
+      rel={isLink ? "noopener noreferrer" : undefined}
+      aria-label={isLink ? "LiteShadeMedia" : undefined}
       {...(hoverEffects ? slidingTextGroupProps : null)}
       onMouseEnter={handleMouseEnter}
       onFocus={handleFocus}
@@ -152,6 +187,6 @@ export function LiteShadeBrand({
           slideProps={slideProps}
         />
       ) : null}
-    </div>
+    </Tag>
   );
 }
