@@ -9,6 +9,7 @@ Published subpaths:
 - **`@jeffgo10/helpers/browser`** — in-app WebView detection for export UX
 - **`@jeffgo10/helpers/clipboard`** — `useCopyLink` React hook for copy-to-clipboard UI
 - **`@jeffgo10/helpers/text`** — `useScrambleReveal` React hook for ticker-style text reveal
+- **`@jeffgo10/helpers/brand`** — LiteShade Media mark + wordmark as inline SVG React components
 
 Source: [github.com/jeffgo10/ls-foundry](https://github.com/jeffgo10/ls-foundry) (`packages/helpers`).
 
@@ -156,6 +157,48 @@ Wrap the tree once so bot / reduced-motion is evaluated a single time:
 Provider + hook only — no presentational text component. Mark consumer components `"use client"`; this package does not.
 
 **Peer dependency:** `react` ^18 or ^19.
+
+## `@jeffgo10/helpers/brand`
+
+```tsx
+import {
+  LiteShadeMark,
+  LiteShadeWordmark,
+  LiteShadeBrand,
+} from "@jeffgo10/helpers/brand";
+
+// Icon only — real DOM paths (animatable via CSS / SMIL / GSAP)
+<LiteShadeMark size={24} color="#fff" />
+
+// Wordmark only (static; scramble via @jeffgo10/helpers/text in the app)
+<LiteShadeWordmark color="currentColor" />
+
+// Combined header block (flex + gap + tracking, no Tailwind required)
+<LiteShadeBrand color="#ffffff" size={24} />
+```
+
+Inline SVG converted from LiteShadeMedia `public/lsm-white.svg` / `lsm-black.svg`. Paths use `fill="currentColor"` so `color` (or CSS `color`) themes the mark without white/black asset variants. Three paths stay separate with stable hooks:
+
+| Selector | Geometry |
+|----------|----------|
+| `[data-lsm-mark]` / `.lsm-mark` | Path group |
+| `[data-lsm-path="outer"]` | Outer hex shell |
+| `[data-lsm-path="inner-a"]` | Upper / right facet |
+| `[data-lsm-path="inner-b"]` | Lower / left facet |
+
+Forward remaining SVG props (`onMouseEnter`, `style`, `className`, …) so animation libraries can attach without forking. No built-in hover/load animations and no scramble — those stay consumer concerns.
+
+| Prop | Components | Default | Notes |
+|------|------------|---------|--------|
+| `color` | Mark / Wordmark / Brand | `currentColor` | Sets CSS `color` |
+| `size` | Mark / Brand | `24` | SVG width & height |
+| `label` | Wordmark / Brand | `LITESHADEMEDIA` | Wordmark text |
+| `showMark` / `showWordmark` | Brand | `true` | Toggle parts |
+| `gap` | Brand | `0.5rem` | Flex gap |
+| `markProps` / `wordmarkProps` | Brand | — | Forwarded to children |
+| `as` | Wordmark | `span` | `span` \| `div` \| `p` |
+
+**Peer dependency:** `react` ^18 or ^19. Framework-agnostic — no Next.js / `/public` assets.
 
 ## License
 

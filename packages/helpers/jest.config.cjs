@@ -19,6 +19,10 @@ module.exports = {
     "^@ls-foundry/test-utils/(.*)$": path.join(__dirname, "../test-utils/src/$1"),
   },
   coverageThreshold: {
+    "./src/brand/LiteShadeMark.tsx": threshold90,
+    "./src/brand/LiteShadeWordmark.tsx": threshold90,
+    "./src/brand/LiteShadeBrand.tsx": threshold90,
+    "./src/brand/paths.ts": threshold90,
     "./src/gestures/geometry.ts": threshold90,
     "./src/gestures/usePointerTransformGestures.ts": {
       ...threshold90,
