@@ -15,10 +15,25 @@ module.exports = {
   rootDir: ".",
   testEnvironment: "jsdom",
   moduleNameMapper: {
+    "^@jeffgo10/helpers/text$": "<rootDir>/src/text/index.ts",
+    "^@jeffgo10/helpers/brand$": "<rootDir>/src/brand/index.ts",
     "^@ls-foundry/test-utils$": path.join(__dirname, "../test-utils/src/index.ts"),
     "^@ls-foundry/test-utils/(.*)$": path.join(__dirname, "../test-utils/src/$1"),
   },
   coverageThreshold: {
+    "./src/brand/LiteShadeMark.tsx": threshold90,
+    "./src/brand/LiteShadeWordmark.tsx": threshold90,
+    "./src/brand/LiteShadeBrand.tsx": threshold90,
+    "./src/brand/paths.ts": threshold90,
+    "./src/brand/fluorescentBlink.ts": {
+      ...threshold90,
+      // RNG opacity / Math.min settle branches are partially probabilistic.
+      branches: 80,
+    },
+    "./src/brand/useFluorescentBlink.ts": {
+      ...threshold90,
+      branches: 80,
+    },
     "./src/gestures/geometry.ts": threshold90,
     "./src/gestures/usePointerTransformGestures.ts": {
       ...threshold90,
